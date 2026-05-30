@@ -1,0 +1,351 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 98%;
+    --foreground: 240 10% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 10%;
+    --primary: 262 83% 58%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 5% 96%;
+    --secondary-foreground: 240 6% 10%;
+    --muted: 240 5% 96%;
+    --muted-foreground: 240 4% 46%;
+    --accent: 262 83% 96%;
+    --accent-foreground: 262 83% 40%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 240 6% 90%;
+    --input: 240 6% 90%;
+    --ring: 262 83% 58%;
+    --radius: 1rem;
+    --chart-1: 262 83% 58%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 240 10% 10%;
+    --sidebar-primary: 262 83% 58%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 262 83% 96%;
+    --sidebar-accent-foreground: 262 83% 40%;
+    --sidebar-border: 240 6% 90%;
+    --sidebar-ring: 262 83% 58%;
+  }
+
+  .dark {
+    --background: 240 10% 6%;
+    --foreground: 0 0% 95%;
+    --card: 240 10% 9%;
+    --card-foreground: 0 0% 95%;
+    --popover: 240 10% 9%;
+    --popover-foreground: 0 0% 95%;
+    --primary: 262 83% 65%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 5% 15%;
+    --secondary-foreground: 0 0% 95%;
+    --muted: 240 5% 15%;
+    --muted-foreground: 240 4% 60%;
+    --accent: 262 83% 15%;
+    --accent-foreground: 262 83% 75%;
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 240 6% 18%;
+    --input: 240 6% 18%;
+    --ring: 262 83% 65%;
+    --chart-1: 262 83% 65%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+    --sidebar-background: 240 10% 8%;
+    --sidebar-foreground: 0 0% 95%;
+    --sidebar-primary: 262 83% 65%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 262 83% 15%;
+    --sidebar-accent-foreground: 262 83% 75%;
+    --sidebar-border: 240 6% 18%;
+    --sidebar-ring: 262 83% 65%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    -webkit-tap-highlight-color: transparent;
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  .glass {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .dark .glass {
+    background: rgba(15, 15, 20, 0.7);
+  }
+
+  .gradient-primary {
+    background: linear-gradient(135deg, hsl(262, 83%, 58%) 0%, hsl(290, 70%, 55%) 100%);
+  }
+
+  .gradient-warm {
+    background: linear-gradient(135deg, hsl(30, 90%, 60%) 0%, hsl(340, 80%, 60%) 100%);
+  }
+
+  .gradient-cool {
+    background: linear-gradient(135deg, hsl(200, 80%, 55%) 0%, hsl(262, 83%, 58%) 100%);
+  }
+
+  .card-hover {
+    @apply transition-all duration-200 hover:shadow-md hover:-translate-y-0.5;
+  }
+
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 1rem);
+  }
+
+  .safe-top {
+    padding-top: env(safe-area-inset-top, 0);
+  }
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  .mobile-full {
+    width: 100%;
+  }
+}
+
+/* Smooth animations */
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Phase 2 — Score bars */
+@layer utilities {
+  .score-bar {
+    @apply relative h-2.5 w-full overflow-hidden rounded-full bg-muted;
+  }
+  .score-bar-fill {
+    @apply h-full rounded-full transition-all duration-700 ease-out;
+  }
+
+  /* Streak ring */
+  .ring-track {
+    fill: none;
+    stroke: hsl(var(--muted));
+    stroke-width: 8;
+  }
+  .ring-progress {
+    fill: none;
+    stroke-width: 8;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    transform-origin: center;
+    transform: rotate(-90deg);
+  }
+
+  /* Page transition */
+  .page-enter {
+    animation: page-enter 0.25s ease-out;
+  }
+  @keyframes page-enter {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Milestone pop */
+  .milestone-pop {
+    animation: milestone-pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+  @keyframes milestone-pop {
+    0%   { transform: scale(0.8); opacity: 0; }
+    70%  { transform: scale(1.05); }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+  /* Shimmer for loading states */
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      hsl(var(--muted)) 25%,
+      hsl(var(--background)) 50%,
+      hsl(var(--muted)) 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+  @keyframes shimmer {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  /* Score card highlight */
+  .score-excellent { @apply text-green-600 dark:text-green-400; }
+  .score-good      { @apply text-blue-600 dark:text-blue-400; }
+  .score-fair      { @apply text-yellow-600 dark:text-yellow-400; }
+  .score-low       { @apply text-red-600 dark:text-red-400; }
+
+  /* FAB shadow */
+  .fab-shadow {
+    box-shadow: 0 8px 32px rgba(124, 58, 237, 0.4);
+  }
+
+  /* Swipe hint */
+  .swipe-indicator {
+    @apply h-1 w-8 rounded-full bg-muted-foreground/30 mx-auto mb-3;
+  }
+
+  /* Status dot */
+  .status-dot-active   { @apply bg-green-500; }
+  .status-dot-paused   { @apply bg-yellow-500; }
+  .status-dot-complete { @apply bg-blue-500; }
+  .status-dot-prospect { @apply bg-purple-500; }
+
+  /* ── Phase 6C: Micro-interactions ── */
+
+  /* Tap feedback — scale down on press, spring back */
+  .tap-scale {
+    @apply transition-transform duration-150 active:scale-95;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .tap-scale-sm {
+    @apply transition-transform duration-150 active:scale-90;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Spring pop — used for cards/modals appearing */
+  .spring-in {
+    animation: spring-in 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+  }
+  @keyframes spring-in {
+    0%   { transform: scale(0.85); opacity: 0; }
+    60%  { transform: scale(1.03); }
+    100% { transform: scale(1);    opacity: 1; }
+  }
+
+  /* Fade up — staggered list items */
+  .fade-up {
+    animation: fade-up 0.3s ease-out both;
+  }
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Fade in (opacity only) */
+  .animate-fade-in {
+    animation: fade-in 0.25s ease-out both;
+  }
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  /* Glow pulse — subtle purple ambient glow (streak success, momentum) */
+  .glow-pulse {
+    animation: glow-pulse 2.5s ease-in-out infinite;
+  }
+  @keyframes glow-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(124, 58, 237, 0); }
+    50%       { box-shadow: 0 0 24px 6px rgba(124, 58, 237, 0.25); }
+  }
+
+  /* Momentum glow — warm amber for momentum completed */
+  .momentum-glow {
+    animation: momentum-glow 2.5s ease-in-out infinite;
+  }
+  @keyframes momentum-glow {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(251, 146, 60, 0); }
+    50%       { box-shadow: 0 0 24px 6px rgba(251, 146, 60, 0.3); }
+  }
+
+  /* Success burst — green glow for completed actions */
+  .success-glow {
+    animation: success-glow 2s ease-in-out infinite;
+  }
+  @keyframes success-glow {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+    50%       { box-shadow: 0 0 20px 4px rgba(16, 185, 129, 0.25); }
+  }
+
+  /* Heartbeat — for streak numbers on milestone */
+  .heartbeat {
+    animation: heartbeat 1.2s ease-in-out 1;
+  }
+  @keyframes heartbeat {
+    0%   { transform: scale(1); }
+    14%  { transform: scale(1.15); }
+    28%  { transform: scale(1); }
+    42%  { transform: scale(1.1); }
+    70%  { transform: scale(1); }
+  }
+
+  /* Ripple button effect */
+  .btn-ripple {
+    position: relative;
+    overflow: hidden;
+  }
+  .btn-ripple::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle, rgba(255,255,255,0.3) 0%, transparent 60%);
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+  }
+  .btn-ripple:active::after {
+    opacity: 1;
+    transition: opacity 0s;
+  }
+
+  /* Stagger delays for list items */
+  .stagger-1 { animation-delay: 0.05s; }
+  .stagger-2 { animation-delay: 0.10s; }
+  .stagger-3 { animation-delay: 0.15s; }
+  .stagger-4 { animation-delay: 0.20s; }
+  .stagger-5 { animation-delay: 0.25s; }
+  .stagger-6 { animation-delay: 0.30s; }
+
+  /* Gradient text */
+  .gradient-text {
+    background: linear-gradient(135deg, hsl(262, 83%, 58%) 0%, hsl(330, 80%, 60%) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Warm gradient text */
+  .gradient-text-warm {
+    background: linear-gradient(135deg, hsl(30, 90%, 55%) 0%, hsl(340, 80%, 58%) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+}

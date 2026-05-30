@@ -1,0 +1,45 @@
+{
+  "name": "Guri Dagan",
+  "short_name": "Guri Dagan",
+  "description": "AI-powered parenting coaching business system for Somali families",
+  "start_url": "/today",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#7c3aed",
+  "orientation": "portrait",
+  "scope": "/",
+  "lang": "so",
+  "categories": ["productivity", "education"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable any"
+    }
+  ],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Today's Post",
+      "url": "/today",
+      "description": "Execute today's post"
+    },
+    {
+      "name": "Dashboard",
+      "url": "/dashboard",
+      "description": "Go to dashboard"
+    },
+    {
+      "name": "Add Idea",
+      "url": "/ideas",
+      "description": "Add a new content idea"
+    }
+  ]
+}
