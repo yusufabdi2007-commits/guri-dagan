@@ -47,7 +47,8 @@ export default async function RevenuePage() {
   // Revenue by client (top 5)
   const clientRevenue: Record<string, { name: string; amount: number; program: string | null }> = {};
   for (const payment of paidPayments) {
-    const enr = payment.client_enrollments as { id: string; parent_name: string; program: string | null } | null;
+    const rawEnr = payment.client_enrollments;
+    const enr = (Array.isArray(rawEnr) ? rawEnr[0] : rawEnr) as { id: string; parent_name: string; program: string | null } | null;
     if (!enr) continue;
     if (!clientRevenue[enr.id]) {
       clientRevenue[enr.id] = { name: enr.parent_name, amount: 0, program: enr.program };
@@ -72,7 +73,7 @@ export default async function RevenuePage() {
         programRevenue={programRevenue}
         monthlyRevenue={sortedMonths}
         topClients={topClients}
-        recentPayments={allPayments.slice(0, 10)}
+        recentPayments={allPayments.slice(0, 10).map(p => ({ ...p, client_enrollments: Array.isArray(p.client_enrollments) ? (p.client_enrollments[0] ?? null) : p.client_enrollments }))}
       />
     </div>
   );

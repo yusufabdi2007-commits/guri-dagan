@@ -95,10 +95,10 @@ export default async function FollowupsPage() {
       <Header title="Follow-ups" subtitle="What needs attention today" />
       <FollowupsClient
         staleLeads={staleLeads}
-        consultationsNeedingFollowup={consultations || []}
+        consultationsNeedingFollowup={(consultations || []).map(c => ({ ...c, leads: Array.isArray(c.leads) ? (c.leads[0] ?? null) : c.leads }))}
         pausedClients={enrollments || []}
-        overduePayments={payments || []}
-        outstandingTestimonials={testimonialRequests || []}
+        overduePayments={(payments || []).map(p => ({ ...p, client_enrollments: Array.isArray(p.client_enrollments) ? (p.client_enrollments[0] ?? null) : p.client_enrollments }))}
+        outstandingTestimonials={(testimonialRequests || []).map(t => ({ ...t, client_enrollments: Array.isArray(t.client_enrollments) ? (t.client_enrollments[0] ?? null) : t.client_enrollments }))}
         atRiskChildren={atRiskChildren}
       />
     </div>

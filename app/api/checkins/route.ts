@@ -22,8 +22,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const ip = req.headers.get("x-forwarded-for") ?? "unknown";
-  if (!rateLimit(ip, 60, 3600)) return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
+  if (!rateLimit(req, { limit: 60, windowMs: 3600000 }).ok) return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();

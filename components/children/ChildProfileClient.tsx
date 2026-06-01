@@ -316,7 +316,7 @@ export function ChildProfileClient({ child, enrollments }: Props) {
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Latest Scores (Week {latest.week_number})</p>
                 <div className="space-y-2">
                   {Object.entries(SCORE_AREA_LABELS).map(([field, label]) => {
-                    const score = (latest as Record<string, unknown>)[field] as number | null;
+                    const score = (latest as unknown as Record<string, unknown>)[field] as number | null;
                     return (
                       <div key={field} className="flex items-center gap-2">
                         <span className="text-xs text-muted-foreground w-28 shrink-0">{label}</span>
@@ -456,7 +456,7 @@ export function ChildProfileClient({ child, enrollments }: Props) {
                     </div>
                     <div className="grid grid-cols-2 gap-1">
                       {Object.entries(SCORE_AREA_LABELS).map(([field, label]) => {
-                        const score = (c as Record<string, unknown>)[field] as number | null;
+                        const score = (c as unknown as Record<string, unknown>)[field] as number | null;
                         return (
                           <div key={field} className="flex items-center gap-1.5">
                             <span className="text-[10px] text-muted-foreground w-20 shrink-0 truncate">{label}</span>

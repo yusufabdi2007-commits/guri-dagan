@@ -34,6 +34,7 @@ interface Attribution {
   video_title: string | null;
   tiktok_topic: string | null;
   notes: string | null;
+  program: string | null;
 }
 
 interface Props {
