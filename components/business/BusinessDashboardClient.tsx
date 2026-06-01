@@ -6,8 +6,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import {
   Users, UserCheck, PhoneCall, TrendingUp, ArrowRight,
   AlertCircle, BarChart3, Youtube, Share2, MessageCircle,
-  UserPlus, Sparkles, Target
+  UserPlus, Sparkles, Target, Shield, PoundSterling, Award
 } from "lucide-react";
+import { getProgramBadgeClass } from "@/lib/programs";
 import { cn } from "@/lib/utils";
 import type { Lead } from "@/components/leads/LeadPipelineClient";
 
@@ -26,10 +27,25 @@ interface VideoPerf {
   published_at: string | null;
 }
 
+interface ProgramResult {
+  program: string;
+  totalLeads: number;
+  totalClients: number;
+  totalRevenue: number;
+  activeChildren: number;
+  graduates: number;
+  avgImprovement: number;
+  milestoneCount: number;
+}
+
 interface Props {
   leads: Lead[];
   attribution: Attribution[];
   performance: VideoPerf[];
+  consultationStats: { total: number; enrolled: number; followUp: number };
+  clientsByProgram: Record<string, number>;
+  totalEnrollments: number;
+  programResults?: ProgramResult[];
 }
 
 const STAGE_ORDER = ["new_lead", "contacted", "call_scheduled", "call_completed", "client", "follow_up", "closed"];
@@ -52,7 +68,7 @@ function pct(a: number, b: number) {
   return b > 0 ? Math.round((a / b) * 100) : 0;
 }
 
-export function BusinessDashboardClient({ leads, attribution, performance }: Props) {
+export function BusinessDashboardClient({ leads, attribution, performance, consultationStats, clientsByProgram, totalEnrollments, programResults = [] }: Props) {
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
   const thirtyAgo = new Date(Date.now() - 30 * 86400000);
@@ -161,6 +177,48 @@ export function BusinessDashboardClient({ leads, attribution, performance }: Pro
           ))}
         </div>
       </div>
+
+      {/* Consultation → Client conversion */}
+      {(consultationStats.total > 0 || totalEnrollments > 0) && (
+        <div>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Lead → Consultation → Client</p>
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { label: "Consultations", value: consultationStats.total, color: "text-violet-600 dark:text-violet-400", sub: "total booked" },
+              { label: "Enrolled", value: consultationStats.enrolled, color: "text-emerald-600 dark:text-emerald-400", sub: `${pct(consultationStats.enrolled, consultationStats.total)}% of calls` },
+              { label: "Active Clients", value: totalEnrollments, color: "text-primary", sub: "enrolled" },
+            ].map(({ label, value, color, sub }) => (
+              <Card key={label}>
+                <CardContent className="p-4 text-center">
+                  <div className={`text-2xl font-bold ${color}`}>{value}</div>
+                  <div className="text-xs font-medium text-foreground mt-0.5">{label}</div>
+                  <div className="text-[10px] text-muted-foreground">{sub}</div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Clients by program */}
+      {Object.keys(clientsByProgram).length > 0 && (
+        <div>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Clients by Program</p>
+          <Card><CardContent className="p-4 space-y-3">
+            {Object.entries(clientsByProgram).sort((a, b) => b[1] - a[1]).map(([prog, count]) => (
+              <div key={prog} className="flex items-center gap-3">
+                <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded border flex items-center gap-1 w-36 shrink-0 truncate", getProgramBadgeClass(prog))}>
+                  <Shield className="h-2 w-2 shrink-0" />{prog}
+                </span>
+                <div className="flex-1 bg-muted/50 rounded-full h-2 overflow-hidden">
+                  <div className="bg-primary h-2 rounded-full transition-all duration-500" style={{ width: `${pct(count, totalEnrollments)}%` }} />
+                </div>
+                <span className="text-sm font-bold text-foreground w-6 text-right">{count}</span>
+              </div>
+            ))}
+          </CardContent></Card>
+        </div>
+      )}
 
       {/* Source breakdown */}
       {bySource.length > 0 && (
@@ -296,6 +354,63 @@ export function BusinessDashboardClient({ leads, attribution, performance }: Pro
               </div>
             ))}
           </CardContent></Card>
+        </div>
+      )}
+
+      {/* Program Results */}
+      {programResults.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Program Results</p>
+          <div className="space-y-3">
+            {programResults.map(prog => (
+              <Card key={prog.program}>
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded border flex items-center gap-1", getProgramBadgeClass(prog.program))}>
+                      <Shield className="h-2 w-2 shrink-0" />{prog.program}
+                    </span>
+                    {prog.totalRevenue > 0 && (
+                      <span className="text-xs font-bold text-foreground flex items-center gap-1">
+                        <PoundSterling className="h-3 w-3 text-emerald-500" />{prog.totalRevenue.toLocaleString()}
+                      </span>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-4 gap-1 text-center">
+                    <div className="bg-muted/40 rounded-lg py-1.5">
+                      <p className="text-sm font-bold text-foreground">{prog.totalLeads}</p>
+                      <p className="text-[9px] text-muted-foreground">Leads</p>
+                    </div>
+                    <div className="bg-muted/40 rounded-lg py-1.5">
+                      <p className="text-sm font-bold text-foreground">{prog.totalClients}</p>
+                      <p className="text-[9px] text-muted-foreground">Clients</p>
+                    </div>
+                    <div className="bg-muted/40 rounded-lg py-1.5">
+                      <p className="text-sm font-bold text-foreground">{prog.activeChildren}</p>
+                      <p className="text-[9px] text-muted-foreground">Active</p>
+                    </div>
+                    <div className="bg-muted/40 rounded-lg py-1.5">
+                      <p className="text-sm font-bold text-foreground">{prog.graduates}</p>
+                      <p className="text-[9px] text-muted-foreground">Grads</p>
+                    </div>
+                  </div>
+                  {(prog.avgImprovement !== 0 || prog.milestoneCount > 0) && (
+                    <div className="flex items-center gap-3 text-xs">
+                      {prog.avgImprovement !== 0 && (
+                        <span className={cn("flex items-center gap-1 font-medium", prog.avgImprovement > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-500")}>
+                          <TrendingUp className="h-3 w-3" />{prog.avgImprovement > 0 ? "+" : ""}{prog.avgImprovement}% avg improvement
+                        </span>
+                      )}
+                      {prog.milestoneCount > 0 && (
+                        <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400 font-medium">
+                          <Award className="h-3 w-3" />{prog.milestoneCount} milestone{prog.milestoneCount > 1 ? "s" : ""}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </div>
       )}
 

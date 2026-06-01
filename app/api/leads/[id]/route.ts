@@ -28,7 +28,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
-  const { name, phone, email, source, stage, notes, attribution } = body;
+  const { name, phone, email, source, stage, notes, program, attribution } = body;
 
   // Fetch current state to detect stage changes
   const { data: current } = await supabase.from("leads").select("stage").eq("id", id).eq("user_id", user.id).single();
@@ -41,6 +41,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (source !== undefined) updates.source = source;
   if (stage !== undefined) updates.stage = stage;
   if (notes !== undefined) updates.notes = notes || null;
+  if (program !== undefined) updates.program = program || null;
 
   const { data: lead, error } = await supabase
     .from("leads")
@@ -65,7 +66,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   // Upsert attribution if provided
   if (attribution) {
-    const { content_category, youtube_video_id, video_title, tiktok_topic, attr_notes } = attribution;
+    const { content_category, youtube_video_id, video_title, tiktok_topic, attr_notes, program: attrProgram } = attribution;
     const { data: existing } = await supabase
       .from("content_attribution")
       .select("id")
@@ -75,7 +76,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
     if (existing) {
       await supabase.from("content_attribution")
-        .update({ content_category, youtube_video_id: youtube_video_id || null, video_title: video_title || null, tiktok_topic: tiktok_topic || null, notes: attr_notes || null })
+        .update({ content_category, youtube_video_id: youtube_video_id || null, video_title: video_title || null, tiktok_topic: tiktok_topic || null, notes: attr_notes || null, program: attrProgram || null })
         .eq("id", existing.id);
     } else {
       await supabase.from("content_attribution").insert({
@@ -86,6 +87,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         video_title: video_title || null,
         tiktok_topic: tiktok_topic || null,
         notes: attr_notes || null,
+        program: attrProgram || null,
       });
       await supabase.from("lead_activity").insert({
         lead_id: id,

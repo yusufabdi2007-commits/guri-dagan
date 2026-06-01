@@ -33,6 +33,17 @@ export async function POST(req: NextRequest) {
       callCount = 0,
       conversionRate = 0,
       topLeadCategories = [],
+      totalEnrollments = 0,
+      activeEnrollments = 0,
+      totalRevenue = 0,
+      topRevenueProgram = null,
+      programRevenueSummary = [],
+      totalChildren = 0,
+      activeChildren = 0,
+      graduatedChildren = 0,
+      avgChildImprovement = 0,
+      totalMilestones = 0,
+      bestImprovementProgram = null,
     } = await req.json();
 
     const modeInstructions: Record<string, string> = {
@@ -88,6 +99,21 @@ export async function POST(req: NextRequest) {
       ? topLeadCategories.map((c: any) => `${c.category}(${c.leads} leads)`).join(", ")
       : null;
 
+    // Enrollment + revenue intelligence
+    const hasEnrollmentData = totalEnrollments > 0;
+    const enrollmentSummary = hasEnrollmentData
+      ? `Enrolled clients: ${totalEnrollments} (${activeEnrollments} active), Total revenue: £${totalRevenue.toLocaleString()}, Top revenue program: ${topRevenueProgram ?? "unknown"}`
+      : null;
+    const progRevSummary = (programRevenueSummary as any[]).length > 0
+      ? (programRevenueSummary as any[]).map((p: any) => `${p.program}(£${p.revenue})`).join(", ")
+      : null;
+
+    // Child outcome intelligence
+    const hasChildData = totalChildren > 0;
+    const childOutcomeSummary = hasChildData
+      ? `Total children: ${totalChildren} (${activeChildren} active, ${graduatedChildren} graduated), Avg improvement: ${avgChildImprovement > 0 ? "+" : ""}${avgChildImprovement}%, Total milestones: ${totalMilestones}, Best program for outcomes: ${bestImprovementProgram ?? "not enough data"}`
+      : null;
+
     // Build category performance summary from real YouTube data
     const catPerfSummary = categoryInsights.length > 0
       ? categoryInsights
@@ -121,13 +147,13 @@ Content Intelligence:
 - Top performing hook style: ${topHook || "not scored yet"}
 - Top content categories (by idea count): ${topCategories.map((c: any) => `${c.category}(${c.count})`).join(", ") || "mixed"}
 ${catPerfSummary ? `\nYouTube Category Performance (real view data):\n- Performance by category: ${catPerfSummary}\n- Best-performing category: ${bestCat || "unknown"}\n- Fastest-growing recently (last 30 days): ${fastestCat || "unknown"}` : ""}
-${leadSummary ? `\nBusiness Intelligence (real client data):\n- ${leadSummary}\n- Top lead-generating content categories: ${topLeadCatSummary || "not tracked yet"}` : ""}
+${leadSummary ? `\nBusiness Intelligence (real client data):\n- ${leadSummary}\n- Top lead-generating content categories: ${topLeadCatSummary || "not tracked yet"}` : ""}${enrollmentSummary ? `\nEnrollment & Revenue (real data):\n- ${enrollmentSummary}\n- Revenue by program: ${progRevSummary || "not tracked yet"}` : ""}${childOutcomeSummary ? `\nChild Transformation Outcomes (real data):\n- ${childOutcomeSummary}` : ""}
 
 Mode instruction: ${modeInstructions[mode] || modeInstructions.normal}
 
 Generate a complete strategy response. Be specific — reference actual themes, topics, and real category performance data where available. Avoid generic advice. Write warmly but professionally.
 ${catPerfSummary ? "IMPORTANT: Use the YouTube category performance data to give category-specific recommendations (best-performing, fastest-growing, underutilized). Prioritize categories with proven high average views." : ""}
-${leadSummary ? "BUSINESS FOCUS: Use the business intelligence data to prioritize content recommendations that not only get views but also generate coaching inquiries. If certain categories drive more leads, emphasize those in your recommendations." : ""}
+${leadSummary ? "BUSINESS FOCUS: Use the business intelligence data to prioritize content recommendations that not only get views but also generate coaching inquiries. If certain categories drive more leads, emphasize those in your recommendations." : ""}${enrollmentSummary ? `REVENUE FOCUS: Use the enrollment and revenue data to answer 'What should we focus on next to grow the business?' Identify which program generates the most revenue and recommend content that promotes underperforming programs. Highlight conversion opportunities between leads and consultations.` : ""}${childOutcomeSummary ? `OUTCOMES FOCUS: Use the child transformation data to answer 'Which program delivers the strongest results?' and 'What success stories should we create content around?' If average improvement is high, recommend creating testimonial or transformation content. If a program has strong outcomes, prioritize content that promotes it.` : ""}
 
 Return valid JSON:
 {

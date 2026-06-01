@@ -9,8 +9,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronLeft, ChevronRight, Plus, CalendarDays, GripVertical } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, CalendarDays, GripVertical, Youtube, Video, Shield } from "lucide-react";
 import { getStatusColor, getPlatformColor, isToday } from "@/lib/utils";
+import { parseScriptNotes, getProgramBadgeClass } from "@/lib/programs";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "@/components/ui/use-toast";
 import { format, startOfWeek, addDays, addWeeks, subWeeks, isSameDay } from "date-fns";
@@ -19,13 +20,23 @@ const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const STATUSES: ContentStatus[] = ["Idea", "Recorded", "Edited", "Posted"];
 const PLATFORMS: Platform[] = ["TikTok", "YouTube", "Instagram", "Facebook"];
 
+interface BatchCalendarPost {
+  id: string;
+  scheduled_date: string;
+  platform: string;
+  title: string;
+  status: string;
+  angle_notes?: string | null;
+}
+
 interface Props {
   items: CalendarItem[];
   ideas: Pick<ContentIdea, "id" | "title" | "platform" | "status">[];
   userId: string;
+  batchPosts: BatchCalendarPost[];
 }
 
-export function CalendarClient({ items: initial, ideas, userId }: Props) {
+export function CalendarClient({ items: initial, ideas, userId, batchPosts }: Props) {
   const [items, setItems] = useState(initial);
   const [weekOffset, setWeekOffset] = useState(0);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -49,6 +60,11 @@ export function CalendarClient({ items: initial, ideas, userId }: Props) {
 
   function getItemsForDate(date: Date): CalendarItem[] {
     return weekItems.filter(item => isSameDay(new Date(item.scheduled_date), date));
+  }
+
+  function getBatchPostsForDate(date: Date): BatchCalendarPost[] {
+    const dateStr = format(date, "yyyy-MM-dd");
+    return batchPosts.filter(p => p.scheduled_date === dateStr);
   }
 
   function openAdd(date: Date) {
@@ -183,6 +199,7 @@ export function CalendarClient({ items: initial, ideas, userId }: Props) {
         <div className="space-y-3">
           {weekDates.map((date, idx) => {
             const dayItems = getItemsForDate(date);
+            const dayBatchPosts = getBatchPostsForDate(date);
             const todayMark = isToday(date);
             const droppableId = date.toISOString().split("T")[0];
 
@@ -215,6 +232,39 @@ export function CalendarClient({ items: initial, ideas, userId }: Props) {
                     <Plus className="h-4 w-4" />
                   </Button>
                 </div>
+
+                {/* Batch posts — read-only, from weekly batch system */}
+                {dayBatchPosts.length > 0 && (
+                  <div className="px-3 pt-2 space-y-1.5">
+                    {dayBatchPosts.map(post => {
+                      const script = parseScriptNotes(post.angle_notes);
+                      return (
+                        <div
+                          key={post.id}
+                          className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-primary/5 border border-primary/15"
+                        >
+                          {post.platform === "youtube"
+                            ? <Youtube className="h-3 w-3 text-red-500 shrink-0" />
+                            : <Video className="h-3 w-3 text-slate-500 shrink-0" />
+                          }
+                          <p className="text-[11px] font-medium text-foreground leading-snug flex-1 min-w-0 truncate">{post.title}</p>
+                          {script.program && (
+                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border shrink-0 ${getProgramBadgeClass(script.program)}`}>
+                              <Shield className="h-2 w-2 inline mr-0.5 -mt-0.5" />
+                              {script.program.replace("™", "")}
+                            </span>
+                          )}
+                          <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-md shrink-0 ${
+                            post.status === "posted" ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                            : "bg-primary/10 text-primary"
+                          }`}>
+                            {post.status === "posted" ? "Posted" : "Batch"}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
 
                 {/* Droppable Day Body */}
                 <Droppable droppableId={droppableId}>

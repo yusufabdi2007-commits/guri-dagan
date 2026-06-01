@@ -3,58 +3,71 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  LayoutDashboard, Lightbulb, Sparkles, CalendarDays, Video,
-  BarChart3, CheckCircle2, Moon, Sun, LogOut, Film, Zap,
-  TrendingUp, MessageSquareQuote, Users, Mic2, Layers, Package, Settings, Megaphone,
-  Youtube, FileBarChart2, Clapperboard, Brain, GitBranch, MonitorPlay, ScanSearch, CalendarRange,
-  Star, MessageSquare, Plug, UserCheck, Building2
+  Star, CalendarRange, BarChart3,
+  UserCheck, Baby, Shield, Settings,
+  LayoutDashboard, Lightbulb, Film, CheckCircle2, MessageSquare, Sparkles,
+  CalendarDays, Video, Zap, TrendingUp, MessageSquareQuote, Users, Mic2, Layers,
+  Package, Megaphone, Youtube, FileBarChart2, Clapperboard, Brain, GitBranch,
+  MonitorPlay, Wand2, Plug, Building2, PieChart, PhoneCall, PoundSterling,
+  Clock, HeartHandshake, ClipboardList, Activity,
+  Sun, Moon, LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/components/providers/ThemeProvider";
 import { createClient } from "@/lib/supabase/client";
 
-const mainNav = [
-  { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-  { href: "/today", icon: Star, label: "Today's Post" },
+const primaryNav = [
+  { href: "/today", icon: Star, label: "Today" },
+  { href: "/batch", icon: CalendarRange, label: "This Week" },
+  { href: "/business", icon: BarChart3, label: "Results" },
+];
+
+const clientsNav = [
+  { href: "/leads", icon: UserCheck, label: "Lead Pipeline" },
+  { href: "/consultations", icon: PhoneCall, label: "Consultations" },
+  { href: "/clients", icon: Users, label: "Clients" },
+  { href: "/children", icon: Baby, label: "Children" },
+  { href: "/success", icon: HeartHandshake, label: "Parent Success" },
+  { href: "/checkins", icon: ClipboardList, label: "Weekly Check-ins" },
+  { href: "/followups", icon: Clock, label: "Follow-ups" },
+];
+
+const programsNav = [
+  { href: "/programs", icon: Shield, label: "Program Dashboard" },
+  { href: "/program-report", icon: PieChart, label: "Program Report" },
+  { href: "/outcomes", icon: Activity, label: "Program Outcomes" },
+  { href: "/revenue", icon: PoundSterling, label: "Revenue" },
+];
+
+const contentNav = [
+  { href: "/weekly-assignment", icon: Wand2, label: "Weekly Assignment" },
   { href: "/ideas", icon: Lightbulb, label: "Content Ideas" },
   { href: "/inbox", icon: MessageSquare, label: "Q&A Inbox" },
   { href: "/queue", icon: Film, label: "Recording Queue" },
-  { href: "/generator", icon: Sparkles, label: "AI Generator" },
-  { href: "/streak", icon: CheckCircle2, label: "Daily Streak" },
+  { href: "/calendar", icon: CalendarDays, label: "Calendar" },
+  { href: "/videos", icon: Video, label: "Video Tracker" },
+  { href: "/analytics", icon: BarChart3, label: "Analytics" },
 ];
 
 const toolsNav = [
+  { href: "/channel", icon: MonitorPlay, label: "Channel Dashboard" },
+  { href: "/strategist", icon: Brain, label: "AI Strategist" },
+  { href: "/connections", icon: Plug, label: "Connections" },
   { href: "/pipeline", icon: GitBranch, label: "Content Pipeline" },
-  { href: "/transcript", icon: Mic2, label: "Shorts Generator" },
+  { href: "/generator", icon: Sparkles, label: "AI Generator" },
   { href: "/repurpose", icon: Layers, label: "Repurpose Engine" },
+  { href: "/transcript", icon: Mic2, label: "Shorts Generator" },
   { href: "/hook-scorer", icon: Zap, label: "Hook Scorer" },
   { href: "/trends", icon: TrendingUp, label: "Trends & Topics" },
-];
-
-const businessNav = [
+  { href: "/weekly-report", icon: FileBarChart2, label: "Weekly Report" },
+  { href: "/youtube", icon: Youtube, label: "YouTube Analytics" },
+  { href: "/tiktok", icon: Clapperboard, label: "TikTok Tracker" },
+  { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
+  { href: "/streak", icon: CheckCircle2, label: "Daily Streak" },
   { href: "/announcements", icon: Megaphone, label: "Community" },
   { href: "/packages", icon: Package, label: "Packages" },
   { href: "/testimonials", icon: MessageSquareQuote, label: "Testimonials" },
   { href: "/crm", icon: Users, label: "Client CRM" },
-  { href: "/calendar", icon: CalendarDays, label: "Calendar" },
-  { href: "/videos", icon: Video, label: "Video Tracker" },
-  { href: "/analytics", icon: BarChart3, label: "Analytics" },
-  { href: "/settings", icon: Settings, label: "Settings" },
-];
-
-const operationsNav = [
-  { href: "/channel", icon: MonitorPlay, label: "Channel Dashboard" },
-  { href: "/batch", icon: CalendarRange, label: "Weekly Batch" },
-  { href: "/leads", icon: UserCheck, label: "Lead Pipeline" },
-  { href: "/business", icon: Building2, label: "Business Intel" },
-];
-
-const intelligenceNav = [
-  { href: "/connections", icon: Plug, label: "Connections" },
-  { href: "/strategist", icon: Brain, label: "AI Strategist" },
-  { href: "/weekly-report", icon: FileBarChart2, label: "Weekly Report" },
-  { href: "/youtube", icon: Youtube, label: "YouTube Analytics" },
-  { href: "/tiktok", icon: Clapperboard, label: "TikTok Tracker" },
 ];
 
 function NavItem({ href, icon: Icon, label }: { href: string; icon: React.ElementType; label: string }) {
@@ -73,6 +86,15 @@ function NavItem({ href, icon: Icon, label }: { href: string; icon: React.Elemen
       <Icon className="h-4 w-4 shrink-0" />
       {label}
     </Link>
+  );
+}
+
+function NavSection({ label, items }: { label: string; items: typeof primaryNav }) {
+  return (
+    <div className="pt-4 pb-1">
+      <p className="px-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">{label}</p>
+      {items.map(item => <NavItem key={item.href} {...item} />)}
+    </div>
   );
 }
 
@@ -101,31 +123,23 @@ export function Sidebar() {
         </div>
       </div>
 
-      {/* Main nav */}
+      {/* Nav */}
       <nav className="flex-1 p-3 space-y-0.5">
+
+        {/* Primary 3-screen OS */}
         <div className="space-y-0.5">
-          {mainNav.map(item => <NavItem key={item.href} {...item} />)}
+          {primaryNav.map(item => <NavItem key={item.href} {...item} />)}
         </div>
 
-        <div className="pt-4 pb-1">
-          <p className="px-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">AI Tools</p>
-          {toolsNav.map(item => <NavItem key={item.href} {...item} />)}
-        </div>
+        <NavSection label="Clients" items={clientsNav} />
+        <NavSection label="Programs" items={programsNav} />
+        <NavSection label="Content" items={contentNav} />
+        <NavSection label="Tools" items={toolsNav} />
 
         <div className="pt-4 pb-1">
-          <p className="px-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Operations</p>
-          {operationsNav.map(item => <NavItem key={item.href} {...item} />)}
+          <NavItem href="/settings" icon={Settings} label="Settings" />
         </div>
 
-        <div className="pt-4 pb-1">
-          <p className="px-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Intelligence</p>
-          {intelligenceNav.map(item => <NavItem key={item.href} {...item} />)}
-        </div>
-
-        <div className="pt-4 pb-1">
-          <p className="px-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Business</p>
-          {businessNav.map(item => <NavItem key={item.href} {...item} />)}
-        </div>
       </nav>
 
       {/* Bottom */}

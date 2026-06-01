@@ -4,34 +4,51 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  LayoutDashboard, Film, Sparkles, CheckCircle2,
-  Lightbulb, MoreHorizontal, CalendarDays, Video, BarChart3,
-  Zap, TrendingUp, MessageSquareQuote, Users, Mic2, X, Sun, Moon, LogOut,
-  Layers, Package, Settings, Megaphone, Youtube, FileBarChart2, Clapperboard, Brain, GitBranch, MonitorPlay, ScanSearch, CalendarRange,
-  Star, MessageSquare, Plug, UserCheck, Building2
+  Star, CalendarRange, BarChart3, MoreHorizontal,
+  UserCheck, Baby, Shield, Settings,
+  LayoutDashboard, Lightbulb, Film, CheckCircle2, MessageSquare, Sparkles,
+  CalendarDays, Video, Zap, TrendingUp, MessageSquareQuote, Users, Mic2, Layers,
+  Package, Megaphone, Youtube, FileBarChart2, Clapperboard, Brain, GitBranch,
+  MonitorPlay, Wand2, Plug, Building2, PieChart, PhoneCall, PoundSterling,
+  Clock, HeartHandshake, ClipboardList, Activity,
+  Sun, Moon, LogOut, X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/components/providers/ThemeProvider";
 import { createClient } from "@/lib/supabase/client";
 
 const primaryNav = [
-  { href: "/dashboard", icon: LayoutDashboard, label: "Home" },
   { href: "/today", icon: Star, label: "Today" },
-  { href: "/ideas", icon: Lightbulb, label: "Ideas" },
-  { href: "/queue", icon: Film, label: "Queue" },
+  { href: "/batch", icon: CalendarRange, label: "Week" },
+  { href: "/business", icon: BarChart3, label: "Results" },
 ];
 
-const moreItems = [
+const keyItems = [
   { href: "/leads", icon: UserCheck, label: "Leads" },
-  { href: "/business", icon: Building2, label: "Business" },
-  { href: "/batch", icon: CalendarRange, label: "Weekly Batch" },
-  { href: "/streak", icon: CheckCircle2, label: "Streak" },
+  { href: "/children", icon: Baby, label: "Children" },
+  { href: "/programs", icon: Shield, label: "Programs" },
+  { href: "/settings", icon: Settings, label: "Settings" },
+];
+
+const allTools = [
+  { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
+  { href: "/ideas", icon: Lightbulb, label: "Ideas" },
   { href: "/inbox", icon: MessageSquare, label: "Q&A Inbox" },
+  { href: "/queue", icon: Film, label: "Queue" },
+  { href: "/weekly-assignment", icon: Wand2, label: "Assignment" },
+  { href: "/consultations", icon: PhoneCall, label: "Consults" },
+  { href: "/clients", icon: Users, label: "Clients" },
+  { href: "/success", icon: HeartHandshake, label: "Success" },
+  { href: "/checkins", icon: ClipboardList, label: "Check-ins" },
+  { href: "/outcomes", icon: Activity, label: "Outcomes" },
+  { href: "/program-report", icon: PieChart, label: "Prog. Report" },
+  { href: "/revenue", icon: PoundSterling, label: "Revenue" },
+  { href: "/followups", icon: Clock, label: "Follow-ups" },
+  { href: "/streak", icon: CheckCircle2, label: "Streak" },
   { href: "/connections", icon: Plug, label: "Connections" },
   { href: "/channel", icon: MonitorPlay, label: "Channel" },
   { href: "/strategist", icon: Brain, label: "Strategist" },
   { href: "/pipeline", icon: GitBranch, label: "Pipeline" },
-  { href: "/announcements", icon: Megaphone, label: "Community" },
   { href: "/generator", icon: Sparkles, label: "AI Generator" },
   { href: "/repurpose", icon: Layers, label: "Repurpose" },
   { href: "/transcript", icon: Mic2, label: "Shorts AI" },
@@ -40,14 +57,15 @@ const moreItems = [
   { href: "/weekly-report", icon: FileBarChart2, label: "Weekly Report" },
   { href: "/youtube", icon: Youtube, label: "YouTube" },
   { href: "/tiktok", icon: Clapperboard, label: "TikTok" },
+  { href: "/announcements", icon: Megaphone, label: "Community" },
   { href: "/packages", icon: Package, label: "Packages" },
   { href: "/testimonials", icon: MessageSquareQuote, label: "Testimonials" },
   { href: "/crm", icon: Users, label: "Client CRM" },
   { href: "/calendar", icon: CalendarDays, label: "Calendar" },
   { href: "/videos", icon: Video, label: "Videos" },
-  { href: "/analytics", icon: BarChart3, label: "Analytics" },
-  { href: "/settings", icon: Settings, label: "Settings" },
 ];
+
+const moreRoutes = [...keyItems, ...allTools];
 
 export function BottomNav() {
   const [moreOpen, setMoreOpen] = useState(false);
@@ -55,8 +73,9 @@ export function BottomNav() {
   const { theme, setTheme } = useTheme();
   const router = useRouter();
 
-  const isMoreActive = moreItems.some(i => pathname === i.href || pathname.startsWith(i.href + "/"))
-    || pathname.startsWith("/review/");
+  const isMoreActive = moreRoutes.some(i => pathname === i.href || pathname.startsWith(i.href + "/"))
+    || pathname.startsWith("/review/")
+    || pathname.startsWith("/children/");
 
   async function handleLogout() {
     const supabase = createClient();
@@ -67,7 +86,6 @@ export function BottomNav() {
 
   return (
     <>
-      {/* More sheet overlay */}
       {moreOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm md:hidden"
@@ -77,19 +95,21 @@ export function BottomNav() {
 
       {/* More bottom sheet */}
       <div className={cn(
-        "fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border rounded-t-3xl md:hidden transition-transform duration-300 ease-out",
+        "fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border rounded-t-3xl md:hidden transition-transform duration-300 ease-out max-h-[85vh] overflow-y-auto",
         moreOpen ? "translate-y-0" : "translate-y-full"
       )}>
         <div className="swipe-indicator mt-3" />
         <div className="px-4 pb-safe">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-3">
             <h3 className="font-semibold text-sm text-foreground">More</h3>
             <button onClick={() => setMoreOpen(false)} className="p-2 rounded-xl hover:bg-muted">
               <X className="h-4 w-4" />
             </button>
           </div>
-          <div className="grid grid-cols-3 gap-2 mb-4">
-            {moreItems.map(({ href, icon: Icon, label }) => {
+
+          {/* Key items — prominent */}
+          <div className="grid grid-cols-4 gap-2 mb-4">
+            {keyItems.map(({ href, icon: Icon, label }) => {
               const active = pathname === href || pathname.startsWith(href + "/");
               return (
                 <Link
@@ -104,11 +124,38 @@ export function BottomNav() {
                   )}
                 >
                   <Icon className="h-5 w-5" />
-                  <span className="text-[10px] font-medium text-center leading-tight">{label}</span>
+                  <span className="text-[10px] font-semibold text-center leading-tight">{label}</span>
                 </Link>
               );
             })}
           </div>
+
+          {/* Divider */}
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-1">All Tools</p>
+
+          {/* All tools — compact */}
+          <div className="grid grid-cols-3 gap-1.5 mb-4">
+            {allTools.map(({ href, icon: Icon, label }) => {
+              const active = pathname === href || pathname.startsWith(href + "/");
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  onClick={() => setMoreOpen(false)}
+                  className={cn(
+                    "flex flex-col items-center gap-1 p-2.5 rounded-xl transition-all duration-200",
+                    active
+                      ? "bg-primary/10 text-primary"
+                      : "bg-muted/30 text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                  )}
+                >
+                  <Icon className="h-4 w-4" />
+                  <span className="text-[9px] font-medium text-center leading-tight">{label}</span>
+                </Link>
+              );
+            })}
+          </div>
+
           <div className="flex gap-2 pb-2">
             <button
               onClick={() => { setTheme(theme === "dark" ? "light" : "dark"); setMoreOpen(false); }}
@@ -139,7 +186,7 @@ export function BottomNav() {
                   key={href}
                   href={href}
                   className={cn(
-                    "flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-all duration-200 min-w-[56px]",
+                    "flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-all duration-200 min-w-[64px]",
                     active ? "text-primary" : "text-muted-foreground"
                   )}
                 >
@@ -157,7 +204,7 @@ export function BottomNav() {
             <button
               onClick={() => setMoreOpen(true)}
               className={cn(
-                "flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-all duration-200 min-w-[56px]",
+                "flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-all duration-200 min-w-[64px]",
                 isMoreActive ? "text-primary" : "text-muted-foreground"
               )}
             >

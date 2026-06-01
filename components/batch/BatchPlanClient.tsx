@@ -5,26 +5,44 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "@/components/ui/use-toast";
 import {
   Sparkles, Youtube, Video, ArrowRight, Loader2,
-  ChevronLeft, CheckCircle2, Edit3
+  ChevronLeft, CheckCircle2, ChevronDown, ChevronUp, AlertTriangle, Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
+import { getProgramBadgeClass, formatScriptNotes } from "@/lib/programs";
+
+interface ScriptData {
+  hookType: string;
+  hook: string;
+  problem: string;
+  reframe: string;
+  teaching: string;
+  action: string;
+  cta: string;
+}
+
+interface TikTokScript extends ScriptData {
+  title: string;
+  program: string;
+  day: string;
+}
 
 interface BatchPlan {
   youtube_title: string;
-  youtube_notes: string;
-  tiktok_angles: string[];
+  youtube_program: string;
+  youtube_script: ScriptData;
+  tiktok_scripts: TikTokScript[];
+  is_fallback?: boolean;
 }
 
 interface Props {
   userId: string;
   existingBatchId: string | null;
-  weekStart: string; // current Monday YYYY-MM-DD
+  weekStart: string;
 }
 
 function getWeekStart(): string {
@@ -51,6 +69,45 @@ function formatWeekLabel(weekStart: string): string {
   return `${start.toLocaleDateString("en-US", opts)} – ${end.toLocaleDateString("en-US", opts)}`;
 }
 
+function ScriptPreview({ script, expanded, onToggle }: {
+  script: ScriptData;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <div className="mt-2 border-t border-border/50 pt-2">
+      {/* Hook always visible */}
+      <div className="flex items-start gap-1.5 mb-1.5">
+        <Zap className="h-3 w-3 text-yellow-500 shrink-0 mt-0.5" />
+        <p className="text-xs text-foreground leading-snug">{script.hook}</p>
+      </div>
+      <button
+        onClick={onToggle}
+        className="flex items-center gap-1 text-[10px] font-medium text-primary hover:text-primary/80 transition-colors"
+      >
+        {expanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+        {expanded ? "Hide" : "Show"} full script
+      </button>
+      {expanded && (
+        <div className="mt-2 space-y-1.5">
+          {[
+            { label: "Problem", text: script.problem },
+            { label: "Reframe", text: script.reframe },
+            { label: "Teaching", text: script.teaching },
+            { label: "Action", text: script.action },
+            { label: "CTA", text: script.cta },
+          ].map(({ label, text }) => (
+            <div key={label} className="flex items-start gap-1.5">
+              <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground w-12 shrink-0 pt-0.5">{label}</span>
+              <p className="text-xs text-muted-foreground leading-snug flex-1">{text}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function BatchPlanClient({ userId, existingBatchId, weekStart }: Props) {
   const router = useRouter();
   const [theme, setTheme] = useState("");
@@ -58,7 +115,9 @@ export function BatchPlanClient({ userId, existingBatchId, weekStart }: Props) {
   const [plan, setPlan] = useState<BatchPlan | null>(null);
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [editingYTTitle, setEditingYTTitle] = useState(false);
+  const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
+  const [expandedYT, setExpandedYT] = useState(false);
+  const [editingTitles, setEditingTitles] = useState<Record<number, string>>({});
 
   const thisWeek = getWeekStart();
   const nextWeek = getNextWeekStart();
@@ -67,6 +126,8 @@ export function BatchPlanClient({ userId, existingBatchId, weekStart }: Props) {
     if (!theme.trim() || generating) return;
     setGenerating(true);
     setPlan(null);
+    setExpandedIndex(null);
+    setEditingTitles({});
     try {
       const res = await fetch("/api/batch-plan", {
         method: "POST",
@@ -89,11 +150,13 @@ export function BatchPlanClient({ userId, existingBatchId, weekStart }: Props) {
     setGenerating(false);
   }
 
-  function updateAngle(index: number, value: string) {
-    if (!plan) return;
-    const updated = [...plan.tiktok_angles];
-    updated[index] = value;
-    setPlan({ ...plan, tiktok_angles: updated });
+  function getTikTokTitle(index: number): string {
+    if (editingTitles[index] !== undefined) return editingTitles[index];
+    return plan?.tiktok_scripts[index]?.title ?? "";
+  }
+
+  function setTikTokTitle(index: number, value: string) {
+    setEditingTitles(prev => ({ ...prev, [index]: value }));
   }
 
   async function handleSave() {
@@ -111,7 +174,7 @@ export function BatchPlanClient({ userId, existingBatchId, weekStart }: Props) {
           week_start: selectedWeek,
           theme: theme.trim(),
           youtube_title: plan.youtube_title,
-          youtube_notes: plan.youtube_notes,
+          youtube_notes: plan.youtube_script.teaching,
           status: "planned",
           recording_completed: false,
         }, { onConflict: "user_id,week_start" })
@@ -120,11 +183,24 @@ export function BatchPlanClient({ userId, existingBatchId, weekStart }: Props) {
 
       if (batchErr || !batch) throw new Error(batchErr?.message || "Failed to save batch");
 
-      // Delete existing posts for this batch (re-plan case)
+      // Delete existing posts for this batch (re-plan)
       await supabase.from("batch_posts").delete().eq("batch_id", batch.id);
 
-      // Build posts: YouTube on Monday, TikTok #1-7 Mon-Sun
       const weekBase = new Date(selectedWeek + "T12:00:00");
+
+      // Build structured angle_notes for YouTube
+      const ytNotes = formatScriptNotes({
+        program: plan.youtube_program,
+        hookType: plan.youtube_script.hookType,
+        hook: plan.youtube_script.hook,
+        problem: plan.youtube_script.problem,
+        reframe: plan.youtube_script.reframe,
+        teaching: plan.youtube_script.teaching,
+        action: plan.youtube_script.action,
+        cta: plan.youtube_script.cta,
+        extraNotes: "YouTube Long-form",
+      });
+
       const posts = [
         // YouTube — Monday
         {
@@ -133,20 +209,32 @@ export function BatchPlanClient({ userId, existingBatchId, weekStart }: Props) {
           scheduled_date: selectedWeek,
           platform: "youtube",
           title: plan.youtube_title,
-          angle_notes: plan.youtube_notes,
+          angle_notes: ytNotes,
           sort_order: 0,
           status: "scheduled",
         },
         // 7 TikToks — Mon to Sun
-        ...plan.tiktok_angles.map((angle, i) => {
+        ...plan.tiktok_scripts.map((script, i) => {
           const d = new Date(weekBase);
           d.setDate(d.getDate() + i);
+          const title = editingTitles[i] !== undefined ? editingTitles[i] : script.title;
+          const notes = formatScriptNotes({
+            program: script.program,
+            hookType: script.hookType,
+            hook: script.hook,
+            problem: script.problem,
+            reframe: script.reframe,
+            teaching: script.teaching,
+            action: script.action,
+            cta: script.cta,
+          });
           return {
             batch_id: batch.id,
             user_id: userId,
             scheduled_date: d.toISOString().split("T")[0],
             platform: "tiktok",
-            title: angle,
+            title,
+            angle_notes: notes,
             sort_order: i + 1,
             status: "scheduled",
           };
@@ -156,7 +244,11 @@ export function BatchPlanClient({ userId, existingBatchId, weekStart }: Props) {
       const { error: postsErr } = await supabase.from("batch_posts").insert(posts);
       if (postsErr) throw new Error(postsErr.message);
 
-      toast({ title: "Week planned!", description: `${posts.length} posts scheduled across the week.`, variant: "success" as never });
+      toast({
+        title: "Week planned!",
+        description: `${posts.length} posts scheduled with full scripts.`,
+        variant: "success" as never,
+      });
       router.push("/batch");
       router.refresh();
     } catch (e) {
@@ -217,7 +309,7 @@ export function BatchPlanClient({ userId, existingBatchId, weekStart }: Props) {
             onKeyDown={e => e.key === "Enter" && handleGenerate()}
           />
           <p className="text-xs text-muted-foreground">
-            One focused topic. The AI will generate 1 YouTube + 7 TikTok angles from it.
+            One focused topic. AI generates full scripts for 1 YouTube + 7 TikToks with program distribution.
           </p>
           <Button
             onClick={handleGenerate}
@@ -225,7 +317,7 @@ export function BatchPlanClient({ userId, existingBatchId, weekStart }: Props) {
             className="w-full h-12 rounded-xl font-semibold tap-scale"
           >
             {generating ? (
-              <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Generating plan...</>
+              <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Generating scripts...</>
             ) : (
               <><Sparkles className="h-4 w-4 mr-2" />Generate Weekly Plan</>
             )}
@@ -236,60 +328,85 @@ export function BatchPlanClient({ userId, existingBatchId, weekStart }: Props) {
       {/* Generated plan */}
       {plan && (
         <>
+          {plan.is_fallback && (
+            <div className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+              <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">AI unavailable — showing template</p>
+                <p className="text-xs text-amber-600/80 dark:text-amber-400/70 mt-0.5">
+                  Edit the titles below to match your week, then save.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* YouTube card */}
           <Card className="border-red-200 dark:border-red-900/50">
             <CardContent className="p-4">
               <div className="flex items-center gap-2 mb-3">
-                <div className="w-8 h-8 rounded-xl bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-xl bg-red-100 dark:bg-red-900/30 flex items-center justify-center shrink-0">
                   <Youtube className="h-4 w-4 text-red-500" />
                 </div>
-                <div>
+                <div className="flex-1 min-w-0">
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">YouTube</p>
                   <p className="text-[10px] text-muted-foreground">Monday — Long-form</p>
                 </div>
-                <button onClick={() => setEditingYTTitle(!editingYTTitle)} className="ml-auto p-1.5 rounded-lg hover:bg-muted">
-                  <Edit3 className="h-3.5 w-3.5 text-muted-foreground" />
-                </button>
+                <span className={cn(
+                  "text-[10px] font-bold px-2 py-0.5 rounded-md border shrink-0",
+                  getProgramBadgeClass(plan.youtube_program)
+                )}>
+                  {plan.youtube_program}
+                </span>
               </div>
-              {editingYTTitle ? (
-                <Input
-                  value={plan.youtube_title}
-                  onChange={e => setPlan({ ...plan, youtube_title: e.target.value })}
-                  className="text-sm font-semibold h-10 rounded-xl mb-2"
-                />
-              ) : (
-                <p className="text-sm font-bold text-foreground mb-2 leading-snug">{plan.youtube_title}</p>
-              )}
-              <p className="text-xs text-muted-foreground leading-relaxed">{plan.youtube_notes}</p>
+              <p className="text-sm font-bold text-foreground leading-snug mb-1">{plan.youtube_title}</p>
+              <ScriptPreview
+                script={plan.youtube_script}
+                expanded={expandedYT}
+                onToggle={() => setExpandedYT(v => !v)}
+              />
             </CardContent>
           </Card>
 
-          {/* TikTok angles */}
-          <div className="space-y-1.5">
+          {/* TikTok scripts */}
+          <div className="space-y-2">
             <div className="flex items-center gap-2 px-1">
               <Video className="h-4 w-4 text-slate-500" />
-              <p className="text-sm font-semibold text-foreground">7 TikTok Angles</p>
+              <p className="text-sm font-semibold text-foreground">7 TikTok Scripts</p>
               <span className="text-xs text-muted-foreground ml-auto">Mon → Sun</span>
             </div>
-            {plan.tiktok_angles.map((angle, i) => {
-              const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+            {plan.tiktok_scripts.map((script, i) => {
               const d = new Date(selectedWeek + "T12:00:00");
               d.setDate(d.getDate() + i);
-              const dateLabel = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+              const isExpanded = expandedIndex === i;
               return (
                 <Card key={i} className="overflow-hidden">
                   <CardContent className="p-3">
-                    <div className="flex items-start gap-3">
+                    <div className="flex items-start gap-2.5 mb-2">
+                      {/* Day badge */}
                       <div className="w-9 h-9 rounded-xl bg-muted flex flex-col items-center justify-center shrink-0">
-                        <span className="text-[9px] font-semibold text-muted-foreground leading-none">{dayNames[i]}</span>
+                        <span className="text-[9px] font-semibold text-muted-foreground leading-none">{script.day}</span>
                         <span className="text-xs font-bold text-foreground leading-none mt-0.5">{d.getDate()}</span>
                       </div>
-                      <input
-                        value={angle}
-                        onChange={e => updateAngle(i, e.target.value)}
-                        className="flex-1 text-sm font-medium text-foreground bg-transparent border-none outline-none min-w-0 leading-snug"
-                      />
+                      {/* Title + program */}
+                      <div className="flex-1 min-w-0">
+                        <input
+                          value={getTikTokTitle(i)}
+                          onChange={e => setTikTokTitle(i, e.target.value)}
+                          className="w-full text-sm font-medium text-foreground bg-transparent border-none outline-none leading-snug mb-1"
+                        />
+                        <span className={cn(
+                          "text-[9px] font-bold px-1.5 py-0.5 rounded border",
+                          getProgramBadgeClass(script.program)
+                        )}>
+                          {script.program}
+                        </span>
+                      </div>
                     </div>
+                    <ScriptPreview
+                      script={script}
+                      expanded={isExpanded}
+                      onToggle={() => setExpandedIndex(isExpanded ? null : i)}
+                    />
                   </CardContent>
                 </Card>
               );
@@ -309,7 +426,7 @@ export function BatchPlanClient({ userId, existingBatchId, weekStart }: Props) {
             )}
           </Button>
           <p className="text-xs text-muted-foreground text-center pb-2">
-            This will schedule 8 posts (1 YouTube + 7 TikToks) across {formatWeekLabel(selectedWeek)}.
+            Schedules 8 posts with full scripts across {formatWeekLabel(selectedWeek)}.
           </p>
         </>
       )}

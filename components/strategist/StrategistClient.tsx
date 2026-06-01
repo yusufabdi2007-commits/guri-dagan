@@ -100,6 +100,17 @@ interface StrategistClientProps {
   callCount?: number;
   conversionRate?: number;
   topLeadCategories?: Array<{ category: string; leads: number }>;
+  totalEnrollments?: number;
+  activeEnrollments?: number;
+  totalRevenue?: number;
+  topRevenueProgram?: string | null;
+  programRevenueSummary?: Array<{ program: string; revenue: number }>;
+  totalChildren?: number;
+  activeChildren?: number;
+  graduatedChildren?: number;
+  avgChildImprovement?: number;
+  totalMilestones?: number;
+  bestImprovementProgram?: string | null;
   userId: string;
 }
 
@@ -272,6 +283,17 @@ export function StrategistClient(props: StrategistClientProps) {
     callCount: props.callCount ?? 0,
     conversionRate: props.conversionRate ?? 0,
     topLeadCategories: props.topLeadCategories ?? [],
+    totalEnrollments: props.totalEnrollments ?? 0,
+    activeEnrollments: props.activeEnrollments ?? 0,
+    totalRevenue: props.totalRevenue ?? 0,
+    topRevenueProgram: props.topRevenueProgram ?? null,
+    programRevenueSummary: props.programRevenueSummary ?? [],
+    totalChildren: props.totalChildren ?? 0,
+    activeChildren: props.activeChildren ?? 0,
+    graduatedChildren: props.graduatedChildren ?? 0,
+    avgChildImprovement: props.avgChildImprovement ?? 0,
+    totalMilestones: props.totalMilestones ?? 0,
+    bestImprovementProgram: props.bestImprovementProgram ?? null,
   };
 
   const fetchStrategy = useCallback(

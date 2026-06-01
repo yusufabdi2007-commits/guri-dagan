@@ -11,11 +11,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import {
   ArrowLeft, Phone, Mail, Trash2, Save, Link2, Clock,
   CheckCircle2, UserCheck, PhoneCall, PhoneIncoming,
-  MessageCircle, Users, Share2, Youtube, UserPlus
+  MessageCircle, Users, Share2, Youtube, UserPlus, Shield, Sparkles, X
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
 import { toast } from "@/components/ui/use-toast";
 import type { Lead, LeadStage, LeadSource } from "./LeadPipelineClient";
+import { PROGRAMS } from "@/lib/programs";
 
 interface Activity {
   id: string;
@@ -65,6 +66,8 @@ const CATEGORIES = [
   "Islamic Parenting", "Family Relationships", "Child Development", "Other"
 ];
 
+const PROGRAM_OPTIONS = Object.keys(PROGRAMS) as (keyof typeof PROGRAMS)[];
+
 const ACTIVITY_LABELS: Record<string, string> = {
   created: "Lead created",
   stage_changed: "Stage changed",
@@ -79,6 +82,9 @@ export function LeadDetailClient({ lead: initial, activity: initialActivity, att
   const [attribution, setAttribution] = useState(initialAttribution);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showConvertDialog, setShowConvertDialog] = useState(false);
+  const [converting, setConverting] = useState(false);
+  const [childName, setChildNameConvert] = useState("");
 
   // Edit fields
   const [name, setName] = useState(lead.name);
@@ -86,6 +92,7 @@ export function LeadDetailClient({ lead: initial, activity: initialActivity, att
   const [email, setEmail] = useState(lead.email || "");
   const [source, setSource] = useState<LeadSource>(lead.source);
   const [notes, setNotes] = useState(lead.notes || "");
+  const [program, setProgram] = useState(lead.program || "");
 
   // Attribution fields
   const [attrCategory, setAttrCategory] = useState(attribution[0]?.content_category || "");
@@ -93,14 +100,16 @@ export function LeadDetailClient({ lead: initial, activity: initialActivity, att
   const [attrYoutubeId, setAttrYoutubeId] = useState(attribution[0]?.youtube_video_id || "");
   const [attrTiktokTopic, setAttrTiktokTopic] = useState(attribution[0]?.tiktok_topic || "");
   const [attrNotes, setAttrNotes] = useState(attribution[0]?.notes || "");
+  const [attrProgram, setAttrProgram] = useState(attribution[0]?.program || "");
 
   const isDirty = name !== lead.name || phone !== (lead.phone || "") || email !== (lead.email || "")
-    || source !== lead.source || notes !== (lead.notes || "");
+    || source !== lead.source || notes !== (lead.notes || "") || program !== (lead.program || "");
   const attrDirty = attrCategory !== (attribution[0]?.content_category || "")
     || attrVideoTitle !== (attribution[0]?.video_title || "")
     || attrYoutubeId !== (attribution[0]?.youtube_video_id || "")
     || attrTiktokTopic !== (attribution[0]?.tiktok_topic || "")
-    || attrNotes !== (attribution[0]?.notes || "");
+    || attrNotes !== (attribution[0]?.notes || "")
+    || attrProgram !== (attribution[0]?.program || "");
 
   async function handleStageChange(newStage: LeadStage) {
     if (newStage === lead.stage) return;
@@ -130,9 +139,9 @@ export function LeadDetailClient({ lead: initial, activity: initialActivity, att
     }
     setSaving(true);
     try {
-      const body: Record<string, unknown> = { name, phone: phone || null, email: email || null, source, notes: notes || null };
+      const body: Record<string, unknown> = { name, phone: phone || null, email: email || null, source, notes: notes || null, program: program || null };
       if (attrDirty && attrCategory) {
-        body.attribution = { content_category: attrCategory, youtube_video_id: attrYoutubeId || null, video_title: attrVideoTitle || null, tiktok_topic: attrTiktokTopic || null, attr_notes: attrNotes || null };
+        body.attribution = { content_category: attrCategory, youtube_video_id: attrYoutubeId || null, video_title: attrVideoTitle || null, tiktok_topic: attrTiktokTopic || null, attr_notes: attrNotes || null, program: attrProgram || null };
       }
       const res = await fetch(`/api/leads/${lead.id}`, {
         method: "PATCH",
@@ -163,6 +172,33 @@ export function LeadDetailClient({ lead: initial, activity: initialActivity, att
     }
   }
 
+  async function handleConvertToClient() {
+    setConverting(true);
+    try {
+      const res = await fetch("/api/enrollments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lead_id: lead.id,
+          parent_name: lead.name,
+          child_name: childName || null,
+          program: lead.program || null,
+          enrollment_date: new Date().toISOString().split("T")[0],
+        }),
+      });
+      if (!res.ok) throw new Error();
+      const { enrollment } = await res.json();
+      setLead(l => ({ ...l, stage: "client" }));
+      setShowConvertDialog(false);
+      toast({ title: "Client enrolled successfully" });
+      router.push(`/clients/${enrollment.id}`);
+    } catch {
+      toast({ title: "Could not convert to client", variant: "destructive" as never });
+    } finally {
+      setConverting(false);
+    }
+  }
+
   const currentStageConfig = STAGES.find(s => s.key === lead.stage);
 
   return (
@@ -188,6 +224,45 @@ export function LeadDetailClient({ lead: initial, activity: initialActivity, att
           <Trash2 className="h-4 w-4" />
         </Button>
       </div>
+
+      {/* Convert to Client button */}
+      {lead.stage !== "client" && lead.stage !== "closed" && (
+        <Button
+          onClick={() => setShowConvertDialog(true)}
+          variant="outline"
+          className="w-full gap-2 border-emerald-400 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
+        >
+          <Sparkles className="h-4 w-4" />Convert to Client
+        </Button>
+      )}
+
+      {/* Convert dialog */}
+      {showConvertDialog && (
+        <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-2xl p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-semibold text-foreground">Enroll as Client</p>
+            <button onClick={() => setShowConvertDialog(false)} className="p-1 rounded-lg hover:bg-muted">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <p className="text-xs text-muted-foreground">This will create a client enrollment for <span className="font-medium text-foreground">{lead.name}</span>{lead.program ? ` in ${lead.program}` : ""}.</p>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Child&apos;s Name (optional)</Label>
+            <Input
+              value={childName}
+              onChange={e => setChildNameConvert(e.target.value)}
+              placeholder="Child's first name..."
+            />
+          </div>
+          <div className="flex gap-2">
+            <Button onClick={handleConvertToClient} disabled={converting} className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white">
+              <UserCheck className="h-4 w-4 mr-2" />
+              {converting ? "Creating..." : "Confirm Enrollment"}
+            </Button>
+            <Button variant="ghost" onClick={() => setShowConvertDialog(false)}>Cancel</Button>
+          </div>
+        </div>
+      )}
 
       {/* Stage selector */}
       <div>
@@ -242,6 +317,16 @@ export function LeadDetailClient({ lead: initial, activity: initialActivity, att
               </Select>
             </div>
             <div className="space-y-1.5">
+              <Label className="text-xs flex items-center gap-1"><Shield className="h-3 w-3 text-primary" />Which program attracted them?</Label>
+              <Select value={program} onValueChange={setProgram}>
+                <SelectTrigger><SelectValue placeholder="Select program..." /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Unknown</SelectItem>
+                  {PROGRAM_OPTIONS.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
               <Label className="text-xs">Notes</Label>
               <Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="What are they looking for? Challenges?" rows={3} />
             </div>
@@ -258,6 +343,16 @@ export function LeadDetailClient({ lead: initial, activity: initialActivity, att
           </div>
           <p className="text-xs text-muted-foreground -mt-2">Which content brought this person to you?</p>
           <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs flex items-center gap-1"><Shield className="h-3 w-3 text-primary" />Program (which attracted them)</Label>
+              <Select value={attrProgram} onValueChange={setAttrProgram}>
+                <SelectTrigger><SelectValue placeholder="Select program..." /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Unknown</SelectItem>
+                  {PROGRAM_OPTIONS.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Content Category</Label>
               <Select value={attrCategory} onValueChange={setAttrCategory}>

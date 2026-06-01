@@ -30,6 +30,11 @@ export default async function StrategistPage() {
     { data: categoryPerf },
     { data: leadsData },
     { data: attributionData },
+    { data: enrollmentData },
+    { data: paymentData },
+    { data: childProfilesData },
+    { data: checkinsData },
+    { data: milestonesData },
   ] = await Promise.all([
     supabase
       .from("daily_completions")
@@ -93,6 +98,28 @@ export default async function StrategistPage() {
     supabase
       .from("content_attribution")
       .select("content_category, lead_id")
+      .eq("user_id", user!.id),
+    supabase
+      .from("client_enrollments")
+      .select("id, program, status")
+      .eq("user_id", user!.id),
+    supabase
+      .from("payments")
+      .select("amount, payment_status, client_enrollments(program)")
+      .eq("user_id", user!.id)
+      .eq("payment_status", "paid"),
+    supabase
+      .from("child_profiles")
+      .select("id, program, status")
+      .eq("user_id", user!.id),
+    supabase
+      .from("progress_checkins")
+      .select("child_id, confidence_score, resilience_score, emotional_regulation_score, communication_score, created_at")
+      .eq("user_id", user!.id)
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("milestones")
+      .select("child_id")
       .eq("user_id", user!.id),
   ]);
 
@@ -193,6 +220,62 @@ export default async function StrategistPage() {
     .slice(0, 5)
     .map(([category, leads]) => ({ category, leads }));
 
+  // Enrollment + revenue data for strategist
+  const totalEnrollments = (enrollmentData || []).length;
+  const activeEnrollments = (enrollmentData || []).filter(e => e.status === "active").length;
+
+  const revenueByProgram: Record<string, number> = {};
+  for (const p of paymentData || []) {
+    const prog = (p.client_enrollments as { program?: string | null } | null)?.program ?? "Unknown";
+    revenueByProgram[prog] = (revenueByProgram[prog] || 0) + p.amount;
+  }
+  const totalRevenue = Object.values(revenueByProgram).reduce((a, b) => a + b, 0);
+  const topRevenueProgram = Object.entries(revenueByProgram).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+  const programRevenueSummary = Object.entries(revenueByProgram)
+    .sort((a, b) => b[1] - a[1])
+    .map(([prog, amt]) => ({ program: prog, revenue: amt }));
+
+  // Child outcome data for AI Strategist
+  function avgCheckinScore(c: { confidence_score?: number | null; resilience_score?: number | null; emotional_regulation_score?: number | null; communication_score?: number | null }) {
+    const vals = [c.confidence_score, c.resilience_score, c.emotional_regulation_score, c.communication_score].filter((v): v is number => v != null);
+    return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+  }
+
+  const totalChildren = (childProfilesData || []).length;
+  const activeChildren = (childProfilesData || []).filter(c => c.status === "active").length;
+  const graduatedChildren = (childProfilesData || []).filter(c => c.status === "graduated").length;
+  const totalMilestones = (milestonesData || []).length;
+
+  // Avg improvement across all children with 2+ check-ins
+  let allImprovements: number[] = [];
+  for (const child of childProfilesData || []) {
+    const childCheckins = (checkinsData || []).filter(ch => ch.child_id === child.id);
+    if (childCheckins.length < 2) continue;
+    const first = avgCheckinScore(childCheckins[0]);
+    const last = avgCheckinScore(childCheckins[childCheckins.length - 1]);
+    if (first > 0) allImprovements.push(Math.round(((last - first) / first) * 100));
+  }
+  const avgChildImprovement = allImprovements.length > 0
+    ? Math.round(allImprovements.reduce((a, b) => a + b, 0) / allImprovements.length)
+    : 0;
+
+  // Best performing program by avg improvement
+  const programImprovements: Record<string, number[]> = {};
+  for (const child of childProfilesData || []) {
+    if (!child.program) continue;
+    const childCheckins = (checkinsData || []).filter(ch => ch.child_id === child.id);
+    if (childCheckins.length < 2) continue;
+    const first = avgCheckinScore(childCheckins[0]);
+    const last = avgCheckinScore(childCheckins[childCheckins.length - 1]);
+    if (first > 0) {
+      if (!programImprovements[child.program]) programImprovements[child.program] = [];
+      programImprovements[child.program].push(Math.round(((last - first) / first) * 100));
+    }
+  }
+  const bestImprovementProgram = Object.entries(programImprovements)
+    .map(([prog, imps]) => ({ prog, avg: Math.round(imps.reduce((a, b) => a + b, 0) / imps.length) }))
+    .sort((a, b) => b.avg - a.avg)[0]?.prog ?? null;
+
   return (
     <div className="flex flex-col min-h-full">
       <Header
@@ -220,6 +303,17 @@ export default async function StrategistPage() {
         callCount={callCount}
         conversionRate={conversionRate}
         topLeadCategories={topLeadCategories}
+        totalEnrollments={totalEnrollments}
+        activeEnrollments={activeEnrollments}
+        totalRevenue={totalRevenue}
+        topRevenueProgram={topRevenueProgram}
+        programRevenueSummary={programRevenueSummary}
+        totalChildren={totalChildren}
+        activeChildren={activeChildren}
+        graduatedChildren={graduatedChildren}
+        avgChildImprovement={avgChildImprovement}
+        totalMilestones={totalMilestones}
+        bestImprovementProgram={bestImprovementProgram}
         userId={user!.id}
       />
     </div>

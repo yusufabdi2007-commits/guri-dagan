@@ -11,10 +11,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import {
   Plus, Phone, Mail, ChevronRight, Users, TrendingUp, UserCheck,
-  Youtube, MessageCircle, Share2, UserPlus, ExternalLink, Clock
+  Youtube, MessageCircle, Share2, UserPlus, ExternalLink, Clock, Shield
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
 import { toast } from "@/components/ui/use-toast";
+import { PROGRAMS, getProgramBadgeClass } from "@/lib/programs";
 
 export type LeadStage = "new_lead" | "contacted" | "call_scheduled" | "call_completed" | "client" | "follow_up" | "closed";
 export type LeadSource = "tiktok" | "youtube" | "whatsapp" | "referral" | "existing_client" | "other";
@@ -28,6 +29,7 @@ export interface Lead {
   source: LeadSource;
   stage: LeadStage;
   notes: string | null;
+  program: string | null;
   created_at: string;
   updated_at: string;
   content_attribution?: Array<{
@@ -36,6 +38,7 @@ export interface Lead {
     youtube_video_id: string | null;
     video_title: string | null;
     tiktok_topic: string | null;
+    program: string | null;
   }>;
 }
 
@@ -72,7 +75,9 @@ const SOURCE_ICON: Record<LeadSource, React.ReactNode> = {
   other:           <Users className="h-3 w-3" />,
 };
 
-const emptyForm = { name: "", phone: "", email: "", source: "other" as LeadSource, notes: "" };
+const PROGRAM_OPTIONS = Object.keys(PROGRAMS) as (keyof typeof PROGRAMS)[];
+
+const emptyForm = { name: "", phone: "", email: "", source: "other" as LeadSource, notes: "", program: "" };
 
 function sourceLabel(s: LeadSource) {
   return SOURCES.find(x => x.value === s)?.label ?? s;
@@ -120,7 +125,7 @@ export function LeadPipelineClient({ leads: initial, userId }: Props) {
       const res = await fetch("/api/leads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, phone: form.phone || null, email: form.email || null, notes: form.notes || null }),
+        body: JSON.stringify({ ...form, phone: form.phone || null, email: form.email || null, notes: form.notes || null, program: form.program || null }),
       });
       if (!res.ok) throw new Error();
       const { lead } = await res.json();
@@ -213,14 +218,20 @@ export function LeadPipelineClient({ leads: initial, userId }: Props) {
                                 <p className="text-sm font-semibold text-foreground leading-tight mb-1.5 line-clamp-2">{lead.name}</p>
 
                                 {/* Source badge */}
-                                <div className="flex items-center gap-1 mb-1.5">
+                                <div className="flex items-center gap-1 mb-1.5 flex-wrap">
                                   <span className="flex items-center gap-1 text-[10px] bg-muted/50 text-muted-foreground px-1.5 py-0.5 rounded-lg font-medium">
                                     {SOURCE_ICON[lead.source]}
                                     {sourceLabel(lead.source)}
                                   </span>
+                                  {lead.program && (
+                                    <span className={cn("flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded border", getProgramBadgeClass(lead.program))}>
+                                      <Shield className="h-2 w-2 shrink-0" />
+                                      {lead.program.replace("™", "")}
+                                    </span>
+                                  )}
                                   {lead.content_attribution && lead.content_attribution.length > 0 && (
                                     <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-lg font-medium">
-                                      attributed
+                                      linked
                                     </span>
                                   )}
                                 </div>
@@ -277,6 +288,16 @@ export function LeadPipelineClient({ leads: initial, userId }: Props) {
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {SOURCES.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5"><Shield className="h-3 w-3 text-primary" />Which program attracted them?</Label>
+              <Select value={form.program} onValueChange={v => setForm(f => ({ ...f, program: v }))}>
+                <SelectTrigger><SelectValue placeholder="Select program..." /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Unknown</SelectItem>
+                  {PROGRAM_OPTIONS.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
