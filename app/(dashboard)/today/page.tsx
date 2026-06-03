@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/Header";
 import { TodayClient } from "@/components/today/TodayClient";
 import { redirect } from "next/navigation";
+import { seedFirstWeek } from "@/lib/seed-first-week";
 
 function getWeekStart(): string {
   const d = new Date();
@@ -30,6 +31,9 @@ export default async function TodayPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
+
+  // Auto-seed first week of content if user has no batches yet
+  await seedFirstWeek(supabase, user.id);
 
   const today = new Date();
   const todayStr = today.toISOString().split("T")[0];
