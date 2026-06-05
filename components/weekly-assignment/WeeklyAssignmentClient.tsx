@@ -32,6 +32,7 @@ interface TikTokPost {
   reframe: string;
   teaching: string;
   action: string;
+  close?: string;
   cta: string;
 }
 
