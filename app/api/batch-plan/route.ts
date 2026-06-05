@@ -118,11 +118,11 @@ Return valid JSON only:
           { role: "user", content: prompt },
         ],
         temperature: 0.85,
-        max_tokens: 2800,
+        max_tokens: 6000,
         response_format: { type: "json_object" },
       }),
       new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("timeout")), 45_000)
+        setTimeout(() => reject(new Error("timeout")), 55_000)
       ),
     ]);
 
