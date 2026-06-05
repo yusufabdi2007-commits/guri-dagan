@@ -44,6 +44,7 @@ interface YoutubePost {
   reframe: string;
   teaching: string;
   action: string;
+  close?: string;
   notes: string;
   cta: string;
 }
