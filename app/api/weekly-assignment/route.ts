@@ -4,17 +4,18 @@ import { rateLimit } from "@/lib/rate-limit";
 
 export const maxDuration = 60;
 
-const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+// Recording is Monday. Posting: YouTube on Sunday, TikToks Tue–Sat + 2 on Sunday.
+const DAYS = ["Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday", "Sunday"];
 
 // Default program distribution for 7 TikToks
 // YouTube is assigned separately (usually the highest-engagement program)
 const PROGRAM_SLOTS = [
-  "MePower™",        // Monday
-  "Inner Power™",    // Tuesday
-  "MePower™",        // Wednesday
-  "Inner Power™",    // Thursday
-  "MindPower™",      // Friday
-  "DreamPower™",     // Saturday
+  "MePower™",         // Tuesday
+  "Inner Power™",     // Wednesday
+  "MePower™",         // Thursday
+  "Inner Power™",     // Friday
+  "MindPower™",       // Saturday
+  "DreamPower™",      // Sunday
   "Slaying Dragons™", // Sunday
 ];
 
@@ -42,6 +43,13 @@ export async function POST(req: NextRequest) {
   }
 
   const { theme, lowEnergy, topCategory, growingCategory, underusedCategory, recentThemes } = body;
+
+  if (!process.env.OPENAI_API_KEY) {
+    return NextResponse.json(
+      { error: "OpenAI API key not configured. Add OPENAI_API_KEY to your Vercel environment variables." },
+      { status: 503 }
+    );
+  }
 
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -84,23 +92,34 @@ ${energyNote}
 
 Task: ${themeInstruction}
 
-Generate a full program-first week plan. Every video MUST:
-1. Belong to one of the 5 programs above
-2. Follow the exact 7-part video structure
-3. Have a title that creates urgency or emotion (6–10 words)
+YOUR MISSION: Create content that makes parents FEEL the pain of where they are, see the transformation possible, and want to enroll in the specific program. This is NOT a tips channel — it is a sales funnel. Teach just enough to build trust. Sell the program, not the lesson.
+
+ENROLLMENT CTAs per program:
+- MePower™: DM me "MEPOWER" or book a free call (link in bio)
+- Inner Power™: DM me "INNERPOWER" or book a free call (link in bio)
+- MindPower™: DM me "MINDPOWER" or book a free call (link in bio)
+- DreamPower™: DM me "DREAMPOWER" or book a free call (link in bio)
+- Slaying Dragons™: DM me "DRAGONS" or book a free call (link in bio)
 
 PROGRAM DISTRIBUTION:
-- YouTube (long-form): assign to the program most aligned with the theme
+- YouTube (long-form, Sunday): assign to the program most aligned with the theme
 - TikTok distribution: MePower™ × 2, Inner Power™ × 2, MindPower™ × 1, DreamPower™ × 1, Slaying Dragons™ × 1
+- Posting days for TikToks: Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday, Sunday
 
-7-PART VIDEO STRUCTURE (use this for EVERY video):
-1. HOOK (0–3s): Emotional scroll-stopper. Choose ONE hook type: fear hook / mistake hook / identity hook / emotional truth hook
-2. PROBLEM (3–10s): Describe a specific parent-child struggle clearly and emotionally
-3. REFRAME (10–25s): Shift the parent's belief or offer a new insight
-4. TEACHING (25–45s): ONE clear parenting principle they can act on
-5. ACTION (45–60s): ONE simple thing the parent must do TODAY
-6. PROGRAM TAG: Soft mention connecting to the program (e.g. "This is what MePower™ is all about")
-7. CTA: Follow / save / join program
+MARKETING SCRIPT STRUCTURE (use for EVERY video — this is a sales funnel):
+1. HOOK (0–3s): Bold truth, question, or provocation. Make the parent feel seen or challenged. Choose: fear hook / mistake hook / identity hook / emotional truth hook
+2. PROBLEM (3–15s): Name the REAL specific pain. Agitate it. Make it hurt a little.
+3. REFRAME (15–30s): ONE insight that shifts perspective. Tease the solution — do NOT give the full answer. Leave them wanting more.
+4. TEACHING (30–50s): Prove expertise. Connect to the program's transformation. End on an open loop or cliffhanger. Teach the WHAT, not the HOW.
+5. CLOSE (50–58s): Bridge to enrollment. Name the program. Make it feel urgent and personal.
+6. CTA (58–60s): The exact enrollment call to action for that program.
+
+RULES:
+- TikTok: tight, 60 seconds max. Every word earns its place.
+- YouTube: deeper authority-building (5–10 min), ends with a strong consultation booking push.
+- NEVER give a complete solution for free. Give a taste that creates desire for the program.
+- CTAs must name the specific program and drive to enrollment — not just "follow me."
+- Titles must be specific, scroll-stopping, feel written for ONE parent.
 
 Return valid JSON only:
 {
@@ -115,13 +134,13 @@ Return valid JSON only:
     "problem": "...",
     "reframe": "...",
     "teaching": "...",
-    "action": "...",
+    "close": "...",
     "notes": "2-3 sentences of content direction for recording",
     "cta": "..."
   },
   "tiktoks": [
     {
-      "day": "Monday",
+      "day": "Tuesday",
       "program": "MePower™",
       "title": "...",
       "hook_type": "fear hook",
@@ -129,15 +148,15 @@ Return valid JSON only:
       "problem": "...",
       "reframe": "...",
       "teaching": "...",
-      "action": "...",
+      "close": "...",
       "cta": "..."
     },
-    { "day": "Tuesday", "program": "Inner Power™", "title": "...", "hook_type": "...", "hook": "...", "problem": "...", "reframe": "...", "teaching": "...", "action": "...", "cta": "..." },
-    { "day": "Wednesday", "program": "MePower™", "title": "...", "hook_type": "...", "hook": "...", "problem": "...", "reframe": "...", "teaching": "...", "action": "...", "cta": "..." },
-    { "day": "Thursday", "program": "Inner Power™", "title": "...", "hook_type": "...", "hook": "...", "problem": "...", "reframe": "...", "teaching": "...", "action": "...", "cta": "..." },
-    { "day": "Friday", "program": "MindPower™", "title": "...", "hook_type": "...", "hook": "...", "problem": "...", "reframe": "...", "teaching": "...", "action": "...", "cta": "..." },
-    { "day": "Saturday", "program": "DreamPower™", "title": "...", "hook_type": "...", "hook": "...", "problem": "...", "reframe": "...", "teaching": "...", "action": "...", "cta": "..." },
-    { "day": "Sunday", "program": "Slaying Dragons™", "title": "...", "hook_type": "...", "hook": "...", "problem": "...", "reframe": "...", "teaching": "...", "action": "...", "cta": "..." }
+    { "day": "Wednesday", "program": "Inner Power™", "title": "...", "hook_type": "...", "hook": "...", "problem": "...", "reframe": "...", "teaching": "...", "close": "...", "cta": "..." },
+    { "day": "Thursday", "program": "MePower™", "title": "...", "hook_type": "...", "hook": "...", "problem": "...", "reframe": "...", "teaching": "...", "close": "...", "cta": "..." },
+    { "day": "Friday", "program": "Inner Power™", "title": "...", "hook_type": "...", "hook": "...", "problem": "...", "reframe": "...", "teaching": "...", "close": "...", "cta": "..." },
+    { "day": "Saturday", "program": "MindPower™", "title": "...", "hook_type": "...", "hook": "...", "problem": "...", "reframe": "...", "teaching": "...", "close": "...", "cta": "..." },
+    { "day": "Sunday", "program": "DreamPower™", "title": "...", "hook_type": "...", "hook": "...", "problem": "...", "reframe": "...", "teaching": "...", "close": "...", "cta": "..." },
+    { "day": "Sunday", "program": "Slaying Dragons™", "title": "...", "hook_type": "...", "hook": "...", "problem": "...", "reframe": "...", "teaching": "...", "close": "...", "cta": "..." }
   ],
   "recording_checklist": ["...", "...", "...", "...", "...", "...", "...", "..."]
 }`;
@@ -192,22 +211,22 @@ Return valid JSON only:
         hook: "Are you accidentally raising a child who doesn't believe in themselves?",
         problem: "Most parents focus on mistakes without realising this slowly teaches children they are the problem — not their behaviour.",
         reframe: "Confidence is not something children are born with. It is built in tiny daily moments by what you say and how you respond.",
-        teaching: "Praise effort, not outcome. Say 'I saw how hard you tried' instead of 'You're so smart.'",
-        action: "Tonight, find one moment to tell your child: 'I noticed you...' and finish with what you saw them do.",
-        notes: "Cover the fundamentals of raising confident children in Somali households. Share 3 practical habits parents can start this week.",
-        cta: "Comment below: what is one thing your child is working hard at right now?",
+        teaching: "In MePower™, we don't fix behavior — we rebuild the root: your child's self-belief. Parents who've done this program say the shift happened faster than they expected. But it requires the right framework, not just good intentions.",
+        close: "If you watched this and thought 'that's my child' — this is your sign. MePower™ has limited spots and I only work with parents who are ready.",
+        notes: "Build authority on why daily praise patterns silently shape identity. Show the gap between what parents intend and what children absorb. End with a strong enrollment push.",
+        cta: "Book a free 20-minute call from the link in my bio — let's talk about your child specifically.",
       },
       tiktoks: DAYS.map((day, i) => ({
         day,
         program: PROGRAM_SLOTS[i],
         title: FALLBACK_TIKTOKS[i].title,
         hook_type: HOOK_TYPES[i % HOOK_TYPES.length],
-        hook: "This is something most parents miss — and it matters more than you think.",
-        problem: "When parents focus only on results, children start to believe their worth depends on performance.",
-        reframe: "One conversation at the right moment can change everything for your child.",
-        teaching: "Connect before you correct. When your child is struggling, sit with them first.",
-        action: i < 4 ? "Today, ask your child one question with no judgement: 'How are you feeling?'" : "This week, give your child one responsibility and let them lead it.",
-        cta: i < 4 ? "Save this for later" : "Follow for daily parenting tips",
+        hook: "Most parents are doing this without realising — and it's quietly costing their child.",
+        problem: "When children feel unseen or uncorrected in the wrong way, they stop believing in themselves. And parents don't always see it happening.",
+        reframe: "This isn't about being a perfect parent. It's about understanding the one thing that changes the pattern.",
+        teaching: `The ${PROGRAM_SLOTS[i]} program exists exactly for this. Parents who've enrolled say it gave them the system they didn't know they were missing.`,
+        close: `If this sounds like your child, ${PROGRAM_SLOTS[i]} might be the turning point.`,
+        cta: `DM me "${PROGRAM_SLOTS[i].replace("™", "").replace(/ /g, "").toUpperCase()}" and I'll send you the details.`,
       })),
       recording_checklist: [
         "Water bottle nearby",

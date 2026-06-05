@@ -38,22 +38,27 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Theme is required (min 3 characters)" }, { status: 400 });
   }
 
+  if (!process.env.OPENAI_API_KEY) {
+    return NextResponse.json(
+      { error: "OpenAI API key not configured. Add OPENAI_API_KEY to your Vercel environment variables." },
+      { status: 503 }
+    );
+  }
+
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
   const t = theme.trim();
 
   try {
-    const prompt = `You are a content strategist for a Somali parenting coach who creates educational parenting content.
+    const prompt = `You are a conversion copywriter for a Somali parenting coach who sells 5 coaching programs. Your job is NOT to give free tips — it is to create content that makes parents feel the PAIN of where they are, glimpse the TRANSFORMATION possible, and want to enroll in the program.
 
 Weekly Theme: "${t}"
 
-PROGRAM DESCRIPTIONS:
-- MePower™: confidence, self-esteem, identity → "From self-doubt to self-belief"
-- Inner Power™: values, discipline, identity strength → "From external validation to internal values"
-- MindPower™: mindset, positive thinking → "From fixed mindset to growth mindset"
-- DreamPower™: motivation, imagination, future vision → "From passive to vision-driven"
-- Slaying Dragons™: fear, resilience, emotional strength → "From fear-avoidance to brave action"
-
-Generate a complete weekly content plan: 1 YouTube long-form + 7 TikTok short-form videos.
+THE COACH'S PROGRAMS (each video is assigned one — use it as the sales destination):
+- MePower™: builds child confidence & self-belief. Transformation: "From self-doubt to unshakeable self-belief." Enrollment CTA: DM me "MEPOWER" or book a free call (link in bio).
+- Inner Power™: builds values, discipline & internal identity. Transformation: "From needing approval to knowing who they are." Enrollment CTA: DM me "INNERPOWER" or book a free call (link in bio).
+- MindPower™: rewires the child's mindset from fixed to growth. Transformation: "From 'I can't' to 'I'll figure it out'." Enrollment CTA: DM me "MINDPOWER" or book a free call (link in bio).
+- DreamPower™: ignites motivation, vision and purpose. Transformation: "From passive to vision-driven." Enrollment CTA: DM me "DREAMPOWER" or book a free call (link in bio).
+- Slaying Dragons™: builds resilience and courage to face fear. Transformation: "From fear-avoidance to brave action." Enrollment CTA: DM me "DRAGONS" or book a free call (link in bio).
 
 FIXED PROGRAM ASSIGNMENT (DO NOT CHANGE):
 - YouTube: MePower™
@@ -65,22 +70,22 @@ FIXED PROGRAM ASSIGNMENT (DO NOT CHANGE):
 - TikTok Sat: DreamPower™
 - TikTok Sun: Slaying Dragons™
 
-For EACH video write a complete script:
-- title: punchy short title (6–10 words)
-- hookType: e.g. "identity hook", "question hook", "story hook", "shock hook", "contrast hook"
-- hook: the very first line that stops the scroll (1–2 tight sentences)
-- problem: the pain point the parent feels (1–2 sentences)
-- reframe: a new perspective that shifts their thinking (1–2 sentences)
-- teaching: the core lesson tied to the assigned program theme (2–3 sentences for YouTube, 1–2 for TikTok)
-- action: ONE specific thing they can do today (1 sentence)
-- cta: call to action — follow, share, or comment (1 sentence)
+SCRIPT FRAMEWORK (use for every video — this is a sales funnel, not a tutorial):
+1. hook — stop the scroll with a bold truth, question, or provocation (1–2 sentences). Make the parent feel seen or challenged.
+2. problem — name the real, specific pain they live with. Agitate it. Make it hurt a little (1–2 sentences).
+3. reframe — give them ONE insight that shifts their perspective. Tease the solution — don't give the full answer. Leave them wanting more (1–2 sentences).
+4. teaching — teach just enough to prove you know what you're talking about. Connect the theme to the assigned program's transformation. End on a cliffhanger or open loop (2–3 sentences for YouTube, 1–2 for TikTok).
+5. close — the bridge to enrollment. Reference the program by name. Make it feel urgent and personal (1 sentence).
+6. cta — the exact call to action: DM keyword, comment, or book a call. Use the program's specific enrollment CTA (1 sentence).
 
-Rules:
-- TikTok scripts must be tight (60 seconds max when spoken)
-- YouTube script can be deeper (5–10 min long-form)
-- Each video must cover a DIFFERENT angle of the theme
-- All content is Somali-culture aware and parenting-focused
-- Titles should feel specific and real, not generic
+RULES:
+- TikTok scripts: tight, 60 seconds max when spoken. Every word earns its place.
+- YouTube script: deeper authority-building (5–10 min), ends with a strong consultation booking push.
+- Each of the 8 videos must cover a DIFFERENT angle of the theme — no repetition.
+- All content is Somali-culture aware. Speak directly to Somali parents.
+- Titles must be specific, scroll-stopping, and feel like they were written for ONE parent.
+- NEVER give a full solution for free. Teach the WHAT, sell the HOW.
+- The close and CTA must name the specific program and drive to enrollment, not just "follow me."
 
 Return valid JSON only:
 {
@@ -91,17 +96,17 @@ Return valid JSON only:
     "problem": "...",
     "reframe": "...",
     "teaching": "...",
-    "action": "...",
+    "close": "...",
     "cta": "..."
   },
   "tiktok_scripts": [
-    { "title": "...", "hookType": "...", "hook": "...", "problem": "...", "reframe": "...", "teaching": "...", "action": "...", "cta": "..." },
-    { "title": "...", "hookType": "...", "hook": "...", "problem": "...", "reframe": "...", "teaching": "...", "action": "...", "cta": "..." },
-    { "title": "...", "hookType": "...", "hook": "...", "problem": "...", "reframe": "...", "teaching": "...", "action": "...", "cta": "..." },
-    { "title": "...", "hookType": "...", "hook": "...", "problem": "...", "reframe": "...", "teaching": "...", "action": "...", "cta": "..." },
-    { "title": "...", "hookType": "...", "hook": "...", "problem": "...", "reframe": "...", "teaching": "...", "action": "...", "cta": "..." },
-    { "title": "...", "hookType": "...", "hook": "...", "problem": "...", "reframe": "...", "teaching": "...", "action": "...", "cta": "..." },
-    { "title": "...", "hookType": "...", "hook": "...", "problem": "...", "reframe": "...", "teaching": "...", "action": "...", "cta": "..." }
+    { "title": "...", "hookType": "...", "hook": "...", "problem": "...", "reframe": "...", "teaching": "...", "close": "...", "cta": "..." },
+    { "title": "...", "hookType": "...", "hook": "...", "problem": "...", "reframe": "...", "teaching": "...", "close": "...", "cta": "..." },
+    { "title": "...", "hookType": "...", "hook": "...", "problem": "...", "reframe": "...", "teaching": "...", "close": "...", "cta": "..." },
+    { "title": "...", "hookType": "...", "hook": "...", "problem": "...", "reframe": "...", "teaching": "...", "close": "...", "cta": "..." },
+    { "title": "...", "hookType": "...", "hook": "...", "problem": "...", "reframe": "...", "teaching": "...", "close": "...", "cta": "..." },
+    { "title": "...", "hookType": "...", "hook": "...", "problem": "...", "reframe": "...", "teaching": "...", "close": "...", "cta": "..." },
+    { "title": "...", "hookType": "...", "hook": "...", "problem": "...", "reframe": "...", "teaching": "...", "close": "...", "cta": "..." }
   ]
 }`;
 
@@ -133,6 +138,11 @@ Return valid JSON only:
     ) {
       throw new Error("Invalid AI response shape");
     }
+    // Ensure close field exists (backfill from cta if missing)
+    if (!parsed.youtube_script.close) parsed.youtube_script.close = parsed.youtube_script.cta;
+    parsed.tiktok_scripts.forEach((s: Record<string, string>) => {
+      if (!s.close) s.close = s.cta;
+    });
 
     // Attach program and day to each TikTok
     const tiktok_scripts = parsed.tiktok_scripts.map((s: Record<string, string>, i: number) => ({
@@ -150,30 +160,30 @@ Return valid JSON only:
   } catch (error) {
     console.error("Batch plan error:", error);
 
-    // Fallback: return structured placeholder scripts
+    // Fallback: return structured marketing scripts
     return NextResponse.json({
-      youtube_title: `${t}: A Complete Guide for Somali Parents`,
+      youtube_title: `Why Your Child Still Struggles With ${t} — And What Really Changes It`,
       youtube_program: YOUTUBE_PROGRAM,
       youtube_script: {
-        hookType: "question hook",
-        hook: `Are you struggling with ${t.toLowerCase()} in your home right now?`,
-        problem: "Most parents know something needs to change, but don't know where to start.",
-        reframe: "The solution is closer than you think — it starts with one small shift.",
-        teaching: `${t} is not about being a perfect parent. It's about showing up consistently in small moments. When you understand the root of the issue, everything becomes easier. Your child is watching and learning from you every day.`,
-        action: `Tonight, take 5 minutes to reflect on one thing about ${t.toLowerCase()} you want to improve.`,
-        cta: "Follow for weekly parenting strategies that actually work.",
+        hookType: "contrast hook",
+        hook: `You've tried everything with your child around ${t.toLowerCase()} — and it's still not working. What if the problem isn't your child at all?`,
+        problem: `Most Somali parents are doing everything they were taught — and their children are still losing confidence, shutting down, or acting out. The pain of watching your child struggle and not knowing why is exhausting.`,
+        reframe: `The real issue isn't the behavior. It's that your child doesn't yet have the internal belief system to handle life's challenges. That's not a discipline problem — it's a development gap that has a specific solution.`,
+        teaching: `In my MePower™ program, we don't patch symptoms. We rebuild the root — your child's self-belief and identity. Parents who've gone through it say the change happens faster than they expected, because we work on the right thing. I've seen children transform in weeks. But there's a process, and it requires the right guidance.`,
+        close: `If you're watching this and thinking "that's my child" — this is your sign. MePower™ has limited spots and I only work with parents who are ready to commit.`,
+        cta: `Book a free 20-minute call from the link in my bio — let's talk about your child specifically.`,
       },
       tiktok_scripts: TIKTOK_PROGRAM_ORDER.map((program, i) => ({
         day: DAY_NAMES[i],
         program,
-        title: `The truth about ${t.toLowerCase()} parents need to hear`,
+        title: `The real reason your child struggles with ${t.toLowerCase()}`,
         hookType: "shock hook",
-        hook: `Nobody talks about this, but it's destroying your child's ${t.toLowerCase()}.`,
-        problem: "Parents try everything — and still feel like it's not working.",
-        reframe: "It's not about doing more. It's about doing the right thing.",
-        teaching: `Focus on connection before correction. One moment of genuine understanding changes everything.`,
-        action: `Say to your child tonight: "I see how hard you're trying."`,
-        cta: "Follow for more parenting tips that build confident children.",
+        hook: `Your child isn't the problem. The gap in their ${t.toLowerCase()} is. And it's 100% fixable.`,
+        problem: `You've corrected, explained, and tried to motivate them — but nothing sticks. You're starting to wonder if this is just who they are.`,
+        reframe: `It's not who they are. It's what they haven't been given yet. One structured system changes everything.`,
+        teaching: `The ${program} program is built exactly for this. Parents see real shifts — not just in behavior, but in how their child sees themselves.`,
+        close: `If you want to know if ${program} is right for your child, I'll tell you honestly in a quick call.`,
+        cta: `DM me "${program.replace("™", "").replace(" ", "").toUpperCase()}" and I'll send you the details.`,
       })),
       is_fallback: true,
     });

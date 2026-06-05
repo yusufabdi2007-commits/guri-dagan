@@ -79,25 +79,23 @@ interface Props {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function getWeekStart(): string {
+  // Most recent Sunday (or today if today is Sunday)
   const d = new Date();
-  const day = d.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  d.setDate(d.getDate() + diff);
+  d.setDate(d.getDate() - d.getDay());
   return d.toISOString().split("T")[0];
 }
 
 function getNextWeekStart(): string {
+  // Next Sunday
   const d = new Date();
-  const day = d.getDay();
-  const diff = day === 0 ? 1 : 8 - day;
-  d.setDate(d.getDate() + diff);
+  d.setDate(d.getDate() - d.getDay() + 7);
   return d.toISOString().split("T")[0];
 }
 
 function formatWeekLabel(weekStart: string): string {
   const start = new Date(weekStart + "T12:00:00");
   const end = new Date(weekStart + "T12:00:00");
-  end.setDate(end.getDate() + 6);
+  end.setDate(end.getDate() + 6); // Sun → Sat (7-day batch)
   const opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" };
   return `${start.toLocaleDateString("en-US", opts)} – ${end.toLocaleDateString("en-US", opts)}`;
 }
@@ -167,7 +165,7 @@ function ScriptSection({
 
 export function WeeklyAssignmentClient({
   userId,
-  nextWeekStart: _nextWeekStart,
+  nextWeekStart,
   topCategory,
   growingCategory,
   underusedCategory,
@@ -176,7 +174,7 @@ export function WeeklyAssignmentClient({
 }: Props) {
   const router = useRouter();
   const thisWeek = getWeekStart();
-  const nextWeek = getNextWeekStart();
+  const nextWeek = nextWeekStart;
 
   const [theme, setTheme] = useState("");
   const [lowEnergy, setLowEnergy] = useState(false);
@@ -222,7 +220,7 @@ export function WeeklyAssignmentClient({
       toast({
         title: "Could not generate assignment",
         description: e instanceof Error ? e.message : "Please try again",
-        variant: "destructive" as never,
+        variant: "destructive",
       });
     }
     setGenerating(false);
@@ -259,6 +257,10 @@ export function WeeklyAssignmentClient({
 
       const weekBase = new Date(selectedWeek + "T12:00:00");
 
+      // YouTube goes on Sunday (= week_start). Recording happens Monday.
+      // TikToks: Tue(+2), Wed(+3), Thu(+4), Fri(+5), Sat(+6), Sun(+0), Sun(+0)
+      const ytDate = new Date(weekBase); // Sunday (+0)
+
       const ytNotes = formatScriptNotes({
         program: plan.youtube.program,
         hookType: plan.youtube.hook_type,
@@ -266,7 +268,7 @@ export function WeeklyAssignmentClient({
         problem: plan.youtube.problem,
         reframe: plan.youtube.reframe,
         teaching: plan.youtube.teaching,
-        action: plan.youtube.action,
+        close: plan.youtube.close ?? plan.youtube.action ?? "",
         cta: plan.youtube.cta,
         extraNotes: plan.youtube.notes,
       });
@@ -275,7 +277,7 @@ export function WeeklyAssignmentClient({
         {
           batch_id: batch.id,
           user_id: userId,
-          scheduled_date: selectedWeek,
+          scheduled_date: ytDate.toISOString().split("T")[0], // Tuesday
           platform: "youtube",
           title: plan.youtube.title,
           angle_notes: ytNotes,
@@ -284,7 +286,9 @@ export function WeeklyAssignmentClient({
         },
         ...plan.tiktoks.map((tt, i) => {
           const d = new Date(weekBase);
-          d.setDate(d.getDate() + i);
+          // i=0 → Tue(+2), i=1 → Wed(+3), i=2 → Thu(+4), i=3 → Fri(+5),
+          // i=4 → Sat(+6), i=5 → Sun(+0), i=6 → Sun(+0)
+          d.setDate(d.getDate() + (i < 5 ? i + 2 : 0));
           const notes = formatScriptNotes({
             program: tt.program,
             hookType: tt.hook_type,
@@ -292,7 +296,7 @@ export function WeeklyAssignmentClient({
             problem: tt.problem,
             reframe: tt.reframe,
             teaching: tt.teaching,
-            action: tt.action,
+            close: tt.close ?? tt.action ?? "",
             cta: tt.cta,
           });
           return {
@@ -314,7 +318,7 @@ export function WeeklyAssignmentClient({
       toast({
         title: "Week assigned!",
         description: `8 posts scheduled for ${formatWeekLabel(selectedWeek)}. Time to record.`,
-        variant: "success" as never,
+        variant: "success",
       });
       router.push("/batch");
       router.refresh();
@@ -322,7 +326,7 @@ export function WeeklyAssignmentClient({
       toast({
         title: "Could not save plan",
         description: e instanceof Error ? e.message : "Please try again",
-        variant: "destructive" as never,
+        variant: "destructive",
       });
       setSaving(false);
     }
@@ -520,12 +524,12 @@ export function WeeklyAssignmentClient({
           {plan.is_fallback && (
             <div className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
               <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-              <div>
+              <div className="flex-1">
                 <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">
-                  AI unavailable — showing template plan
+                  AI unavailable — showing template scripts
                 </p>
                 <p className="text-xs text-amber-600/80 dark:text-amber-400/70 mt-0.5">
-                  Edit the scripts below to match your week, then save.
+                  The scripts below are marketing-ready templates. Tap &ldquo;Regenerate&rdquo; above to try getting custom AI scripts, or edit them directly before saving.
                 </p>
               </div>
             </div>
@@ -566,7 +570,7 @@ export function WeeklyAssignmentClient({
                     {plan.youtube.program}
                   </span>
                 )}
-                <span className="text-[10px] text-muted-foreground">Monday · Long-form</span>
+                <span className="text-[10px] text-muted-foreground">Sunday · Long-form</span>
               </div>
 
               <h3 className="text-base font-bold text-foreground leading-snug">
@@ -707,9 +711,9 @@ export function WeeklyAssignmentClient({
                   </div>
 
                   <div className="p-3 rounded-xl bg-primary/5 border border-primary/15">
-                    <p className="text-xs font-semibold text-primary mb-1">Session goal</p>
+                    <p className="text-xs font-semibold text-primary mb-1">Monday recording goal</p>
                     <p className="text-xs text-foreground">
-                      Record YouTube first (most energy). Then record all 7 TikToks grouped by program for natural flow.
+                      Record YouTube first (most energy). Then record all 7 TikToks grouped by program for natural flow. YouTube + 2 TikToks post next Sunday. Remaining TikToks post Tue–Sat.
                     </p>
                   </div>
 

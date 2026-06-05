@@ -21,7 +21,7 @@ interface ScriptData {
   problem: string;
   reframe: string;
   teaching: string;
-  action: string;
+  close: string;
   cta: string;
 }
 
@@ -46,25 +46,23 @@ interface Props {
 }
 
 function getWeekStart(): string {
+  // Most recent Sunday (or today if Sunday)
   const d = new Date();
-  const day = d.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  d.setDate(d.getDate() + diff);
+  d.setDate(d.getDate() - d.getDay());
   return d.toISOString().split("T")[0];
 }
 
 function getNextWeekStart(): string {
+  // Next Sunday
   const d = new Date();
-  const day = d.getDay();
-  const diff = day === 0 ? 1 : 8 - day;
-  d.setDate(d.getDate() + diff);
+  d.setDate(d.getDate() - d.getDay() + 7);
   return d.toISOString().split("T")[0];
 }
 
 function formatWeekLabel(weekStart: string): string {
   const start = new Date(weekStart + "T12:00:00");
   const end = new Date(weekStart + "T12:00:00");
-  end.setDate(end.getDate() + 6);
+  end.setDate(end.getDate() + 6); // Sun → Sat (7-day batch)
   const opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" };
   return `${start.toLocaleDateString("en-US", opts)} – ${end.toLocaleDateString("en-US", opts)}`;
 }
@@ -94,7 +92,7 @@ function ScriptPreview({ script, expanded, onToggle }: {
             { label: "Problem", text: script.problem },
             { label: "Reframe", text: script.reframe },
             { label: "Teaching", text: script.teaching },
-            { label: "Action", text: script.action },
+            { label: "Close", text: script.close },
             { label: "CTA", text: script.cta },
           ].map(({ label, text }) => (
             <div key={label} className="flex items-start gap-1.5">
@@ -144,7 +142,7 @@ export function BatchPlanClient({ userId, existingBatchId, weekStart }: Props) {
       toast({
         title: "Could not generate plan",
         description: e instanceof Error ? e.message : "Please try again",
-        variant: "destructive" as never,
+        variant: "destructive",
       });
     }
     setGenerating(false);
@@ -188,6 +186,9 @@ export function BatchPlanClient({ userId, existingBatchId, weekStart }: Props) {
 
       const weekBase = new Date(selectedWeek + "T12:00:00");
 
+      // YouTube goes on Sunday (= week_start). Recording happens Monday.
+      const ytDate = new Date(weekBase); // Sunday (+0)
+
       // Build structured angle_notes for YouTube
       const ytNotes = formatScriptNotes({
         program: plan.youtube_program,
@@ -196,27 +197,28 @@ export function BatchPlanClient({ userId, existingBatchId, weekStart }: Props) {
         problem: plan.youtube_script.problem,
         reframe: plan.youtube_script.reframe,
         teaching: plan.youtube_script.teaching,
-        action: plan.youtube_script.action,
+        close: plan.youtube_script.close,
         cta: plan.youtube_script.cta,
         extraNotes: "YouTube Long-form",
       });
 
       const posts = [
-        // YouTube — Monday
+        // YouTube — Tuesday
         {
           batch_id: batch.id,
           user_id: userId,
-          scheduled_date: selectedWeek,
+          scheduled_date: ytDate.toISOString().split("T")[0],
           platform: "youtube",
           title: plan.youtube_title,
           angle_notes: ytNotes,
           sort_order: 0,
           status: "scheduled",
         },
-        // 7 TikToks — Mon to Sun
+        // 7 TikToks: i=0→Tue(+2), i=1→Wed(+3), i=2→Thu(+4), i=3→Fri(+5),
+        //            i=4→Sat(+6), i=5→Sun(+0), i=6→Sun(+0)
         ...plan.tiktok_scripts.map((script, i) => {
           const d = new Date(weekBase);
-          d.setDate(d.getDate() + i);
+          d.setDate(d.getDate() + (i < 5 ? i + 2 : 0));
           const title = editingTitles[i] !== undefined ? editingTitles[i] : script.title;
           const notes = formatScriptNotes({
             program: script.program,
@@ -225,7 +227,7 @@ export function BatchPlanClient({ userId, existingBatchId, weekStart }: Props) {
             problem: script.problem,
             reframe: script.reframe,
             teaching: script.teaching,
-            action: script.action,
+            close: script.close,
             cta: script.cta,
           });
           return {
@@ -247,7 +249,7 @@ export function BatchPlanClient({ userId, existingBatchId, weekStart }: Props) {
       toast({
         title: "Week planned!",
         description: `${posts.length} posts scheduled with full scripts.`,
-        variant: "success" as never,
+        variant: "success",
       });
       router.push("/batch");
       router.refresh();
@@ -255,7 +257,7 @@ export function BatchPlanClient({ userId, existingBatchId, weekStart }: Props) {
       toast({
         title: "Could not save plan",
         description: e instanceof Error ? e.message : "Please try again",
-        variant: "destructive" as never,
+        variant: "destructive",
       });
       setSaving(false);
     }
@@ -331,10 +333,10 @@ export function BatchPlanClient({ userId, existingBatchId, weekStart }: Props) {
           {plan.is_fallback && (
             <div className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
               <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-              <div>
-                <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">AI unavailable — showing template</p>
+              <div className="flex-1">
+                <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">AI unavailable — showing marketing templates</p>
                 <p className="text-xs text-amber-600/80 dark:text-amber-400/70 mt-0.5">
-                  Edit the titles below to match your week, then save.
+                  These scripts are already marketing-focused. Tap &ldquo;Generate Plan&rdquo; again to retry AI, or edit and save as-is.
                 </p>
               </div>
             </div>
@@ -349,7 +351,7 @@ export function BatchPlanClient({ userId, existingBatchId, weekStart }: Props) {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">YouTube</p>
-                  <p className="text-[10px] text-muted-foreground">Monday — Long-form</p>
+                  <p className="text-[10px] text-muted-foreground">Sunday — Long-form</p>
                 </div>
                 <span className={cn(
                   "text-[10px] font-bold px-2 py-0.5 rounded-md border shrink-0",
@@ -372,11 +374,11 @@ export function BatchPlanClient({ userId, existingBatchId, weekStart }: Props) {
             <div className="flex items-center gap-2 px-1">
               <Video className="h-4 w-4 text-slate-500" />
               <p className="text-sm font-semibold text-foreground">7 TikTok Scripts</p>
-              <span className="text-xs text-muted-foreground ml-auto">Mon → Sun</span>
+              <span className="text-xs text-muted-foreground ml-auto">Tue → Sat + Sun</span>
             </div>
             {plan.tiktok_scripts.map((script, i) => {
               const d = new Date(selectedWeek + "T12:00:00");
-              d.setDate(d.getDate() + i);
+              d.setDate(d.getDate() + (i < 5 ? i + 2 : 0)); // match save logic
               const isExpanded = expandedIndex === i;
               return (
                 <Card key={i} className="overflow-hidden">
