@@ -217,7 +217,18 @@ Return valid JSON only:
 
     return NextResponse.json({ ...parsed, is_fallback: false });
   } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : String(error);
+    // Surface the real OpenAI error so we can diagnose
+    let errorMsg = error instanceof Error ? error.message : String(error);
+    // Detect common OpenAI failures
+    if (errorMsg.includes("401") || errorMsg.toLowerCase().includes("auth") || errorMsg.toLowerCase().includes("api key")) {
+      errorMsg = "OpenAI API key rejected (401 auth error) — update OPENAI_API_KEY in Vercel";
+    } else if (errorMsg.includes("429") || errorMsg.toLowerCase().includes("quota") || errorMsg.toLowerCase().includes("rate")) {
+      errorMsg = "OpenAI quota exceeded — check billing at platform.openai.com";
+    } else if (errorMsg.toLowerCase().includes("abort") || errorMsg.toLowerCase().includes("timeout")) {
+      errorMsg = "Request timed out — Vercel 30s Edge limit hit";
+    } else if (errorMsg.includes("JSON") || errorMsg.includes("json")) {
+      errorMsg = "AI returned invalid JSON — truncated response";
+    }
     console.error("Weekly assignment error:", errorMsg);
 
     const t =
