@@ -137,40 +137,40 @@ export async function POST(req: NextRequest) {
       (typeof topCategory === "string" && topCategory) ||
       "child confidence and parenting";
 
-    const prompt = `Write 8 COMPLETELY DIFFERENT marketing video scripts for Guri Dagan, a Somali parenting coach.
-Theme: "${t}"
-${categoryLines ? `Performance data: ${categoryLines}` : ""}
-${recentLine}
-${energyNote}
+    const weekDate = new Date().toISOString().split("T")[0]; // changes every week = fresh scripts
 
-CRITICAL: Every script is a COMPLETELY DIFFERENT video. Same program can appear multiple times — each must still have a totally different scenario, different parenting moment, different technique. No two hooks can be similar.
+    const prompt = `You are writing 8 SHORT marketing video scripts for Guri Dagan (Somali parenting coach). Week of: ${weekDate}.
+Theme: "${t}"${recentLine ? `\nAvoid these recent themes: ${(recentThemes as string[]).join(", ")}` : ""}${energyNote ? `\n${energyNote}` : ""}
 
-FIXED VIDEO ASSIGNMENTS — each has its own specific scenario to use:
-- YouTube: MePower™ → scenario: child says "I give up" after one failure at something they were excited about
-- TikTok Tue: MePower™ → scenario: child quits mid-activity and refuses to continue despite gentle encouragement
-- TikTok Wed: Inner Power™ → scenario: child becomes a completely different person around friends — unrecognisable
-- TikTok Thu: MePower™ → scenario: child compares themselves to a sibling and says "they're just better than me"
-- TikTok Fri: Inner Power™ → scenario: child can't say no to friends and goes along with things they don't want to do
-- TikTok Sat: MindPower™ → scenario: child says "I'm stupid" quietly after getting something wrong — matter-of-fact, not upset
-- TikTok Sun: DreamPower™ → scenario: child has no answer when asked what they want to do with their life — just shrugs
-- TikTok Sun: Slaying Dragons™ → scenario: child refuses to go to a new activity or event they've never tried before
+RULE: Every script must be a completely unique video — different scenario, different parenting moment, different technique. Same program appears multiple times; each slot still gets a totally different script.
 
-SCRIPT FORMAT (keep SHORT — TikTok = 60 seconds):
-- hook: 2 sentences. One vivid specific scenario the parent has lived. Make them think "how does she know?"
-- problem: 2 sentences. The exact pain + long-term cost if nothing changes.
-- reframe: 2-3 sentences. Give ONE real usable technique with EXACT words to say. E.g. "Next time your child says X, instead of Y, say: 'Z'. This works because..."
-- teaching: 2 sentences. Show why one tip isn't enough. Name the program as the complete solution.
-- close: 1 sentence. Bridge to enrollment, name the program.
-- cta: 1 sentence. DM keyword or free call.
+VIDEO SLOTS (one script each, use the given scenario):
+1. YouTube — MePower™ — child said "I give up" after first failure at something they cared about
+2. TikTok Tue — MePower™ — child quits mid-activity, refuses to try again despite gentle encouragement
+3. TikTok Wed — Inner Power™ — child becomes unrecognisable around friends, loses their opinions completely
+4. TikTok Thu — MePower™ — child compares to sibling: "they're just smarter/better than me"
+5. TikTok Fri — Inner Power™ — child can't say no to friends, always goes along even feeling uncomfortable
+6. TikTok Sat — MindPower™ — child says "I'm stupid" quietly after one mistake, like it's settled
+7. TikTok Sun — DreamPower™ — child shrugs when asked what they want to do with their life
+8. TikTok Sun — Slaying Dragons™ — child refuses to try anything new, panics at unfamiliar situations
 
-CTA keywords: MEPOWER / INNERPOWER / MINDPOWER / DREAMPOWER / DRAGONS
+SCRIPT FIELDS — keep VERY SHORT (TikTok = 60 sec, every field = MAX 1 sentence except reframe):
+- title: max 8 words
+- hook_type: fear hook / mistake hook / identity hook / emotional truth hook
+- hook: 1 sentence — the specific parenting moment, make them think "how does she know?"
+- problem: 1 sentence — the long-term cost if nothing changes
+- reframe: 2 sentences — ONE technique with EXACT words to say: "Next time your child says X, say: 'Y'."
+- teaching: 1 sentence — why one tip isn't enough + name the programme
+- close: 1 sentence — bridge to enrollment naming the programme
+- cta: 1 sentence — DM keyword (MEPOWER/INNERPOWER/MINDPOWER/DREAMPOWER/DRAGONS) or free call
+- notes (YouTube only): 1 sentence recording direction
 
 Return valid JSON only:
 {
   "theme": "...",
   "suggested_theme": true,
   "category_used": null,
-  "youtube": { "program": "MePower™", "title": "...", "hook_type": "...", "hook": "...", "problem": "...", "reframe": "...", "teaching": "...", "close": "...", "notes": "2 sentences of recording direction", "cta": "..." },
+  "youtube": { "program": "MePower™", "title": "...", "hook_type": "...", "hook": "...", "problem": "...", "reframe": "...", "teaching": "...", "close": "...", "notes": "...", "cta": "..." },
   "tiktoks": [
     { "day": "Tuesday", "program": "MePower™", "title": "...", "hook_type": "...", "hook": "...", "problem": "...", "reframe": "...", "teaching": "...", "close": "...", "cta": "..." },
     { "day": "Wednesday", "program": "Inner Power™", "title": "...", "hook_type": "...", "hook": "...", "problem": "...", "reframe": "...", "teaching": "...", "close": "...", "cta": "..." },
@@ -192,7 +192,7 @@ Return valid JSON only:
         { role: "user", content: prompt },
       ],
       temperature: 0.9,
-      max_tokens: 2000,
+      max_tokens: 3000,
       response_format: { type: "json_object" },
     }, { signal: controller.signal });
     clearTimeout(timeoutId);

@@ -88,30 +88,31 @@ export async function POST(req: NextRequest) {
   const t = theme.trim();
 
   try {
-    const prompt = `Write 8 COMPLETELY DIFFERENT marketing video scripts for Guri Dagan, a Somali parenting coach.
+    const weekDate = new Date().toISOString().split("T")[0];
+
+    const prompt = `Write 8 SHORT marketing video scripts for Guri Dagan (Somali parenting coach). Week of: ${weekDate}.
 Theme: "${t}"
 
-CRITICAL: Every script MUST be unique — different scenario, different tip, different hook. No repetition at all.
+RULE: Every script is a completely different video. Same program appears multiple times — each slot still gets a totally different scenario, moment, and technique.
 
-PROGRAMS (fixed, do not change):
-- YouTube: MePower™ (child gives up, says "I can't")
-- TikTok Mon: MePower™
-- TikTok Tue: Inner Power™ (follows friends, no identity, can't say no)
-- TikTok Wed: MePower™
-- TikTok Thu: Inner Power™
-- TikTok Fri: MindPower™ (says "I'm stupid", gives up after failure)
-- TikTok Sat: DreamPower™ (no goals, no motivation, drifts, screens all day)
-- TikTok Sun: Slaying Dragons™ (avoids challenges, anxious, won't try)
+VIDEO SLOTS (use the given scenario for each):
+1. YouTube — MePower™ — child said "I give up" after first failure at something they cared about
+2. TikTok Mon — MePower™ — child quits mid-activity, won't try again despite gentle encouragement
+3. TikTok Tue — Inner Power™ — child becomes unrecognisable around friends, loses all their opinions
+4. TikTok Wed — MePower™ — child compares to sibling: "they're just smarter/better than me"
+5. TikTok Thu — Inner Power™ — child can't say no to friends, always goes along even feeling wrong
+6. TikTok Fri — MindPower™ — child says "I'm stupid" quietly after one mistake, like it's settled
+7. TikTok Sat — DreamPower™ — child shrugs when asked what they want to do with their life
+8. TikTok Sun — Slaying Dragons™ — child refuses to try anything new, panics at unfamiliar situations
 
-SCRIPT FORMAT (keep SHORT — TikTok = 60 seconds):
-- hook: 2 sentences. One vivid specific scenario the parent lived. Make them think "how does she know?"
-- problem: 2 sentences. Exact pain + long-term cost if nothing changes.
-- reframe: 2-3 sentences. ONE real usable technique with EXACT words to say. "Next time X happens, instead of Y, say: 'Z'. This works because..."
-- teaching: 2 sentences. Why one tip isn't enough. Name the program as the complete solution.
-- close: 1 sentence. Name the program.
-- cta: 1 sentence. DM keyword or free call.
-
-CTA keywords: MEPOWER / INNERPOWER / MINDPOWER / DREAMPOWER / DRAGONS
+SCRIPT FIELDS — VERY SHORT (every field MAX 1 sentence, except reframe = 2 sentences):
+- hookType: fear hook / mistake hook / identity hook / emotional truth hook
+- hook: 1 sentence — the parenting moment, make them think "how does she know?"
+- problem: 1 sentence — the long-term cost if nothing changes
+- reframe: 2 sentences — ONE technique with EXACT words: "Next time your child says X, say: 'Y'."
+- teaching: 1 sentence — why one tip isn't enough + name the programme
+- close: 1 sentence — bridge to enrollment
+- cta: 1 sentence — DM keyword (MEPOWER/INNERPOWER/MINDPOWER/DREAMPOWER/DRAGONS) or free call
 
 Return valid JSON only:
 {
@@ -137,7 +138,7 @@ Return valid JSON only:
         { role: "user", content: prompt },
       ],
       temperature: 0.9,
-      max_tokens: 2000,
+      max_tokens: 3000,
       response_format: { type: "json_object" },
     }, { signal: controller.signal });
     clearTimeout(timeoutId);
