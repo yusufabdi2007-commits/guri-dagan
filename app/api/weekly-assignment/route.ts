@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import OpenAI from "openai";
 import { rateLimit } from "@/lib/rate-limit";
 
 export const runtime = 'edge';
@@ -105,14 +104,12 @@ export async function POST(req: NextRequest) {
 
   const { theme, lowEnergy, topCategory, growingCategory, underusedCategory, recentThemes } = body;
 
-  if (!process.env.OPENAI_API_KEY) {
+  if (!process.env.GEMINI_API_KEY) {
     return NextResponse.json(
-      { error: "OpenAI API key not configured. Add OPENAI_API_KEY to your Vercel environment variables." },
+      { error: "Gemini API key not configured. Add GEMINI_API_KEY to your Vercel environment variables." },
       { status: 503 }
     );
   }
-
-  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
   try {
     const categoryLines = [
@@ -184,21 +181,28 @@ Return valid JSON only:
 }`;
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 52_000);
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        { role: "system", content: "You are a marketing copywriter for a parenting coaching business. Write specific, emotionally precise video scripts. Every script must be completely different from the others. Return valid JSON only. No markdown. No text outside the JSON." },
-        { role: "user", content: prompt },
-      ],
-      temperature: 0.9,
-      max_tokens: 3000,
-      response_format: { type: "json_object" },
-    }, { signal: controller.signal });
+    const timeoutId = setTimeout(() => controller.abort(), 25_000);
+    const geminiRes = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          system_instruction: { parts: [{ text: "You are a marketing copywriter for a parenting coaching business. Write specific, emotionally precise video scripts. Every script must be completely different from the others. Return valid JSON only. No markdown, no code blocks, no text outside the JSON object." }] },
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
+          generationConfig: { responseMimeType: "application/json", maxOutputTokens: 3000, temperature: 0.9 },
+        }),
+        signal: controller.signal,
+      }
+    );
     clearTimeout(timeoutId);
-
-    const content = completion.choices[0]?.message?.content;
-    if (!content) throw new Error("No content from AI");
+    if (!geminiRes.ok) {
+      const errText = await geminiRes.text();
+      throw new Error(`Gemini ${geminiRes.status}: ${errText.slice(0, 200)}`);
+    }
+    const geminiData = await geminiRes.json();
+    const content = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!content) throw new Error("No content from Gemini");
 
     const parsed = JSON.parse(content);
     if (
