@@ -32,43 +32,65 @@ const FALLBACK_TIKTOKS = [
 
 const HOOK_TYPES = ["fear hook", "mistake hook", "identity hook", "emotional truth hook"];
 
-const PROGRAM_TIPS: Record<string, { hook: string; problem: string; reframe: string; teaching: string; close: string }> = {
-  "MePower™": {
-    hook: "Your child tried something new, couldn't get it on the first attempt, and said 'I can't do this.' You told them to keep going. They shut down.",
-    problem: "Every time a child walks away from a challenge, they build a story: 'I'm someone who gives up.' If that story goes unchallenged, they carry it into every job, every test, every relationship.",
-    reframe: "Next time your child says 'I can't', don't say 'yes you can.' Say: 'What's one tiny step you could try?' That question shifts their brain from shutdown to movement. Try it today.",
-    teaching: "That tip works for one moment. But there are four deeper layers — identity, self-talk, challenge tolerance, and internal belief — that all need to shift for this to become permanent. That's what MePower™ is built to work through together.",
-    close: "If you used that and want the complete system for your child, MePower™ is where we build all of it.",
+// Unique fallback script per VIDEO SLOT (not per program — same program appears multiple times)
+const VIDEO_TIPS: Array<{ hook: string; problem: string; reframe: string; teaching: string; close: string }> = [
+  // Slot 0 — Tuesday — MePower™ — scenario: child quits after first failure
+  {
+    hook: "Your child tried something new, couldn't do it on the first attempt, and said 'I can't do this.' You encouraged them. They shut down and walked away.",
+    problem: "Every time a child walks away from a hard moment, they write a private story: 'I'm someone who quits.' That story will follow them into every exam, every friendship, every dream they consider and drop.",
+    reframe: "Next time your child says 'I can't', don't say 'yes you can.' Instead say: 'What's one tiny step — just one — you could try right now?' That one question moves them from shutdown to motion.",
+    teaching: "That question works once. But the quitting pattern has roots — in how they talk to themselves, in what they believe failure means, in whether they trust that effort leads anywhere. MePower™ works through all of it systematically.",
+    close: "If this is your child, MePower™ was built to change this pattern from the root — not patch it.",
   },
-  "Inner Power™": {
-    hook: "Your child is completely different around their friends. At home — one person. With their group — someone you barely recognise.",
-    problem: "A child who becomes whoever the room needs them to be hasn't found themselves yet. Without a clear identity, they'll follow whoever pulls hardest — and that is dangerous.",
-    reframe: "Ask your child this Sunday: 'What's one decision you made this week that was yours — not your friends'?' That single question starts building the muscle of self-direction.",
-    teaching: "That question plants a seed. But building a true identity — values, standards, who they are when no one's watching — takes five specific practices done consistently. Inner Power™ teaches all five.",
-    close: "If you want your child to hold their ground regardless of who they're with, Inner Power™ was made for this.",
+  // Slot 1 — Wednesday — Inner Power™ — scenario: child becomes a different person around friends
+  {
+    hook: "At home your child is confident, funny, has opinions. The moment they're with their friends, you barely recognise them. They become whoever the group needs them to be.",
+    problem: "A child without a settled sense of self becomes whoever the room demands. That is not flexibility — that is invisibility. Without an identity to return to, they'll follow whoever pulls hardest.",
+    reframe: "This Sunday, ask your child: 'What's one decision you made this week that was completely yours — not what your friends chose?' That question, asked weekly, starts building the muscle of self-direction.",
+    teaching: "The question plants a seed. But building a real identity — knowing your values, trusting your own read of situations, staying yourself under pressure — takes consistent work. Inner Power™ teaches the five practices that build this.",
+    close: "If your child disappears into their social group, Inner Power™ is where they find themselves again.",
   },
-  "MindPower™": {
-    hook: "Your child got something wrong and said 'I'm stupid.' You said 'no you're not.' They smiled. Then said it again the following week.",
-    problem: "When we immediately contradict a child's self-label, they don't learn they're capable — they learn they need rescuing from the feeling. The root belief never shifts.",
-    reframe: "Next time your child says 'I'm stupid', don't argue. Ask: 'What does this tell you about what to try differently?' That reframes failure as information instead of identity.",
-    teaching: "That reframe helps in the moment. But a fixed mindset has four layers underneath: self-talk, failure response, effort belief, and ceiling story. MindPower™ works through all four — parents say their child's relationship with difficulty completely changed.",
-    close: "If your child has decided something untrue about themselves, MindPower™ is where that story gets rewritten.",
+  // Slot 2 — Thursday — MePower™ — scenario: child compares themselves to siblings
+  {
+    hook: "Your child looked at their sibling, then looked at their own work, and said: 'They're just better than me. I'll never be as good.' And they meant it.",
+    problem: "Comparison is a thief. A child who uses a sibling as their measuring stick will always feel behind — and eventually stop trying to close the gap. They'll just accept 'less' as their permanent position.",
+    reframe: "Next time your child compares themselves, don't argue. Ask: 'What were you able to do this month that you couldn't do last month?' Redirect them to measure against their own past. That's where real confidence lives.",
+    teaching: "That redirect helps in the moment. But the deeper issue — why they compare, what they believe about their own ceiling — needs a structured process to shift. That's what MePower™ addresses week by week.",
+    close: "If your child has already decided they're the 'less able' one, MePower™ is where that story gets challenged and rewritten.",
   },
-  "DreamPower™": {
-    hook: "Ask your child what they want to do with their life. Watch their face. Do they light up — or do they shrug and look away?",
-    problem: "A child with no vision drifts toward whatever is loudest — screens, the wrong crowd, the easiest path. Every year without direction, the drift goes deeper.",
-    reframe: "Tonight, give your child 10 minutes. Ask: 'If you could be great at one thing by next year, what would it be?' Write the answer down together. Don't judge it. That's how vision begins.",
-    teaching: "That exercise plants a seed. Growing it into real motivation — habits, daily rituals, a reason to choose effort over the screen — takes a complete system. That's DreamPower™.",
-    close: "If your child is drifting and you're ready to change that, DreamPower™ is where direction gets built.",
+  // Slot 3 — Friday — Inner Power™ — scenario: child can't say no to friends
+  {
+    hook: "Your child came home and told you something they did with their friends. You asked: 'Did you actually want to do that?' They paused. Then said: 'Not really, but everyone else was doing it.'",
+    problem: "A child who can't say no is a child who hasn't learned that their discomfort is worth listening to. That leads to following, not leading — and it gets more dangerous as they get older.",
+    reframe: "Teach your child this phrase: 'That's not really my thing, but you go ahead.' Practice it at home — say it out loud together until it feels normal. Words rehearsed at home become available under pressure.",
+    teaching: "That phrase is a start. But learning to hold your ground — to hear 'come on' and still say no — requires understanding where your values are, what your standards are, and what you're willing to stand for. That's Inner Power™.",
+    close: "If your child follows when they should lead, Inner Power™ teaches them to stay themselves regardless of who's watching.",
   },
-  "Slaying Dragons™": {
-    hook: "There was a school event, a new situation, a chance to try something different. Your child said 'I don't want to go.' You let them stay. It felt like kindness.",
-    problem: "Every time a child avoids a fear and the avoidance works, they learn: fear means stop. The world gets smaller. What they're willing to try gets fewer.",
-    reframe: "Next time your child says 'I don't want to try', say: 'Let's do 10 seconds of brave. Just 10 seconds.' Count with them. That's how courage gets built — ten seconds at a time.",
-    teaching: "Ten seconds works once. But building a child who consistently faces hard things requires a full framework: fear mapping, brave action steps, courage evidence, and belief reset. Slaying Dragons™ teaches all of it.",
-    close: "If your child has been shrinking from life, Slaying Dragons™ was built for this exact moment.",
+  // Slot 4 — Saturday — MindPower™ — scenario: child says "I'm stupid" after getting something wrong
+  {
+    hook: "Your child got something wrong at school. You found out when they came home quiet, sat down, and said — almost to themselves — 'I'm just stupid.' Not upset. Matter-of-fact. Like it was settled.",
+    problem: "When a child says 'I'm stupid' calmly, it's not frustration — it's a conclusion. They've decided. And a decided belief is harder to shift than a feeling. Every future challenge confirms it if nothing changes.",
+    reframe: "Don't argue with the label. Instead ask: 'What part of this is actually hard for you?' Name the specific thing, not them as a person. 'The fractions are hard' is solvable. 'I'm stupid' isn't.",
+    teaching: "Separating the difficulty from the identity is the first move. But a fixed mindset runs deeper — through how they respond to failure, what effort means to them, and what they believe is changeable. MindPower™ addresses each layer.",
+    close: "If your child has quietly decided they're 'not smart', MindPower™ is where that decision gets unmade.",
   },
-};
+  // Slot 5 — Sunday — DreamPower™ — scenario: child glued to screens with no goals
+  {
+    hook: "You asked your child: 'What do you want to be when you grow up?' They looked at you, looked back at their screen, and shrugged. Not shy. Just genuinely — nothing. No spark.",
+    problem: "A child with no vision doesn't grow toward something — they drift toward whatever is loudest and easiest. Every year without direction, the screen gets longer and the ambition gets quieter.",
+    reframe: "Tonight, sit with your child and ask: 'If you could be genuinely great at one thing by this time next year — just one thing — what would you pick?' Write whatever they say. Don't judge it. That's how vision begins.",
+    teaching: "That question opens a door. Walking through it — building daily habits, connecting effort to identity, choosing the hard thing over the screen — takes a structured system. That's DreamPower™.",
+    close: "If your child is drifting and you're ready to change that, DreamPower™ is where direction and drive get built.",
+  },
+  // Slot 6 — Sunday — Slaying Dragons™ — scenario: child refuses to try new things
+  {
+    hook: "There was an opportunity — a new activity, a school event, a chance to try something different. Your child said 'I don't want to go.' You didn't push. It felt like kindness at the time.",
+    problem: "Every time avoidance works — every time staying home makes the fear go away — the child's brain learns: fear means stop. The world gets smaller one avoided thing at a time.",
+    reframe: "Next time your child says 'I don't want to try', say: 'Let's just do 10 seconds of brave together. Just 10 seconds, then we'll see.' Count out loud with them. That's how courage gets trained — ten seconds at a time.",
+    teaching: "Ten seconds works once. Building a child who faces hard things consistently requires mapping their specific fears, taking graded brave steps, collecting evidence of courage, and resetting what they believe they can handle. Slaying Dragons™ teaches all of it.",
+    close: "If your child is shrinking from life one avoided thing at a time, Slaying Dragons™ was built for this.",
+  },
+];
 
 export async function POST(req: NextRequest) {
   const limit = rateLimit(req, { limit: 10, windowMs: 60 * 60_000 });
@@ -121,17 +143,17 @@ ${categoryLines ? `Performance data: ${categoryLines}` : ""}
 ${recentLine}
 ${energyNote}
 
-CRITICAL: Every script MUST be unique — different scenario, different tip, different hook. Do NOT repeat.
+CRITICAL: Every script is a COMPLETELY DIFFERENT video. Same program can appear multiple times — each must still have a totally different scenario, different parenting moment, different technique. No two hooks can be similar.
 
-PROGRAMS (fixed assignment, do not change):
-- YouTube: MePower™ (child says "I can't", gives up easily)
-- TikTok Tue: MePower™
-- TikTok Wed: Inner Power™ (no identity, follows friends, can't say no)
-- TikTok Thu: MePower™
-- TikTok Fri: Inner Power™
-- TikTok Sat: MindPower™ (says "I'm stupid", fixed mindset, gives up after failure)
-- TikTok Sun: DreamPower™ (no goals, no motivation, drifts, screens all day)
-- TikTok Sun: Slaying Dragons™ (avoids challenges, anxious, won't try new things)
+FIXED VIDEO ASSIGNMENTS — each has its own specific scenario to use:
+- YouTube: MePower™ → scenario: child says "I give up" after one failure at something they were excited about
+- TikTok Tue: MePower™ → scenario: child quits mid-activity and refuses to continue despite gentle encouragement
+- TikTok Wed: Inner Power™ → scenario: child becomes a completely different person around friends — unrecognisable
+- TikTok Thu: MePower™ → scenario: child compares themselves to a sibling and says "they're just better than me"
+- TikTok Fri: Inner Power™ → scenario: child can't say no to friends and goes along with things they don't want to do
+- TikTok Sat: MindPower™ → scenario: child says "I'm stupid" quietly after getting something wrong — matter-of-fact, not upset
+- TikTok Sun: DreamPower™ → scenario: child has no answer when asked what they want to do with their life — just shrugs
+- TikTok Sun: Slaying Dragons™ → scenario: child refuses to go to a new activity or event they've never tried before
 
 SCRIPT FORMAT (keep SHORT — TikTok = 60 seconds):
 - hook: 2 sentences. One vivid specific scenario the parent has lived. Make them think "how does she know?"
@@ -221,7 +243,7 @@ Return valid JSON only:
       },
       tiktoks: DAYS.map((day, i) => {
         const prog = PROGRAM_SLOTS[i];
-        const tips = PROGRAM_TIPS[prog] || PROGRAM_TIPS["MePower™"];
+        const tips = VIDEO_TIPS[i] || VIDEO_TIPS[0];
         return {
           day,
           program: prog,
