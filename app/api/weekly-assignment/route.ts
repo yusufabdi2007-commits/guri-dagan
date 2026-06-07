@@ -229,8 +229,7 @@ Return valid JSON only:
       temperature: 0.85,
       max_tokens: 6000,
       response_format: { type: "json_object" },
-      signal: controller.signal as AbortSignal,
-    });
+    }, { signal: controller.signal });
     clearTimeout(timeoutId);
 
     const content = completion.choices[0]?.message?.content;
