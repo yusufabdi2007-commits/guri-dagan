@@ -110,10 +110,10 @@ export async function POST(req: NextRequest) {
       ? "LOW ENERGY WEEK: Choose warm, story-based, relatable topics. Keep scripts simple and personal."
       : "";
 
-    const themeInstruction =
-      typeof theme === "string" && theme.trim().length > 2
-        ? `Use this theme provided by the creator: "${theme.trim()}"`
-        : `Suggest the best theme based on the performance data and programs below.`;
+    const t =
+      (typeof theme === "string" && theme.trim().length > 2 && theme.trim()) ||
+      (typeof topCategory === "string" && topCategory) ||
+      "child confidence and parenting";
 
     const prompt = `Write 8 COMPLETELY DIFFERENT marketing video scripts for Guri Dagan, a Somali parenting coach.
 Theme: "${t}"
@@ -145,9 +145,9 @@ CTA keywords: MEPOWER / INNERPOWER / MINDPOWER / DREAMPOWER / DRAGONS
 
 Return valid JSON only:
 {
-  "theme": "${t}",
-  "suggested_theme": ${!theme},
-  "category_used": ${topCategory ? `"${topCategory}"` : "null"},
+  "theme": "...",
+  "suggested_theme": true,
+  "category_used": null,
   "youtube": { "program": "MePower™", "title": "...", "hook_type": "...", "hook": "...", "problem": "...", "reframe": "...", "teaching": "...", "close": "...", "notes": "2 sentences of recording direction", "cta": "..." },
   "tiktoks": [
     { "day": "Tuesday", "program": "MePower™", "title": "...", "hook_type": "...", "hook": "...", "problem": "...", "reframe": "...", "teaching": "...", "close": "...", "cta": "..." },
