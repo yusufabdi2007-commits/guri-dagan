@@ -88,79 +88,35 @@ export async function POST(req: NextRequest) {
   const t = theme.trim();
 
   try {
-    const prompt = `You are writing high-converting video scripts for Guri Dagan — a Somali parenting coach. Her content is the front door to her paid programs. Every script must make one specific parent stop scrolling, feel deeply understood, and want to take action TODAY.
+    const prompt = `Write 8 COMPLETELY DIFFERENT marketing video scripts for Guri Dagan, a Somali parenting coach.
+Theme: "${t}"
 
-Weekly Theme: "${t}"
+CRITICAL: Every script MUST be unique — different scenario, different tip, different hook. No repetition at all.
 
-THE 5 PROGRAMS — KNOW THE EXACT PARENT WATCHING:
-1. MePower™ — Her child says "I can't" before even trying. Walks away from challenges. Needs constant praise just to feel okay. Copies others because they don't trust themselves. Parent has tried encouragement — it's not working. Transformation: child builds unshakeable belief in themselves from the inside out. CTA: DM "MEPOWER" or book free call (link in bio).
-2. Inner Power™ — Her child does what friends do, changes personality depending on who's around, can't say no to peer pressure. Has no clear identity or values. Parent worries about who they're becoming. Transformation: child knows exactly who they are and holds that line regardless of who's watching. CTA: DM "INNERPOWER" or book free call (link in bio).
-3. MindPower™ — Her child says "I'm stupid", "I can't learn this", gives up after one failure, takes mistakes personally. Parent doesn't know how to break the cycle. Transformation: child learns that failure is feedback and that they are capable of growth. CTA: DM "MINDPOWER" or book free call (link in bio).
-4. DreamPower™ — Her child has no goals, no motivation, no direction. Drifts through days. Can spend hours on screens but can't focus on what matters. Parent fears they're raising a child with no ambition or purpose. Transformation: child discovers their vision and starts moving toward it with real energy. CTA: DM "DREAMPOWER" or book free call (link in bio).
-5. Slaying Dragons™ — Her child avoids anything hard. Gets anxious before school, presentations, anything unfamiliar. Refuses to try new things. Parent watches them shrink from life. Transformation: child learns to face fear and act anyway — and discovers courage is built through action. CTA: DM "DRAGONS" or book free call (link in bio).
-
-FIXED PROGRAM ASSIGNMENT (DO NOT CHANGE):
-- YouTube: MePower™
+PROGRAMS (fixed, do not change):
+- YouTube: MePower™ (child gives up, says "I can't")
 - TikTok Mon: MePower™
-- TikTok Tue: Inner Power™
+- TikTok Tue: Inner Power™ (follows friends, no identity, can't say no)
 - TikTok Wed: MePower™
 - TikTok Thu: Inner Power™
-- TikTok Fri: MindPower™
-- TikTok Sat: DreamPower™
-- TikTok Sun: Slaying Dragons™
+- TikTok Fri: MindPower™ (says "I'm stupid", gives up after failure)
+- TikTok Sat: DreamPower™ (no goals, no motivation, drifts, screens all day)
+- TikTok Sun: Slaying Dragons™ (avoids challenges, anxious, won't try)
 
-THE 8 RULES OF SCRIPTS THAT CONVERT:
-1. WRITE FOR ONE PARENT — Not "many parents struggle." Say: "You've corrected your child three times this week. Nothing changed." Specific is magnetic.
-2. MAKE THEM FEEL SEEN IN THE FIRST 3 SECONDS — The hook must make them think "how does she know exactly what's happening in my home?"
-3. AGITATE THE LONG-TERM COST — Not just "your child struggles" but "and if nothing changes, they'll carry this into adulthood."
-4. THE REFRAME IS THE MAGIC MOMENT — One sentence that challenges what they believe. "It's not that your child is lazy — it's that they've never been given a reason to move."
-5. NEVER GIVE THE HOW — Give the WHAT and the WHY. The HOW is inside the program. Create the desire, don't fill it.
-6. NAME THE PROGRAM AS THE ANSWER — Not "my coaching." Always: "This is exactly what MePower™ is built for."
-7. URGENCY WITHOUT PRESSURE — "I only work with parents who are ready to commit" hits harder than "limited spots available."
-8. CTA MUST FEEL LIKE RELIEF — Like the parent thinks "finally, I can do something about this." An invitation, not a sales pitch.
+SCRIPT FORMAT (keep SHORT — TikTok = 60 seconds):
+- hook: 2 sentences. One vivid specific scenario the parent lived. Make them think "how does she know?"
+- problem: 2 sentences. Exact pain + long-term cost if nothing changes.
+- reframe: 2-3 sentences. ONE real usable technique with EXACT words to say. "Next time X happens, instead of Y, say: 'Z'. This works because..."
+- teaching: 2 sentences. Why one tip isn't enough. Name the program as the complete solution.
+- close: 1 sentence. Name the program.
+- cta: 1 sentence. DM keyword or free call.
 
-TITLE FORMULAS — pick the best structure for each video, make it specific to the theme AND the assigned program's audience:
-- "Your child isn't [label parents use] — they [real diagnosis that creates desire for the program]"
-- "What I tell every parent whose child [specific painful behavior every parent recognizes]"
-- "The [surprising thing] that secretly [destroys/blocks a specific quality] in your child"
-- "If your child does [specific behavior], watch this before you do anything else"
-- "Why [common parenting approach] is actually making your child's [specific struggle] worse"
-- "Stop [well-meaning thing parents do] — here's what actually works for [specific outcome]"
+CTA keywords: MEPOWER / INNERPOWER / MINDPOWER / DREAMPOWER / DRAGONS
 
-HOOK FORMULAS — the hook is everything, must stop a tired parent scrolling at 11pm:
-- Scenario: "Your child just said 'I give up.' You told them to try again. They walked away. That's not a motivation problem — it's something deeper."
-- Bold truth: "Telling your child they're smart is not building their confidence. In fact, it might be doing the opposite."
-- Question: "When's the last time your child tried something hard and didn't give up? If you're struggling to remember — keep watching."
-- Challenge: "If your child gives up every time things get difficult, there is ONE thing missing. And it's not more encouragement."
-- Confession: "I used to think confident children were born that way. Then I worked with hundreds of Somali families and found out the truth."
-
-SCRIPT STRUCTURE — "language teacher" model: give ONE real technique, then sell the complete system:
-1. hook: One specific scenario so vivid the parent thinks "that's literally my house." 2 punchy sentences. No generics.
-2. problem: Name the exact pain + the long-term cost if nothing changes. 2 sentences. Let them feel it.
-3. reframe: Give ONE real, specific, immediately usable technique — exact words to say, exact question to ask, exact action to take. Format: "Next time [X happens], instead of [what most parents do], try: '[exact words/action]'. Here's why this works: [one sentence]." This is real value that builds trust and makes them want more.
-4. teaching: Show why ONE tip is not the complete solution. Name 2 other layers without explaining them. "That works for one moment — but there are [N] other things: [name them briefly]. All of that is inside [Program Name] — parents who go through it tell me [specific transformation result]."
-5. close: "If you used that and want the complete system for your child, [Program Name] is where we build all of it." 1 sentence.
-6. cta: One clear action. DM keyword or free call. 1 sentence.
-
-QUALITY CHECK — every script must pass all 5:
-✓ Does the hook describe ONE specific scenario the parent has actually lived?
-✓ Is the REFRAME a real, usable technique with exact words — not just a concept?
-✓ Does the TEACHING show the gap without filling it?
-✓ Is the program named as THE complete solution?
-✓ Does the CTA feel like the obvious, risk-free next step?
-
-Return valid JSON only — no markdown, no explanation outside the JSON:
+Return valid JSON only:
 {
   "youtube_title": "...",
-  "youtube_script": {
-    "hookType": "...",
-    "hook": "...",
-    "problem": "...",
-    "reframe": "...",
-    "teaching": "...",
-    "close": "...",
-    "cta": "..."
-  },
+  "youtube_script": { "hookType": "...", "hook": "...", "problem": "...", "reframe": "...", "teaching": "...", "close": "...", "cta": "..." },
   "tiktok_scripts": [
     { "title": "...", "hookType": "...", "hook": "...", "problem": "...", "reframe": "...", "teaching": "...", "close": "...", "cta": "..." },
     { "title": "...", "hookType": "...", "hook": "...", "problem": "...", "reframe": "...", "teaching": "...", "close": "...", "cta": "..." },
@@ -177,11 +133,11 @@ Return valid JSON only — no markdown, no explanation outside the JSON:
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
-        { role: "system", content: "You are a world-class direct-response copywriter specialising in coaching businesses. You write video scripts that make parents feel deeply understood, create genuine desire for the transformation, and move them to act. You are specific, personal, and emotionally precise. Return valid JSON only. No markdown fences. No text outside the JSON object." },
+        { role: "system", content: "You are a marketing copywriter for a parenting coaching business. Write specific, emotionally precise video scripts. Every script must be completely different from the others. Return valid JSON only. No markdown. No text outside the JSON." },
         { role: "user", content: prompt },
       ],
-      temperature: 0.85,
-      max_tokens: 6000,
+      temperature: 0.9,
+      max_tokens: 3500,
       response_format: { type: "json_object" },
     }, { signal: controller.signal });
     clearTimeout(timeoutId);
