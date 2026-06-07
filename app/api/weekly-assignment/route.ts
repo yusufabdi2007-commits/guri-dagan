@@ -217,7 +217,8 @@ Return valid JSON only:
 
     return NextResponse.json({ ...parsed, is_fallback: false });
   } catch (error) {
-    console.error("Weekly assignment error:", error);
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error("Weekly assignment error:", errorMsg);
 
     const t =
       (typeof theme === "string" && theme.trim()) ||
@@ -264,6 +265,7 @@ Return valid JSON only:
         "Record all 7 TikToks back-to-back for flow",
       ],
       is_fallback: true,
+      _error: errorMsg,
     });
   }
 }

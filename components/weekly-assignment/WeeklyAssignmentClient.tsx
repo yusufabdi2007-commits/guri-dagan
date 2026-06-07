@@ -58,6 +58,7 @@ interface AssignmentPlan {
   tiktoks: TikTokPost[];
   recording_checklist: string[];
   is_fallback: boolean;
+  _error?: string;
 }
 
 interface CategoryStat {
@@ -533,6 +534,9 @@ export function WeeklyAssignmentClient({
                 <p className="text-xs text-amber-600/80 dark:text-amber-400/70 mt-0.5">
                   These scripts are marketing-ready and good to record. Tap &ldquo;Regenerate&rdquo; to get custom AI scripts, or edit them directly and save.
                 </p>
+                {plan._error && (
+                  <p className="text-[10px] text-amber-500/70 mt-1 font-mono break-all">{plan._error}</p>
+                )}
               </div>
             </div>
           )}
