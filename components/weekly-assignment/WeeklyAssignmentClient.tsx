@@ -528,10 +528,10 @@ export function WeeklyAssignmentClient({
               <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
               <div className="flex-1">
                 <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">
-                  AI unavailable — showing template scripts
+                  Using preset scripts
                 </p>
                 <p className="text-xs text-amber-600/80 dark:text-amber-400/70 mt-0.5">
-                  The scripts below are marketing-ready templates. Tap &ldquo;Regenerate&rdquo; above to try getting custom AI scripts, or edit them directly before saving.
+                  These scripts are marketing-ready and good to record. Tap &ldquo;Regenerate&rdquo; to get custom AI scripts, or edit them directly and save.
                 </p>
               </div>
             </div>

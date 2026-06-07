@@ -170,7 +170,7 @@ Return valid JSON only:
         { role: "user", content: prompt },
       ],
       temperature: 0.9,
-      max_tokens: 3500,
+      max_tokens: 2000,
       response_format: { type: "json_object" },
     }, { signal: controller.signal });
     clearTimeout(timeoutId);

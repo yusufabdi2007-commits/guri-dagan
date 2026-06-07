@@ -334,9 +334,9 @@ export function BatchPlanClient({ userId, existingBatchId, weekStart }: Props) {
             <div className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
               <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
               <div className="flex-1">
-                <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">AI unavailable — showing marketing templates</p>
+                <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">Using preset scripts</p>
                 <p className="text-xs text-amber-600/80 dark:text-amber-400/70 mt-0.5">
-                  These scripts are already marketing-focused. Tap &ldquo;Generate Plan&rdquo; again to retry AI, or edit and save as-is.
+                  These scripts are marketing-ready and good to record. Tap &ldquo;Generate Plan&rdquo; again for custom AI scripts, or edit and save as-is.
                 </p>
               </div>
             </div>
