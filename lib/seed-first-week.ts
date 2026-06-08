@@ -2,16 +2,25 @@
  * Auto-seed: inserts first week of batch data for a new user.
  * Called server-side when weekly_batches is empty.
  * Idempotent — safe to call multiple times.
+ *
+ * Schedule: week_start = Sunday.
+ *   sort_order 0  → YouTube   → Sunday (week_start + 0)
+ *   sort_order 1  → TikTok    → Tuesday (week_start + 2)
+ *   sort_order 2  → TikTok    → Wednesday (week_start + 3)
+ *   sort_order 3  → TikTok    → Thursday (week_start + 4)
+ *   sort_order 4  → TikTok    → Friday (week_start + 5)
+ *   sort_order 5  → TikTok    → Saturday (week_start + 6)
+ *   sort_order 6  → TikTok    → Sunday (week_start + 0) ← same day as YouTube
+ *   sort_order 7  → TikTok    → Sunday (week_start + 0) ← same day as YouTube
+ * Monday (week_start + 1) = Recording Day — no posts scheduled.
  */
 
 import { SupabaseClient } from "@supabase/supabase-js";
 
-function getNextMonday(): string {
+// Returns the most recent Sunday (or today if today is Sunday)
+function getThisSunday(): string {
   const d = new Date();
-  const day = d.getDay(); // 0=Sun, 1=Mon, ...
-  // If today IS Monday (1), use today. Otherwise advance to next Monday.
-  const diff = day === 1 ? 0 : day === 0 ? 1 : 8 - day;
-  d.setDate(d.getDate() + diff);
+  d.setDate(d.getDate() - d.getDay()); // getDay()=0 → stays; 1-6 → goes back
   return d.toISOString().split("T")[0];
 }
 
@@ -33,7 +42,7 @@ export async function seedFirstWeek(
 
   if ((count ?? 0) > 0) return { seeded: false };
 
-  const monday = getNextMonday();
+  const sunday = getThisSunday();
 
   // Insert weekly batch
   const { data: batch, error: batchErr } = await supabase
@@ -41,7 +50,7 @@ export async function seedFirstWeek(
     .upsert(
       {
         user_id: userId,
-        week_start: monday,
+        week_start: sunday,
         theme: "Building Unshakeable Confidence in Your Child",
         youtube_title: "How to Raise a Confident Child: The Complete Somali Parenting Guide",
         youtube_notes:
@@ -60,10 +69,11 @@ export async function seedFirstWeek(
   await supabase.from("batch_posts").delete().eq("batch_id", batch.id);
 
   const posts = [
+    // sort_order 0 — YouTube — Sunday
     {
       batch_id: batch.id,
       user_id: userId,
-      scheduled_date: monday,
+      scheduled_date: addDays(sunday, 0),
       platform: "youtube",
       title: "How to Raise a Confident Child: The Complete Somali Parenting Guide",
       angle_notes:
@@ -71,10 +81,11 @@ export async function seedFirstWeek(
       sort_order: 0,
       status: "scheduled",
     },
+    // sort_order 1 — TikTok — Tuesday
     {
       batch_id: batch.id,
       user_id: userId,
-      scheduled_date: monday,
+      scheduled_date: addDays(sunday, 2),
       platform: "tiktok",
       title: "The One Word That Destroys Child Confidence",
       angle_notes:
@@ -82,10 +93,11 @@ export async function seedFirstWeek(
       sort_order: 1,
       status: "scheduled",
     },
+    // sort_order 2 — TikTok — Wednesday
     {
       batch_id: batch.id,
       user_id: userId,
-      scheduled_date: addDays(monday, 1),
+      scheduled_date: addDays(sunday, 3),
       platform: "tiktok",
       title: "How to Build a Child Who Doesn't Need External Validation",
       angle_notes:
@@ -93,10 +105,11 @@ export async function seedFirstWeek(
       sort_order: 2,
       status: "scheduled",
     },
+    // sort_order 3 — TikTok — Thursday
     {
       batch_id: batch.id,
       user_id: userId,
-      scheduled_date: addDays(monday, 2),
+      scheduled_date: addDays(sunday, 4),
       platform: "tiktok",
       title: "Why Shy Children Need This — Not Encouragement",
       angle_notes:
@@ -104,10 +117,11 @@ export async function seedFirstWeek(
       sort_order: 3,
       status: "scheduled",
     },
+    // sort_order 4 — TikTok — Friday
     {
       batch_id: batch.id,
       user_id: userId,
-      scheduled_date: addDays(monday, 3),
+      scheduled_date: addDays(sunday, 5),
       platform: "tiktok",
       title: "The Discipline Mistake That Weakens Children",
       angle_notes:
@@ -115,10 +129,11 @@ export async function seedFirstWeek(
       sort_order: 4,
       status: "scheduled",
     },
+    // sort_order 5 — TikTok — Saturday
     {
       batch_id: batch.id,
       user_id: userId,
-      scheduled_date: addDays(monday, 4),
+      scheduled_date: addDays(sunday, 6),
       platform: "tiktok",
       title: "How to Teach Your Child a Growth Mindset in 60 Seconds",
       angle_notes:
@@ -126,10 +141,11 @@ export async function seedFirstWeek(
       sort_order: 5,
       status: "scheduled",
     },
+    // sort_order 6 — TikTok — Sunday (same day as YouTube)
     {
       batch_id: batch.id,
       user_id: userId,
-      scheduled_date: addDays(monday, 5),
+      scheduled_date: addDays(sunday, 0),
       platform: "tiktok",
       title: "Ask Your Child This Question Every Week",
       angle_notes:
@@ -137,10 +153,11 @@ export async function seedFirstWeek(
       sort_order: 6,
       status: "scheduled",
     },
+    // sort_order 7 — TikTok — Sunday (same day as YouTube)
     {
       batch_id: batch.id,
       user_id: userId,
-      scheduled_date: addDays(monday, 6),
+      scheduled_date: addDays(sunday, 0),
       platform: "tiktok",
       title: "How to Raise a Child Who Faces Fear Instead of Running",
       angle_notes:

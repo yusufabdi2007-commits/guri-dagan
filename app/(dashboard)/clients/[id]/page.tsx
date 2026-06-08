@@ -1,12 +1,13 @@
 import { createClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/Header";
 import { ClientDetailClient } from "@/components/clients/ClientDetailClient";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 export default async function ClientDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
 
   const { data: enrollment, error } = await supabase
     .from("client_enrollments")

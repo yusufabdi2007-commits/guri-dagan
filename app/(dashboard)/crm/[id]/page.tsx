@@ -1,12 +1,13 @@
 import { createClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/Header";
 import { ClientDetail } from "@/components/crm/ClientDetail";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 export default async function ClientPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
 
   const [{ data: client }, { data: sessions }, { data: tasks }] = await Promise.all([
     supabase.from("crm_clients").select("*").eq("id", id).eq("user_id", user!.id).single(),

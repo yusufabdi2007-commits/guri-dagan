@@ -112,7 +112,7 @@ export function TikTokClient({ posts: initialPosts, userId }: Props) {
     setPosts(prev => [data, ...prev]);
     setForm(emptyForm);
     setShowForm(false);
-    toast({ title: "Post added!", variant: "success" as never });
+    toast({ title: "Post added!", variant: "success" });
     router.refresh();
   }
 

@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { IdeasClient } from "@/components/ideas/IdeasClient";
 import { VoiceCapture } from "@/components/ideas/VoiceCapture";
@@ -6,6 +7,7 @@ import { VoiceCapture } from "@/components/ideas/VoiceCapture";
 export default async function IdeasPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
 
   const { data: ideas } = await supabase
     .from("content_ideas")

@@ -1,10 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { BusinessDashboardClient } from "@/components/business/BusinessDashboardClient";
 
 export default async function BusinessPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
 
   const [
     { data: leads },

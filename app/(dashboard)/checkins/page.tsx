@@ -1,10 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { CheckinsClient } from "@/components/checkins/CheckinsClient";
 
 export default async function CheckinsPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
 
   const [{ data: children }, { data: checkins }] = await Promise.all([
     supabase

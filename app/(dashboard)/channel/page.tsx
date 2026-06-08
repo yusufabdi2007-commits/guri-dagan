@@ -1,10 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { ChannelClient } from "@/components/channel/ChannelClient";
 
 export default async function ChannelPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
 
   const now = new Date();
   const weekAgoStr = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];

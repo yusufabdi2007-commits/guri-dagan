@@ -1,10 +1,7 @@
-const CACHE_NAME = "guri-dagan-v1";
-const STATIC_ASSETS = [
-  "/",
-  "/today",
-  "/dashboard",
-  "/offline",
-];
+const CACHE_NAME = "guri-dagan-v2";
+
+// Only pre-cache the offline fallback — never cache SSR/auth routes
+const STATIC_ASSETS = ["/offline"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -56,17 +53,31 @@ self.addEventListener("notificationclick", (event) => {
 
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
+
+  // Never intercept API calls
   if (event.request.url.includes("/api/")) return;
 
+  // PAGE NAVIGATIONS: pass straight to network, no caching.
+  // SSR pages are auth-sensitive — caching them causes stale redirects
+  // and broken auth state after login (old /today cache → redirects to /login).
+  if (event.request.mode === "navigate") {
+    event.respondWith(
+      fetch(event.request).catch(() =>
+        caches.match("/offline").then((r) => r || new Response("Offline", { status: 503 }))
+      )
+    );
+    return;
+  }
+
+  // STATIC ASSETS (JS, CSS, fonts, images): cache-first for speed
   event.respondWith(
-    fetch(event.request)
-      .then((response) => {
-        const responseClone = response.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, responseClone);
-        });
+    caches.match(event.request).then((cached) => {
+      if (cached) return cached;
+      return fetch(event.request).then((response) => {
+        const clone = response.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
         return response;
-      })
-      .catch(() => caches.match(event.request))
+      });
+    }).catch(() => new Response("", { status: 503 }))
   );
 });

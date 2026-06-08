@@ -1,10 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { TestimonialsClient } from "@/components/testimonials/TestimonialsClient";
 
 export default async function TestimonialsPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
 
   const { data: testimonials } = await supabase
     .from("testimonials")

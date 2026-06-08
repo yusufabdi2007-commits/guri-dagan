@@ -1,10 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { YouTubeClient } from "@/components/youtube/YouTubeClient";
 
 export default async function YouTubePage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
 
   const [{ data: videos }, { data: config }] = await Promise.all([
     supabase

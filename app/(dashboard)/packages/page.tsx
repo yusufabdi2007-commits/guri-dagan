@@ -1,10 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { PackagesClient } from "@/components/packages/PackagesClient";
 
 export default async function PackagesPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
 
   const [{ data: packages }, { data: bookings }] = await Promise.all([
     supabase

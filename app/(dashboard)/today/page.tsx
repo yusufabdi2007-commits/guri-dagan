@@ -4,47 +4,44 @@ import { TodayClient } from "@/components/today/TodayClient";
 import { redirect } from "next/navigation";
 import { seedFirstWeek } from "@/lib/seed-first-week";
 
+// Returns the most recent Sunday (or today if today is Sunday)
 function getWeekStart(): string {
   const d = new Date();
-  const day = d.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  d.setDate(d.getDate() + diff);
+  d.setDate(d.getDate() - d.getDay());
   return d.toISOString().split("T")[0];
 }
 
-function getWeekEnd(weekStart: string): string {
-  const d = new Date(weekStart + "T12:00:00");
-  d.setDate(d.getDate() + 6);
-  return d.toISOString().split("T")[0];
-}
-
-// Next Monday from today (even if today is Sunday → tomorrow)
-function getNextWeekStart(): string {
-  const d = new Date();
-  const day = d.getDay();
-  const diff = day === 0 ? 1 : 8 - day;
-  d.setDate(d.getDate() + diff);
+function addDays(dateStr: string, days: number): string {
+  const d = new Date(dateStr + "T12:00:00");
+  d.setDate(d.getDate() + days);
   return d.toISOString().split("T")[0];
 }
 
 export default async function TodayPage() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+
+  const { data: { session } } = await supabase.auth.getSession();
+  const user = session?.user;
   if (!user) redirect("/login");
 
-  // Auto-seed first week of content if user has no batches yet
-  await seedFirstWeek(supabase, user.id);
+  // Auto-seed first week of content if user has no batches yet.
+  seedFirstWeek(supabase, user.id).catch(() => {});
 
   const today = new Date();
   const todayStr = today.toISOString().split("T")[0];
-  const isSunday = today.getDay() === 0;
+  const dayOfWeek = today.getDay(); // 0=Sun, 1=Mon, 2=Tue, ..., 6=Sat
+
+  // Monday = recording day. All other days (including Sunday) = posting day.
+  const weekPhase: "recording" | "posting" = dayOfWeek === 1 ? "recording" : "posting";
+
+  // week_start = most recent Sunday (the first posting day of the batch)
+  // Batch spans Sunday–Saturday: 3 posts on Sunday, 1 each on Tue–Sat.
   const weekStart = getWeekStart();
-  const weekEnd = getWeekEnd(weekStart);
-  const nextWeekStart = getNextWeekStart();
-  const nextWeekEnd = getWeekEnd(nextWeekStart);
+  const weekEnd = addDays(weekStart, 6);   // Saturday
+  const nextWeekStart = addDays(weekStart, 7); // next Sunday
 
   const [
-    { data: batchPost },
+    { data: batchPosts },
     { data: calendarItems },
     { data: editedIdeas },
     { data: allCompletions },
@@ -53,14 +50,14 @@ export default async function TodayPage() {
     { data: nextPostRaw },
     { data: recordingPostsRaw },
   ] = await Promise.all([
+    // All unposted batch posts for today (can be multiple on Sunday)
     supabase
       .from("batch_posts")
       .select("id, platform, title, angle_notes, status, batch_id")
       .eq("user_id", user.id)
       .eq("scheduled_date", todayStr)
       .neq("status", "posted")
-      .limit(1)
-      .maybeSingle(),
+      .order("sort_order", { ascending: true }),
     supabase
       .from("calendar_items")
       .select("id, title, platform, status")
@@ -79,12 +76,17 @@ export default async function TodayPage() {
       .select("completed_date")
       .eq("user_id", user.id)
       .eq("completed_date", todayStr),
+    // Find the active batch (week_start between today-7 and today, most recent first)
     supabase
       .from("weekly_batches")
       .select("theme, week_start")
       .eq("user_id", user.id)
-      .eq("week_start", weekStart)
+      .gte("week_start", addDays(todayStr, -7))
+      .lte("week_start", todayStr)
+      .order("week_start", { ascending: false })
+      .limit(1)
       .maybeSingle(),
+    // All posts in this week's batch (Sunday–Saturday) for progress counting
     supabase
       .from("batch_posts")
       .select("status")
@@ -100,14 +102,14 @@ export default async function TodayPage() {
       .order("scheduled_date", { ascending: true })
       .limit(1)
       .maybeSingle(),
-    // Sunday recording mode: fetch next week's batch posts
-    isSunday
+    // Monday recording mode: fetch next Sunday's batch posts to show recording checklist
+    weekPhase === "recording"
       ? supabase
           .from("batch_posts")
-          .select("id, platform, title, angle_notes, status, sort_order")
+          .select("id, platform, title, angle_notes, status, sort_order, scheduled_date")
           .eq("user_id", user.id)
           .gte("scheduled_date", nextWeekStart)
-          .lte("scheduled_date", nextWeekEnd)
+          .lte("scheduled_date", addDays(nextWeekStart, 6))
           .order("sort_order", { ascending: true })
       : Promise.resolve({ data: [] }),
   ]);
@@ -131,11 +133,11 @@ export default async function TodayPage() {
   return (
     <div className="flex flex-col min-h-full">
       <Header
-        title={isSunday ? "Recording Day" : "Today's Post"}
+        title={weekPhase === "recording" ? "Recording Day" : "Today's Post"}
         subtitle={`${greeting} — ${dateLabel}`}
       />
       <TodayClient
-        batchPost={batchPost ?? null}
+        batchPosts={batchPosts ?? []}
         calendarItems={calendarItems ?? []}
         editedIdeas={editedIdeas ?? []}
         postedToday={postedToday}
@@ -144,7 +146,7 @@ export default async function TodayPage() {
         weeklyTheme={weeklyBatch?.theme ?? null}
         weekProgress={weekProgress}
         nextPost={nextPostRaw ?? null}
-        isSunday={isSunday}
+        weekPhase={weekPhase}
         recordingPosts={recordingPostsRaw ?? []}
         nextWeekStart={nextWeekStart}
       />

@@ -1,10 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { TranscriptClient } from "@/components/transcript/TranscriptClient";
 
 export default async function TranscriptPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
 
   const { data: history } = await supabase
     .from("shorts_suggestions")

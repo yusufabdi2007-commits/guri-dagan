@@ -1,10 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { ConnectionsClient } from "@/components/connections/ConnectionsClient";
 
 export default async function ConnectionsPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
 
   const [{ data: connections }, { data: ytConfig }, { data: syncLogs }] = await Promise.all([
     supabase

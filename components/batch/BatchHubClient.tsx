@@ -11,7 +11,7 @@ import { toast } from "@/components/ui/use-toast";
 import {
   CalendarDays, Youtube, Video, CheckCircle2, Clock,
   AlertCircle, Mic2, Sparkles, ArrowRight, Circle,
-  PlayCircle, Edit3, Zap
+  PlayCircle, Edit3, Zap, Camera
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -43,7 +43,7 @@ interface Props {
   userId: string;
 }
 
-const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 const STATUS_CONFIG = {
   scheduled: { label: "Scheduled", color: "text-muted-foreground", bg: "bg-muted/60", icon: Clock },
@@ -61,8 +61,9 @@ const BATCH_STATUS_BADGE = {
 };
 
 function getWeekDates(weekStart: string): string[] {
+  // 7-day batch: Sunday (week_start) through Saturday
   return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(weekStart);
+    const d = new Date(weekStart + "T12:00:00");
     d.setDate(d.getDate() + i);
     return d.toISOString().split("T")[0];
   });
@@ -215,7 +216,14 @@ export function BatchHubClient({ batch, posts, todayStr, userId }: Props) {
                   </div>
                   <div className="flex-1 min-w-0">
                     {dayPosts.length === 0 ? (
-                      <p className="text-xs text-muted-foreground italic">No post scheduled</p>
+                      i === 1 ? (
+                        <div className="flex items-center gap-1.5">
+                          <Camera className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                          <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">Recording Day</span>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-muted-foreground italic">No post scheduled</p>
+                      )
                     ) : (
                       <div className="space-y-1.5">
                         {dayPosts.map(post => (

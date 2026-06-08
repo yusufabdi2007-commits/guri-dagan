@@ -43,7 +43,7 @@ export function GeneratorClient() {
 
   async function handleGenerate() {
     if (!topic.trim()) {
-      toast({ title: "Please enter a topic", variant: "destructive" as never });
+      toast({ title: "Please enter a topic", variant: "destructive" });
       return;
     }
     setLoading(true);
@@ -71,7 +71,7 @@ export function GeneratorClient() {
         }),
       }).catch(() => {});
     } catch {
-      toast({ title: "Generation failed. Check your OpenAI API key.", variant: "destructive" as never });
+      toast({ title: "Generation failed. Check your OpenAI API key.", variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -99,9 +99,9 @@ export function GeneratorClient() {
       });
 
       if (error) throw error;
-      toast({ title: "Saved to Ideas!", description: title, variant: "success" as never });
+      toast({ title: "Saved to Ideas!", description: title, variant: "success" });
     } catch {
-      toast({ title: "Save failed", variant: "destructive" as never });
+      toast({ title: "Save failed", variant: "destructive" });
     } finally {
       setSaving(false);
     }

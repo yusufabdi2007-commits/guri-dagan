@@ -1,10 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { ChildrenListClient } from "@/components/children/ChildrenListClient";
 
 export default async function ChildrenPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
 
   const [{ data: children }, { data: checkins }, { data: goals }, { data: enrollments }] = await Promise.all([
     supabase

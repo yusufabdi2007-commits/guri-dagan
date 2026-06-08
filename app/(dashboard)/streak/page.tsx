@@ -1,10 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { StreakClient } from "@/components/streak/StreakClient";
 
 export default async function StreakPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
 
   const [{ data: completions }, { data: freezes }] = await Promise.all([
     supabase.from("daily_completions").select("*").eq("user_id", user!.id).order("completed_date", { ascending: false }),

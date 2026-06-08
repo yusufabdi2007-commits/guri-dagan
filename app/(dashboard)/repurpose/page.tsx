@@ -1,10 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { RepurposeClient } from "@/components/repurpose/RepurposeClient";
 
 export default async function RepurposePage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
 
   const { data: history } = await supabase
     .from("repurposed_assets")

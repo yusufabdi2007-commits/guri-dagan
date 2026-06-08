@@ -63,11 +63,11 @@ export function InboxClient({ questions: initialQuestions, userId }: Props) {
       .single();
 
     if (error) {
-      toast({ title: "Could not save question", variant: "destructive" as never });
+      toast({ title: "Could not save question", variant: "destructive" });
     } else {
       setQuestions(prev => [data, ...prev]);
       setNewQ("");
-      toast({ title: "Question saved!", variant: "success" as never });
+      toast({ title: "Question saved!", variant: "success" });
     }
     setSaving(false);
   }
@@ -85,7 +85,7 @@ export function InboxClient({ questions: initialQuestions, userId }: Props) {
       const idea = await res.json();
 
       if (!res.ok) {
-        toast({ title: idea.error || "Failed to generate idea", variant: "destructive" as never });
+        toast({ title: idea.error || "Failed to generate idea", variant: "destructive" });
         return;
       }
 
@@ -105,7 +105,7 @@ export function InboxClient({ questions: initialQuestions, userId }: Props) {
         .single();
 
       if (ideaError) {
-        toast({ title: "Could not save idea", variant: "destructive" as never });
+        toast({ title: "Could not save idea", variant: "destructive" });
         return;
       }
 
@@ -121,10 +121,10 @@ export function InboxClient({ questions: initialQuestions, userId }: Props) {
       toast({
         title: "Idea created from question!",
         description: idea.title,
-        variant: "success" as never,
+        variant: "success",
       });
     } catch {
-      toast({ title: "Network error. Try again.", variant: "destructive" as never });
+      toast({ title: "Network error. Try again.", variant: "destructive" });
     } finally {
       setConverting(null);
     }

@@ -4,10 +4,9 @@ import { WeeklyAssignmentClient } from "@/components/weekly-assignment/WeeklyAss
 import { redirect } from "next/navigation";
 
 function getNextWeekStart(): string {
+  // Next Sunday (the upcoming posting week's start day)
   const d = new Date();
-  const day = d.getDay();
-  const diff = day === 0 ? 1 : 8 - day;
-  d.setDate(d.getDate() + diff);
+  d.setDate(d.getDate() - d.getDay() + 7);
   return d.toISOString().split("T")[0];
 }
 

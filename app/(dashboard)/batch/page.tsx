@@ -1,27 +1,31 @@
 import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { BatchHubClient } from "@/components/batch/BatchHubClient";
 
-function getWeekStart(): string {
-  const d = new Date();
-  const day = d.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  d.setDate(d.getDate() + diff);
+function addDays(dateStr: string, days: number): string {
+  const d = new Date(dateStr + "T12:00:00");
+  d.setDate(d.getDate() + days);
   return d.toISOString().split("T")[0];
 }
 
 export default async function BatchPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
 
-  const weekStart = getWeekStart();
   const todayStr = new Date().toISOString().split("T")[0];
 
+  // Find the active batch: week_start is the Sunday that started the current posting week.
+  // Batch spans Sunday–Saturday (7 days). Search from up to 6 days ago to today.
   const { data: batch } = await supabase
     .from("weekly_batches")
     .select("*")
     .eq("user_id", user!.id)
-    .eq("week_start", weekStart)
+    .gte("week_start", addDays(todayStr, -6))
+    .lte("week_start", todayStr)
+    .order("week_start", { ascending: false })
+    .limit(1)
     .maybeSingle();
 
   const { data: posts } = batch

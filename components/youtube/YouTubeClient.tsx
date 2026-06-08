@@ -82,7 +82,7 @@ export function YouTubeClient({ videos: initialVideos, config: initialConfig }: 
       toast({
         title: "YouTube synced!",
         description: data.message,
-        variant: "success" as never,
+        variant: "success",
       });
       setConfig(prev => ({
         ...(prev || { id: "" }),

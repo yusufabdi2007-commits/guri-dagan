@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { BatchPlanClient } from "@/components/batch/BatchPlanClient";
 
@@ -13,6 +14,7 @@ function getWeekStart(): string {
 export default async function BatchPlanPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
 
   const weekStart = getWeekStart();
 

@@ -112,10 +112,10 @@ export function VoiceCapture({ userId, onIdeaSaved }: Props) {
     });
 
     if (error) {
-      toast({ title: "Could not save idea", variant: "destructive" as never });
+      toast({ title: "Could not save idea", variant: "destructive" });
     } else {
       setSaved(prev => new Set(prev).add(index));
-      toast({ title: "Idea saved!", variant: "success" as never });
+      toast({ title: "Idea saved!", variant: "success" });
       onIdeaSaved?.();
     }
   }

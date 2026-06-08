@@ -108,7 +108,7 @@ export function MomentumCard({
     toast({
       title: "Momentum maintained!",
       description: "Great work — keep this energy going tomorrow.",
-      variant: "success" as never,
+      variant: "success",
     });
   }
 

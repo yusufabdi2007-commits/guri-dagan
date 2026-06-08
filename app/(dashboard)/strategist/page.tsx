@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { StrategistClient } from "@/components/strategist/StrategistClient";
 
@@ -7,6 +8,7 @@ export default async function StrategistPage() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
 
   const today = new Date();
   const todayStr = today.toISOString().split("T")[0];

@@ -1,10 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { RevenueClient } from "@/components/revenue/RevenueClient";
 
 export default async function RevenuePage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
 
   const [{ data: payments }, { data: enrollments }] = await Promise.all([
     supabase

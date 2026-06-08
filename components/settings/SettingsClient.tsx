@@ -51,9 +51,9 @@ export function SettingsClient({ profile: initialProfile, userId }: Props) {
       });
 
     if (error) {
-      toast({ title: "Save failed", description: error.message, variant: "destructive" as never });
+      toast({ title: "Save failed", description: error.message, variant: "destructive" });
     } else {
-      toast({ title: "Settings saved!", variant: "success" as never });
+      toast({ title: "Settings saved!", variant: "success" });
     }
     setSaving(false);
   }

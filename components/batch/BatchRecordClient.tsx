@@ -87,7 +87,7 @@ export function BatchRecordClient({ batch, posts, userId }: Props) {
       .eq("user_id", userId);
 
     if (error) {
-      toast({ title: "Could not save", description: "Please try again", variant: "destructive" as never });
+      toast({ title: "Could not save", description: "Please try again", variant: "destructive" });
       setSaving(false);
       return;
     }
@@ -99,7 +99,7 @@ export function BatchRecordClient({ batch, posts, userId }: Props) {
       .eq("batch_id", batch.id)
       .eq("status", "scheduled");
 
-    toast({ title: "Recording complete!", description: "All clips marked as editing. Time to edit and post!", variant: "success" as never });
+    toast({ title: "Recording complete!", description: "All clips marked as editing. Time to edit and post!", variant: "success" });
     router.push("/batch");
     router.refresh();
   }

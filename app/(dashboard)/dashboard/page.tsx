@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { DashboardClient } from "@/components/dashboard/DashboardClient";
 
@@ -13,6 +14,7 @@ function getWeekStart(): string {
 export default async function DashboardPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
 
   const today = new Date();
   const todayStr = today.toISOString().split("T")[0];

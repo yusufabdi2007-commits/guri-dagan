@@ -106,7 +106,7 @@ export function DashboardClient({
       toast({
         title: "Could not save — please try again",
         description: "Your streak wasn't recorded. Check your connection.",
-        variant: "destructive" as never,
+        variant: "destructive",
       });
     } else {
       setPostedToday(true);
@@ -114,7 +114,7 @@ export function DashboardClient({
       toast({
         title: "Posted today!",
         description: getStreakMessage(currentStreak + 1),
-        variant: "success" as never,
+        variant: "success",
       });
       router.refresh();
     }

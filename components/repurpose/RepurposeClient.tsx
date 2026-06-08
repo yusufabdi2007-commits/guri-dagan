@@ -77,7 +77,7 @@ export function RepurposeClient({ history: initialHistory, userId }: Props) {
 
   async function handleRepurpose() {
     if (!transcript.trim()) {
-      toast({ title: "Paste your transcript first", variant: "destructive" as never });
+      toast({ title: "Paste your transcript first", variant: "destructive" });
       return;
     }
     setLoading(true);
@@ -93,7 +93,7 @@ export function RepurposeClient({ history: initialHistory, userId }: Props) {
       const data = await res.json();
       setResult(data);
     } catch {
-      toast({ title: "Repurposing failed. Check your OpenAI API key.", variant: "destructive" as never });
+      toast({ title: "Repurposing failed. Check your OpenAI API key.", variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -118,9 +118,9 @@ export function RepurposeClient({ history: initialHistory, userId }: Props) {
 
       if (error) throw error;
       setHistory(prev => [{ ...data, assets: result.assets }, ...prev]);
-      toast({ title: "Saved to library!", description: `${result.assets.length} assets saved`, variant: "success" as never });
+      toast({ title: "Saved to library!", description: `${result.assets.length} assets saved`, variant: "success" });
     } catch {
-      toast({ title: "Save failed", variant: "destructive" as never });
+      toast({ title: "Save failed", variant: "destructive" });
     } finally {
       setSaving(false);
     }

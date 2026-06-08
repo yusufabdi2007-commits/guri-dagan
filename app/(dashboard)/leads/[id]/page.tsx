@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/Header";
 import { LeadDetailClient } from "@/components/leads/LeadDetailClient";
@@ -7,6 +7,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
   const { id } = await params;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
 
   const [{ data: lead }, { data: activity }, { data: attribution }] = await Promise.all([
     supabase.from("leads").select("*").eq("id", id).eq("user_id", user!.id).single(),

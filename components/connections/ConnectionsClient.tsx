@@ -59,7 +59,7 @@ export function ConnectionsClient({ youtube, tiktok, syncLogs, youtubeApiConfigu
       const data = await res.json();
 
       if (!res.ok) {
-        toast({ title: data.error || "Sync failed", variant: "destructive" as never });
+        toast({ title: data.error || "Sync failed", variant: "destructive" });
         return;
       }
 
@@ -76,11 +76,11 @@ export function ConnectionsClient({ youtube, tiktok, syncLogs, youtubeApiConfigu
       toast({
         title: "YouTube synced!",
         description: data.message,
-        variant: "success" as never,
+        variant: "success",
       });
       router.refresh();
     } catch {
-      toast({ title: "Network error. Try again.", variant: "destructive" as never });
+      toast({ title: "Network error. Try again.", variant: "destructive" });
     } finally {
       setSyncing(false);
     }

@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { OutcomesClient } from "@/components/outcomes/OutcomesClient";
 import { PROGRAM_NAMES } from "@/lib/programs";
@@ -6,6 +7,7 @@ import { PROGRAM_NAMES } from "@/lib/programs";
 export default async function OutcomesPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
 
   const [
     { data: children },

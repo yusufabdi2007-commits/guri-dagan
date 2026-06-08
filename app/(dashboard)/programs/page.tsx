@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { ProgramsDashboardClient } from "@/components/programs/ProgramsDashboardClient";
 import { parseScriptNotes } from "@/lib/programs";
@@ -8,6 +9,7 @@ const PROGRAM_NAMES = ["MePower™", "Inner Power™", "MindPower™", "DreamPow
 export default async function ProgramsPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
 
   const [{ data: leads }, { data: batchPosts }, { data: attribution }] = await Promise.all([
     supabase.from("leads").select("id, program, stage, created_at, source").eq("user_id", user!.id),

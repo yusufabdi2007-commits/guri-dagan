@@ -75,8 +75,10 @@ export const DEFAULT_DISTRIBUTION: Array<{ program: ProgramName; count: number }
 //   PROBLEM: When parents only see mistakes, children start believing they are the problem.
 //   REFRAME: Confidence is built in micro-moments — the way you respond matters most.
 //   TEACHING: Praise effort, not outcome. Say "I saw how hard you tried."
-//   ACTION: Tonight, find one moment to say "I noticed you..."
-//   CTA: Follow for daily parenting tips that build confident children.
+//   CLOSE: This is exactly what MePower™ fixes. Spots are limited.
+//   CTA: DM me "MEPOWER" or book a free call (link in bio).
+//
+// Legacy scripts may use ACTION: instead of CLOSE: — both are supported.
 
 export interface ParsedScript {
   program: string | null;
@@ -85,7 +87,7 @@ export interface ParsedScript {
   problem: string | null;
   reframe: string | null;
   teaching: string | null;
-  action: string | null;
+  action: string | null; // "close" in new scripts, "action" in legacy scripts — same field
   cta: string | null;
   hasScript: boolean;
 }
@@ -117,7 +119,8 @@ export function parseScriptNotes(notes: string | null | undefined): ParsedScript
   const problem = extract("PROBLEM");
   const reframe = extract("REFRAME");
   const teaching = extract("TEACHING");
-  const action = extract("ACTION");
+  // Support both CLOSE: (new marketing scripts) and ACTION: (legacy educational scripts)
+  const action = extract("CLOSE") ?? extract("ACTION");
 
   const hasScript = !!(
     (hookLine || extract("HOOK")) &&
@@ -155,7 +158,7 @@ export function formatScriptNotes(params: {
   problem: string;
   reframe: string;
   teaching: string;
-  action: string;
+  close: string;
   cta: string;
   extraNotes?: string;
 }): string {
@@ -171,7 +174,7 @@ export function formatScriptNotes(params: {
     `PROBLEM: ${params.problem}`,
     `REFRAME: ${params.reframe}`,
     `TEACHING: ${params.teaching}`,
-    `ACTION: ${params.action}`,
+    `CLOSE: ${params.close}`,
     `CTA: ${params.cta}`,
   );
   return lines.join("\n");

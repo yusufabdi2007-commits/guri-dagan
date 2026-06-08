@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,7 +14,6 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [mode, setMode] = useState<"signin" | "signup">("signin");
-  const router = useRouter();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -24,23 +22,26 @@ export default function LoginPage() {
 
     const supabase = createClient();
 
+    let navigating = false;
     try {
       if (mode === "signup") {
         const { error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
         setError("Check your email to confirm your account.");
-        setLoading(false);
-        return;
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        router.push("/today");
-        router.refresh();
+        if (data?.user) {
+          navigating = true;
+          // Hard navigation ensures session cookie is sent with the next request
+          window.location.href = "/today";
+        }
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "An error occurred";
       setError(message);
-      setLoading(false);
+    } finally {
+      if (!navigating) setLoading(false);
     }
   }
 

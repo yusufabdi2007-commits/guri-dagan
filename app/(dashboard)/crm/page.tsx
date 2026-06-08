@@ -1,10 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { CrmClient } from "@/components/crm/CrmClient";
 
 export default async function CrmPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
 
   const [{ data: clients }, { data: tasks }] = await Promise.all([
     supabase.from("crm_clients").select("*, crm_sessions(count)").eq("user_id", user!.id).order("created_at", { ascending: false }),

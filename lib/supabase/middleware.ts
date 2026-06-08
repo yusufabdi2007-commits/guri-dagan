@@ -5,10 +5,7 @@ export async function updateSession(request: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  // Guard: if env vars are missing, skip auth check instead of crashing the entire app.
-  // All protected pages will still redirect to /login via their own server-side auth checks.
   if (!supabaseUrl || !supabaseAnonKey) {
-    console.error("[Middleware] NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY is not set — skipping session update");
     const isAuthPage = request.nextUrl.pathname.startsWith("/login");
     const isPublicRoute =
       request.nextUrl.pathname.startsWith("/api") ||
@@ -46,17 +43,21 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // getSession() reads the JWT from the cookie — no network call, never hangs.
+  const { data: { session } } = await supabase.auth.getSession();
+  const user = session?.user ?? null;
 
   const isAuthPage = request.nextUrl.pathname.startsWith("/login");
   const isApiRoute = request.nextUrl.pathname.startsWith("/api");
   const isPublicAsset =
     request.nextUrl.pathname.startsWith("/_next") ||
     request.nextUrl.pathname.includes(".");
+  const isPublicRoute =
+    request.nextUrl.pathname.startsWith("/book") ||
+    request.nextUrl.pathname.startsWith("/status") ||
+    request.nextUrl.pathname.startsWith("/offline");
 
-  if (!user && !isAuthPage && !isApiRoute && !isPublicAsset) {
+  if (!user && !isAuthPage && !isApiRoute && !isPublicAsset && !isPublicRoute) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);

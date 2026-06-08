@@ -1,12 +1,13 @@
 import { createClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/Header";
 import { ChildProfileClient } from "@/components/children/ChildProfileClient";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 export default async function ChildProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
 
   const [{ data: child }, { data: enrollments }] = await Promise.all([
     supabase
