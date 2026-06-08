@@ -76,9 +76,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Theme is required (min 3 characters)" }, { status: 400 });
   }
 
-  if (!process.env.GEMINI_API_KEY) {
+  if (!process.env.GROQ_API_KEY) {
     return NextResponse.json(
-      { error: "Gemini API key not configured. Add GEMINI_API_KEY to your Vercel environment variables." },
+      { error: "Groq API key not configured. Add GROQ_API_KEY to your Vercel environment variables." },
       { status: 503 }
     );
   }
@@ -128,27 +128,32 @@ Return valid JSON only:
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 25_000);
-    const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          system_instruction: { parts: [{ text: "You are a marketing copywriter for a parenting coaching business. Write specific, emotionally precise video scripts. Every script must be completely different from the others. Return valid JSON only. No markdown, no code blocks, no text outside the JSON object." }] },
-          contents: [{ role: "user", parts: [{ text: prompt }] }],
-          generationConfig: { responseMimeType: "application/json", maxOutputTokens: 3000, temperature: 0.9 },
-        }),
-        signal: controller.signal,
-      }
-    );
+    const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${process.env.GROQ_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: "llama-3.3-70b-versatile",
+        messages: [
+          { role: "system", content: "You are a marketing copywriter for a parenting coaching business. Write specific, emotionally precise video scripts. Every script must be completely different from the others. Return valid JSON only. No markdown, no code blocks, no text outside the JSON object." },
+          { role: "user", content: prompt },
+        ],
+        temperature: 0.9,
+        max_tokens: 3000,
+        response_format: { type: "json_object" },
+      }),
+      signal: controller.signal,
+    });
     clearTimeout(timeoutId);
-    if (!geminiRes.ok) {
-      const errText = await geminiRes.text();
-      throw new Error(`Gemini ${geminiRes.status}: ${errText.slice(0, 200)}`);
+    if (!groqRes.ok) {
+      const errText = await groqRes.text();
+      throw new Error(`Groq ${groqRes.status}: ${errText.slice(0, 200)}`);
     }
-    const geminiData = await geminiRes.json();
-    const content = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!content) throw new Error("No content from Gemini");
+    const groqData = await groqRes.json();
+    const content = groqData.choices?.[0]?.message?.content;
+    if (!content) throw new Error("No content from Groq");
 
     const parsed = JSON.parse(content);
     if (
