@@ -523,9 +523,6 @@ export function WeeklyAssignmentClient({
       {/* ── Generated Plan ───────────────────────────────────────────────────── */}
       {plan && (
         <div className="space-y-4">
-          {false && (
-            <div>
-          )}
 
           {/* Theme header */}
           <div className="gradient-primary rounded-2xl p-5 text-white">
