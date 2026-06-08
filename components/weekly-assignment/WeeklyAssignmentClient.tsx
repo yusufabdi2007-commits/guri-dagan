@@ -323,7 +323,7 @@ export function WeeklyAssignmentClient({
         description: `8 posts scheduled for ${formatWeekLabel(selectedWeek)}. Time to record.`,
         variant: "success",
       });
-      router.push("/batch");
+      router.push("/today");
       router.refresh();
     } catch (e) {
       toast({

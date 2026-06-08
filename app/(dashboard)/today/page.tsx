@@ -48,7 +48,8 @@ export default async function TodayPage() {
     { data: weeklyBatch },
     { data: weekBatchPosts },
     { data: nextPostRaw },
-    { data: recordingPostsRaw },
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    { data: _unused },
   ] = await Promise.all([
     // All unposted batch posts for today (can be multiple on Sunday)
     supabase
@@ -102,17 +103,33 @@ export default async function TodayPage() {
       .order("scheduled_date", { ascending: true })
       .limit(1)
       .maybeSingle(),
-    // Monday recording mode: fetch next Sunday's batch posts to show recording checklist
-    weekPhase === "recording"
-      ? supabase
-          .from("batch_posts")
-          .select("id, platform, title, angle_notes, status, sort_order, scheduled_date")
-          .eq("user_id", user.id)
-          .gte("scheduled_date", nextWeekStart)
-          .lte("scheduled_date", addDays(nextWeekStart, 6))
-          .order("sort_order", { ascending: true })
-      : Promise.resolve({ data: [] }),
+    // placeholder — recording posts fetched separately below by batch_id
+    Promise.resolve({ data: [] }),
   ]);
+
+  // Monday recording mode: find the nearest upcoming batch then fetch all its posts by ID
+  // (querying by date range fails if user saved for "this week" vs "next week")
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let recordingPostsRaw: any[] = [];
+  if (weekPhase === "recording") {
+    const { data: upcomingBatch } = await supabase
+      .from("weekly_batches")
+      .select("id, week_start")
+      .eq("user_id", user.id)
+      .gte("week_start", weekStart) // this Sunday or later
+      .order("week_start", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    if (upcomingBatch) {
+      const { data: rp } = await supabase
+        .from("batch_posts")
+        .select("id, platform, title, angle_notes, status, sort_order, scheduled_date")
+        .eq("user_id", user.id)
+        .eq("batch_id", upcomingBatch.id)
+        .order("sort_order", { ascending: true });
+      recordingPostsRaw = rp ?? [];
+    }
+  }
 
   const postedToday = (allCompletions?.length ?? 0) > 0;
 
