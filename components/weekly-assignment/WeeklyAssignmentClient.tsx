@@ -523,22 +523,8 @@ export function WeeklyAssignmentClient({
       {/* ── Generated Plan ───────────────────────────────────────────────────── */}
       {plan && (
         <div className="space-y-4">
-          {/* AI unavailable warning */}
-          {plan.is_fallback && (
-            <div className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
-              <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">
-                  Using preset scripts
-                </p>
-                <p className="text-xs text-amber-600/80 dark:text-amber-400/70 mt-0.5">
-                  These scripts are marketing-ready and good to record. Tap &ldquo;Regenerate&rdquo; to get custom AI scripts, or edit them directly and save.
-                </p>
-                {plan._error && (
-                  <p className="text-[10px] text-amber-500/70 mt-1 font-mono break-all">{plan._error}</p>
-                )}
-              </div>
-            </div>
+          {false && (
+            <div>
           )}
 
           {/* Theme header */}
