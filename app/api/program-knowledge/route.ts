@@ -154,10 +154,8 @@ export async function POST(req: NextRequest) {
   let extractedText = "";
   try {
     const buffer = Buffer.from(await file.arrayBuffer());
-    // Dynamic import avoids the pdf-parse test-file side-effect at build time
-    const pdfParse = (await import("pdf-parse/lib/pdf-parse.js")).default as (
-      buffer: Buffer
-    ) => Promise<{ text: string }>;
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const pdfParse = require("pdf-parse") as (buffer: Buffer) => Promise<{ text: string }>;
     const result = await pdfParse(buffer);
     extractedText = result.text.trim();
   } catch (err) {
