@@ -32,6 +32,7 @@ export async function POST(req: NextRequest) {
   const {
     child_id,
     week_number,
+    attendance,
     confidence_score,
     resilience_score,
     emotional_regulation_score,
@@ -51,6 +52,7 @@ export async function POST(req: NextRequest) {
       user_id: user.id,
       child_id,
       week_number: parseInt(week_number),
+      attendance: attendance || "attended",
       confidence_score: confidence_score ? parseInt(confidence_score) : null,
       resilience_score: resilience_score ? parseInt(resilience_score) : null,
       emotional_regulation_score: emotional_regulation_score ? parseInt(emotional_regulation_score) : null,

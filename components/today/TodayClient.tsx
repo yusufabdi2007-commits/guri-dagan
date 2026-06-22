@@ -11,7 +11,7 @@ import {
   CheckCircle2, Circle, Youtube, Video, Calendar,
   Upload, ArrowRight, Sparkles, Flame, Battery, Lightbulb,
   MessageSquare, TrendingUp, ChevronRight, ChevronDown, ChevronUp,
-  Zap, Eye, Brain, Target, Heart, Shield, Camera,
+  Zap, Eye, Brain, Target, Heart, Shield, Camera, Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { parseScriptNotes, getProgramBadgeClass, PROGRAMS } from "@/lib/programs";
@@ -72,7 +72,7 @@ interface Props {
   weeklyTheme: string | null;
   weekProgress: WeekProgress | null;
   nextPost: NextPost | null;
-  weekPhase: "recording" | "posting";
+  dayOfWeek: number; // 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
   recordingPosts: RecordingPost[];
   nextWeekStart: string;
 }
@@ -86,11 +86,13 @@ const TIKTOK_CHECKLIST = [
 ];
 
 const YOUTUBE_CHECKLIST = [
+  { id: "thumbnail", label: "Create thumbnail" },
   { id: "edit", label: "Edit the video" },
   { id: "captions", label: "Add subtitles/captions" },
-  { id: "thumbnail", label: "Create thumbnail" },
   { id: "upload", label: "Upload to YouTube" },
   { id: "tags", label: "Add title, description, tags" },
+  { id: "chapters", label: "Add chapters" },
+  { id: "endscreen", label: "Set up end screens & cards" },
 ];
 
 const LOW_ENERGY_TIPS = [
@@ -108,17 +110,11 @@ const SCRIPT_SECTIONS = [
   { key: "action", label: "Action", time: "45–60s", icon: Heart, color: "text-emerald-500" },
 ] as const;
 
+const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
 function formatNextDate(dateStr: string): string {
   const d = new Date(dateStr + "T12:00:00");
   return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
-}
-
-function formatWeekLabel(weekStart: string): string {
-  const start = new Date(weekStart + "T12:00:00");
-  const end = new Date(weekStart + "T12:00:00");
-  end.setDate(end.getDate() + 6);
-  const opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" };
-  return `${start.toLocaleDateString("en-US", opts)} – ${end.toLocaleDateString("en-US", opts)}`;
 }
 
 // ─── Program Header ───────────────────────────────────────────────────────────
@@ -207,35 +203,48 @@ function ScriptGuide({
   );
 }
 
-// ─── Sunday Planning Nudge ────────────────────────────────────────────────────
+// ─── Tomorrow Card ────────────────────────────────────────────────────────────
 
-function SundayPlanNudge() {
+function TomorrowCard({ dayOfWeek, nextPost }: { dayOfWeek: number; nextPost: NextPost | null }) {
+  const tomorrow = (dayOfWeek + 1) % 7;
+  const extras: { icon: React.ElementType; text: string }[] = [];
+  if (tomorrow === 1) extras.push({ icon: Camera, text: "Record next week's videos" });
+  if (tomorrow === 3) extras.push({ icon: Youtube, text: "Publish YouTube flagship" });
+  if (tomorrow === 0) extras.push({ icon: Sparkles, text: "Plan next week" });
+
   return (
-    <Card className="border-primary/20 bg-primary/5">
+    <Card className="border-border/50 bg-muted/20">
       <CardContent className="p-4">
-        <div className="flex items-start gap-3">
-          <Sparkles className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-          <div className="flex-1">
-            <p className="text-sm font-semibold text-foreground mb-0.5">Plan next week</p>
-            <p className="text-xs text-muted-foreground mb-3">
-              Sunday is your planning day. Generate next week&apos;s scripts so you&apos;re ready to record Monday.
-            </p>
-            <Link href="/weekly-assignment">
-              <Button size="sm" className="rounded-xl h-8 text-xs w-full">
-                <Sparkles className="h-3.5 w-3.5 mr-1.5" />
-                Generate Next Week&apos;s Assignment
-              </Button>
-            </Link>
-          </div>
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2.5">
+          Tomorrow · {DAY_NAMES[tomorrow]}
+        </p>
+        <div className="space-y-2">
+          {nextPost ? (
+            <div className="flex items-center gap-2">
+              <Video className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              <p className="text-xs font-medium text-foreground truncate">{nextPost.title}</p>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Video className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              <p className="text-xs text-muted-foreground">TikTok post</p>
+            </div>
+          )}
+          {extras.map(({ icon: Icon, text }, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <Icon className="h-3.5 w-3.5 text-primary/60 shrink-0" />
+              <p className="text-xs text-muted-foreground">{text}</p>
+            </div>
+          ))}
         </div>
       </CardContent>
     </Card>
   );
 }
 
-// ─── Recording Day Mode ───────────────────────────────────────────────────────
+// ─── Recording Section (Monday) ───────────────────────────────────────────────
 
-function RecordingDayMode({
+function RecordingSection({
   posts,
   nextWeekStart,
 }: {
@@ -245,9 +254,8 @@ function RecordingDayMode({
   const [recorded, setRecorded] = useState<Set<string>>(new Set(
     posts.filter(p => p.status === "recording" || p.status === "editing" || p.status === "posted").map(p => p.id)
   ));
-  const [expandedId, setExpandedId] = useState<string | null>(
-    posts[0]?.id ?? null
-  );
+  // Auto-expand only the first post — others collapsed by default to reduce visual noise
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set(posts.length > 0 ? [posts[0].id] : []));
   const [saving, setSaving] = useState<string | null>(null);
 
   const supabase = createClient();
@@ -255,36 +263,48 @@ function RecordingDayMode({
   async function toggleRecorded(postId: string) {
     if (saving) return;
     setSaving(postId);
-    const isNowRecorded = !recorded.has(postId);
-    const next = new Set(recorded);
-    isNowRecorded ? next.add(postId) : next.delete(postId);
-    setRecorded(next);
-    await supabase
+    const wasRecorded = recorded.has(postId);
+    const isNowRecorded = !wasRecorded;
+
+    setRecorded(prev => {
+      const next = new Set(prev);
+      isNowRecorded ? next.add(postId) : next.delete(postId);
+      return next;
+    });
+
+    const { error } = await supabase
       .from("batch_posts")
       .update({ status: isNowRecorded ? "recording" : "scheduled" })
       .eq("id", postId);
+
+    if (error) {
+      setRecorded(prev => {
+        const reverted = new Set(prev);
+        wasRecorded ? reverted.add(postId) : reverted.delete(postId);
+        return reverted;
+      });
+      toast({ title: "Could not save — please try again", variant: "destructive" });
+    }
     setSaving(null);
   }
 
   if (posts.length === 0) {
     return (
-      <div className="p-4 md:p-6 space-y-4 animate-fade-in">
-        <Card className="border-0 shadow-md">
-          <CardContent className="p-6 text-center">
-            <Camera className="h-8 w-8 text-muted-foreground/40 mx-auto mb-3" />
-            <p className="text-sm font-semibold text-foreground mb-1">No plan for next week yet</p>
-            <p className="text-xs text-muted-foreground mb-4">
-              Generate this week&apos;s scripts first, then come back Monday to record.
-            </p>
-            <Link href="/weekly-assignment">
-              <Button className="w-full h-11 rounded-xl font-semibold">
-                <Sparkles className="h-4 w-4 mr-2" />
-                Plan This Week
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-      </div>
+      <Card className="border-0 shadow-md">
+        <CardContent className="p-6 text-center">
+          <Camera className="h-8 w-8 text-muted-foreground/40 mx-auto mb-3" />
+          <p className="text-sm font-semibold text-foreground mb-1">No plan for next week yet</p>
+          <p className="text-xs text-muted-foreground mb-4">
+            Generate next week&apos;s scripts first, then come back Monday to record.
+          </p>
+          <Link href="/weekly-assignment">
+            <Button className="w-full h-11 rounded-xl font-semibold">
+              <Sparkles className="h-4 w-4 mr-2" />
+              Plan Next Week
+            </Button>
+          </Link>
+        </CardContent>
+      </Card>
     );
   }
 
@@ -294,8 +314,8 @@ function RecordingDayMode({
   const recordedCount = allPosts.filter(p => recorded.has(p.id)).length;
 
   return (
-    <div className="p-4 md:p-6 space-y-4 animate-fade-in">
-      {/* Recording Day Header */}
+    <div className="space-y-3">
+      {/* Recording header */}
       <div className="rounded-2xl gradient-primary p-5 text-white">
         <div className="flex items-center gap-3 mb-3">
           <div className="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center">
@@ -303,11 +323,11 @@ function RecordingDayMode({
           </div>
           <div>
             <p className="text-xs font-semibold text-white/70 uppercase tracking-wider">Monday</p>
-            <p className="text-lg font-bold text-white">Recording Day</p>
+            <p className="text-lg font-bold text-white">Record Next Week</p>
           </div>
         </div>
         <p className="text-sm text-white/80 mb-3">
-          Record all {allPosts.length} videos today ({formatWeekLabel(nextWeekStart)}). Posts go live Sunday.
+          Record all {allPosts.length} videos now. TikToks post Mon–Sun daily · YouTube publishes Wednesday.
         </p>
         <div className="space-y-1">
           <div className="flex justify-between text-xs text-white/70">
@@ -323,7 +343,7 @@ function RecordingDayMode({
         </div>
         {recordedCount === allPosts.length && (
           <p className="text-sm font-bold text-white mt-3">
-            All recorded! Rest up — posting starts tomorrow.
+            All recorded! TikToks post every day · YouTube publishes Wednesday.
           </p>
         )}
       </div>
@@ -332,7 +352,7 @@ function RecordingDayMode({
       {allPosts.map((post) => {
         const script = parseScriptNotes(post.angle_notes);
         const isRecorded = recorded.has(post.id);
-        const isExpanded = expandedId === post.id;
+        const isExpanded = expandedIds.has(post.id);
         const PlatformIcon = post.platform === "youtube" ? Youtube : Video;
         const platformLabel = post.platform === "youtube" ? "YouTube" : "TikTok";
 
@@ -346,7 +366,6 @@ function RecordingDayMode({
           >
             <CardContent className="p-4">
               <div className="flex items-start gap-3">
-                {/* Checkbox */}
                 <button
                   onClick={() => toggleRecorded(post.id)}
                   disabled={saving === post.id}
@@ -354,17 +373,20 @@ function RecordingDayMode({
                 >
                   <div className={cn(
                     "w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all",
+                    saving === post.id && "opacity-50",
                     isRecorded
                       ? "bg-emerald-500 border-emerald-500"
                       : "border-border hover:border-primary"
                   )}>
-                    {isRecorded && <CheckCircle2 className="h-4 w-4 text-white" />}
+                    {saving === post.id
+                      ? <Loader2 className="h-3.5 w-3.5 text-muted-foreground animate-spin" />
+                      : isRecorded
+                        ? <CheckCircle2 className="h-4 w-4 text-white" />
+                        : null}
                   </div>
                 </button>
 
-                {/* Content */}
                 <div className="flex-1 min-w-0">
-                  {/* Platform + program + posting day */}
                   <div className="flex items-center gap-1.5 mb-1 flex-wrap">
                     <PlatformIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                     <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
@@ -383,7 +405,6 @@ function RecordingDayMode({
                     </span>
                   </div>
 
-                  {/* Title */}
                   <p className={cn(
                     "text-sm font-semibold text-foreground leading-snug",
                     isRecorded && "line-through text-muted-foreground"
@@ -391,7 +412,6 @@ function RecordingDayMode({
                     {post.title}
                   </p>
 
-                  {/* Hook preview */}
                   {script.hook && (
                     <p className="text-xs text-muted-foreground mt-1 leading-snug line-clamp-1">
                       <Zap className="h-3 w-3 text-yellow-500 inline mr-1" />
@@ -399,10 +419,13 @@ function RecordingDayMode({
                     </p>
                   )}
 
-                  {/* Script expand */}
                   {script.hasScript && (
                     <button
-                      onClick={() => setExpandedId(isExpanded ? null : post.id)}
+                      onClick={() => {
+                        const next = new Set(expandedIds);
+                        isExpanded ? next.delete(post.id) : next.add(post.id);
+                        setExpandedIds(next);
+                      }}
                       className="flex items-center gap-1.5 mt-2 text-xs font-semibold text-primary hover:text-primary/80 transition-colors"
                     >
                       {isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
@@ -450,7 +473,7 @@ function RecordingDayMode({
         );
       })}
 
-      <div className="grid grid-cols-2 gap-3 pb-4">
+      <div className="grid grid-cols-2 gap-3 pb-2">
         <Link href="/batch/plan">
           <div className="flex flex-col items-center gap-2 p-4 rounded-2xl border-2 border-border bg-muted/30 hover:bg-muted transition-all tap-scale">
             <Sparkles className="h-5 w-5 text-primary" />
@@ -472,7 +495,7 @@ function RecordingDayMode({
 
 export function TodayClient({
   batchPosts, calendarItems, editedIdeas, postedToday, userId, todayStr,
-  weeklyTheme, weekProgress, nextPost, weekPhase, recordingPosts, nextWeekStart,
+  weeklyTheme, weekProgress, nextPost, dayOfWeek, recordingPosts, nextWeekStart,
 }: Props) {
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [marking, setMarking] = useState(false);
@@ -480,11 +503,11 @@ export function TodayClient({
   const [showScript, setShowScript] = useState(false);
   const router = useRouter();
 
-  // All scheduled posts for today are already filtered (unposted) by the server.
-  // "done" = at least one post was completed today AND nothing left to post.
+  const isSunday = dayOfWeek === 0;
+  const isMonday = dayOfWeek === 1;
+
+  // "done" = at least one post completed today AND nothing left to post
   const done = postedToday && batchPosts.length === 0;
-  // True when today is Sunday (show Plan Next Week on done screen)
-  const isSunday = new Date().getDay() === 0;
 
   const tip = LOW_ENERGY_TIPS[new Date().getDay() % LOW_ENERGY_TIPS.length];
 
@@ -501,44 +524,53 @@ export function TodayClient({
     setMarking(true);
     const supabase = createClient();
 
+    // Step 1: Mark the batch post as posted
     if (post) {
-      await supabase
+      const { error: updateErr } = await supabase
         .from("batch_posts")
         .update({ status: "posted", posted_at: new Date().toISOString() })
         .eq("id", post.id);
+
+      if (updateErr) {
+        toast({
+          title: "Could not save — please try again",
+          variant: "destructive",
+        });
+        setMarking(false);
+        return;
+      }
     }
 
-    const { error } = await supabase.from("daily_completions").insert({
+    // Step 2: Record daily completion (streak tracking)
+    const { error: completionErr } = await supabase.from("daily_completions").insert({
       user_id: userId,
       completed_date: todayStr,
       platform: platform || "TikTok",
     });
 
-    if (error && error.code !== "23505") {
+    if (completionErr && completionErr.code !== "23505") {
+      // Rollback batch_posts so nothing is left in a partial state
+      if (post) {
+        await supabase
+          .from("batch_posts")
+          .update({ status: "scheduled", posted_at: null })
+          .eq("id", post.id);
+      }
       toast({
         title: "Could not save — please try again",
         variant: "destructive",
       });
-    } else {
-      toast({
-        title: "Posted!",
-        description: batchPosts.length > 1 ? "Next post coming up." : "Momentum is building. Great work.",
-        variant: "success",
-      });
-      router.refresh();
+      setMarking(false);
+      return;
     }
+
+    toast({
+      title: "Posted!",
+      description: batchPosts.length > 1 ? "Next post coming up." : "Momentum is building. Great work.",
+      variant: "success",
+    });
+    router.refresh();
     setMarking(false);
-  }
-
-  // ─── Monday = Recording Day ────────────────────────────────────────────────
-
-  if (weekPhase === "recording") {
-    return (
-      <RecordingDayMode
-        posts={recordingPosts}
-        nextWeekStart={nextWeekStart}
-      />
-    );
   }
 
   // ─── Already posted today (all done) ─────────────────────────────────────
@@ -546,22 +578,37 @@ export function TodayClient({
   if (done) {
     return (
       <div className="p-4 md:p-6 space-y-4 animate-fade-in">
-        <div className="rounded-2xl gradient-primary p-5 text-white text-center shadow-lg">
-          <CheckCircle2 className="h-10 w-10 mx-auto mb-3 opacity-90" />
-          <p className="text-lg font-bold mb-1">You showed up today.</p>
-          <p className="text-sm opacity-80">Momentum is building. See you tomorrow.</p>
+        <div className="rounded-2xl gradient-primary p-6 text-white text-center shadow-lg success-glow">
+          <div className="w-16 h-16 rounded-full bg-white/15 flex items-center justify-center mx-auto mb-4">
+            <CheckCircle2 className="h-9 w-9 text-white" />
+          </div>
+          <p className="text-xl font-bold mb-1">You showed up today.</p>
+          <p className="text-sm opacity-75 leading-relaxed">Momentum is building.<br />See you tomorrow.</p>
           {nextPost && (
-            <div className="mt-3 pt-3 border-t border-white/20">
-              <p className="text-xs text-white/60 mb-0.5">Next up</p>
-              <p className="text-sm font-semibold text-white/90 leading-snug">{nextPost.title}</p>
-              <p className="text-xs text-white/60 mt-0.5 capitalize">
+            <div className="mt-4 pt-4 border-t border-white/20">
+              <p className="text-[11px] text-white/50 uppercase tracking-wider mb-1">Next up</p>
+              <p className="text-sm font-semibold text-white/95 leading-snug">{nextPost.title}</p>
+              <p className="text-xs text-white/55 mt-1 capitalize">
                 {nextPost.platform} · {formatNextDate(nextPost.scheduled_date)}
               </p>
             </div>
           )}
         </div>
 
-        {/* Sunday: prompt to plan next week after all posts are done */}
+        {/* Monday: recording session */}
+        {isMonday && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 px-1">
+              <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Next: Record Next Week
+              </p>
+            </div>
+            <RecordingSection posts={recordingPosts} nextWeekStart={nextWeekStart} />
+          </div>
+        )}
+
+        {/* Sunday: plan next week after all posts are done */}
         {isSunday && (
           <Card className="border-primary/20 bg-primary/5">
             <CardContent className="p-4">
@@ -570,7 +617,7 @@ export function TodayClient({
                 <div className="flex-1">
                   <p className="text-sm font-semibold text-foreground mb-0.5">Plan next week</p>
                   <p className="text-xs text-muted-foreground mb-3">
-                    All done posting! Generate next week&apos;s scripts so you&apos;re ready to record Monday.
+                    Week complete! Generate next week&apos;s scripts — YouTube publishes Wednesday, TikToks every day.
                   </p>
                   <Link href="/weekly-assignment">
                     <Button size="sm" className="rounded-xl h-8 text-xs w-full">
@@ -584,20 +631,25 @@ export function TodayClient({
           </Card>
         )}
 
-        <div className="grid grid-cols-2 gap-3">
-          <Link href="/ideas">
-            <div className="flex flex-col items-center gap-2 p-4 rounded-2xl border-2 border-border bg-muted/30 hover:bg-muted transition-all tap-scale">
-              <Lightbulb className="h-5 w-5 text-yellow-500" />
-              <span className="text-xs font-semibold text-foreground">Capture Idea</span>
-            </div>
-          </Link>
-          <Link href="/batch">
-            <div className="flex flex-col items-center gap-2 p-4 rounded-2xl border-2 border-border bg-muted/30 hover:bg-muted transition-all tap-scale">
-              <Calendar className="h-5 w-5 text-primary" />
-              <span className="text-xs font-semibold text-foreground">This Week</span>
-            </div>
-          </Link>
-        </div>
+        {!isMonday && (
+          <div className="grid grid-cols-2 gap-3">
+            <Link href="/ideas">
+              <div className="flex flex-col items-center gap-2 p-4 rounded-2xl border-2 border-border bg-muted/30 hover:bg-muted transition-all tap-scale">
+                <Lightbulb className="h-5 w-5 text-yellow-500" />
+                <span className="text-xs font-semibold text-foreground">Capture Idea</span>
+              </div>
+            </Link>
+            <Link href="/batch">
+              <div className="flex flex-col items-center gap-2 p-4 rounded-2xl border-2 border-border bg-muted/30 hover:bg-muted transition-all tap-scale">
+                <Calendar className="h-5 w-5 text-primary" />
+                <span className="text-xs font-semibold text-foreground">This Week</span>
+              </div>
+            </Link>
+          </div>
+        )}
+
+        {/* Always show tomorrow — even after today's work is done */}
+        <TomorrowCard dayOfWeek={dayOfWeek} nextPost={nextPost} />
       </div>
     );
   }
@@ -605,6 +657,7 @@ export function TodayClient({
   // ─── Today's batch post(s) ────────────────────────────────────────────────
   // batchPosts[0] is always the next unposted post (sorted by sort_order).
   // After marking it posted, the page refreshes and batchPosts[1] becomes [0].
+  // Wednesday has 2 posts: TikTok #3 (sort 3) then YouTube (sort 8).
 
   if (batchPosts.length > 0) {
     const batchPost = batchPosts[0];
@@ -616,22 +669,27 @@ export function TodayClient({
 
     return (
       <div className="p-4 md:p-6 space-y-4 animate-fade-in">
-        {/* Multi-post indicator (Sunday: YouTube first, then 2 TikToks) */}
+        {/* Multi-post indicator (Wednesday: TikTok + YouTube) */}
         {hasMoreAfter && (
-          <div className="flex items-center gap-2 px-1">
-            <div className="flex gap-1">
-              {batchPosts.map((_, i) => (
-                <div
-                  key={i}
-                  className={cn(
-                    "h-1.5 rounded-full transition-all",
-                    i === 0 ? "w-5 bg-primary" : "w-3 bg-primary/30"
-                  )}
-                />
-              ))}
+          <div className="flex items-center justify-between px-1">
+            <div className="flex items-center gap-2">
+              <div className="flex gap-1">
+                {batchPosts.map((_, i) => (
+                  <div
+                    key={i}
+                    className={cn(
+                      "h-2 rounded-full transition-all",
+                      i === 0 ? "w-6 bg-primary" : "w-4 bg-primary/25"
+                    )}
+                  />
+                ))}
+              </div>
+              <p className="text-xs font-medium text-muted-foreground">
+                Post 1 of {batchPosts.length}
+              </p>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Post {1} of {batchPosts.length} · {batchPosts.slice(1).map(p => p.platform === "youtube" ? "YouTube" : "TikTok").join(" + ")} after this
+            <p className="text-[11px] text-muted-foreground">
+              {batchPosts.slice(1).map(p => p.platform === "youtube" ? "YouTube" : "TikTok").join(" + ")} still to go
             </p>
           </div>
         )}
@@ -702,27 +760,34 @@ export function TodayClient({
         {/* Checklist */}
         <Card>
           <CardContent className="p-4">
-            <p className="text-sm font-semibold text-foreground mb-3">Posting checklist</p>
-            <div className="space-y-3">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm font-semibold text-foreground">Before you post</p>
+              {checked.size > 0 && (
+                <span className="text-[11px] font-semibold text-primary">
+                  {checked.size}/{checklist.length} done
+                </span>
+              )}
+            </div>
+            <div className="space-y-2.5">
               {checklist.map(item => {
                 const isChecked = checked.has(item.id);
                 return (
                   <button
                     key={item.id}
                     onClick={() => toggle(item.id)}
-                    className="w-full flex items-center gap-3 text-left tap-scale"
+                    className="w-full flex items-center gap-3 text-left tap-scale py-0.5"
                   >
                     <div
                       className={cn(
-                        "w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all",
-                        isChecked ? "bg-primary border-primary" : "border-border"
+                        "w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all duration-200",
+                        isChecked ? "bg-primary border-primary scale-110" : "border-border"
                       )}
                     >
                       {isChecked && <CheckCircle2 className="h-3.5 w-3.5 text-white" />}
                     </div>
                     <span
                       className={cn(
-                        "text-sm transition-colors",
+                        "text-sm transition-colors duration-200",
                         isChecked
                           ? "line-through text-muted-foreground"
                           : "text-foreground font-medium"
@@ -734,16 +799,18 @@ export function TodayClient({
                 );
               })}
             </div>
-            <div className="mt-4">
+            <div className="mt-4 space-y-1.5">
               <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-primary rounded-full transition-all duration-300"
+                  className="h-full bg-primary rounded-full transition-all duration-500"
                   style={{ width: `${(checked.size / checklist.length) * 100}%` }}
                 />
               </div>
-              <p className="text-xs text-muted-foreground mt-1.5">
-                {checked.size}/{checklist.length} steps done
-              </p>
+              {checked.size === checklist.length && (
+                <p className="text-xs font-semibold text-primary text-center spring-in">
+                  All done — ready to post!
+                </p>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -754,7 +821,9 @@ export function TodayClient({
           disabled={marking}
           className="w-full h-14 text-base font-bold rounded-2xl gradient-primary text-white shadow-lg tap-scale"
         >
-          <CheckCircle2 className="h-5 w-5 mr-2" />
+          {marking
+            ? <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+            : <CheckCircle2 className="h-5 w-5 mr-2" />}
           {marking ? "Saving..." : hasMoreAfter ? `Mark ${platformLabel} Posted → Next` : "Mark as Posted"}
         </Button>
 
@@ -777,25 +846,12 @@ export function TodayClient({
                   style={{ width: `${(weekProgress.posted / weekProgress.total) * 100}%` }}
                 />
               </div>
-              {nextPost && (
-                <Link href="/batch" className="flex items-center justify-between mt-3 group">
-                  <div>
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
-                      Next post
-                    </p>
-                    <p className="text-xs font-medium text-foreground leading-snug mt-0.5 line-clamp-1">
-                      {nextPost.title}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground capitalize mt-0.5">
-                      {nextPost.platform} · {formatNextDate(nextPost.scheduled_date)}
-                    </p>
-                  </div>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors shrink-0" />
-                </Link>
-              )}
             </CardContent>
           </Card>
         )}
+
+        {/* Tomorrow Card */}
+        <TomorrowCard dayOfWeek={dayOfWeek} nextPost={nextPost} />
 
         {/* Low energy toggle */}
         <button
@@ -865,7 +921,9 @@ export function TodayClient({
           disabled={marking}
           className="w-full h-14 text-base font-bold rounded-2xl gradient-primary text-white shadow-lg tap-scale"
         >
-          <CheckCircle2 className="h-5 w-5 mr-2" />
+          {marking
+            ? <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+            : <CheckCircle2 className="h-5 w-5 mr-2" />}
           {marking ? "Saving..." : "Mark as Posted"}
         </Button>
       </div>
@@ -908,7 +966,9 @@ export function TodayClient({
           disabled={marking}
           className="w-full h-14 text-base font-bold rounded-2xl gradient-primary text-white shadow-lg tap-scale"
         >
-          <CheckCircle2 className="h-5 w-5 mr-2" />
+          {marking
+            ? <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+            : <CheckCircle2 className="h-5 w-5 mr-2" />}
           {marking ? "Saving..." : "Mark Posted Today"}
         </Button>
       </div>
@@ -919,48 +979,55 @@ export function TodayClient({
 
   return (
     <div className="p-4 md:p-6 space-y-4 animate-fade-in">
-      <Card className="border-0 shadow-md">
+      <Card className="border-0 shadow-sm">
         <CardContent className="p-6 text-center">
-          <Flame className="h-8 w-8 text-muted-foreground/40 mx-auto mb-3" />
-          <p className="text-sm font-semibold text-foreground mb-1">No post scheduled today</p>
-          <p className="text-xs text-muted-foreground mb-4">
-            Use this time to plan ahead or capture ideas.
-          </p>
-          <div className="grid grid-cols-2 gap-2">
-            <Link href="/weekly-assignment">
-              <div className="p-3 rounded-xl bg-primary/5 border border-primary/20 hover:bg-primary/10 transition-all tap-scale">
-                <Sparkles className="h-4 w-4 text-primary mx-auto mb-1" />
-                <p className="text-xs font-semibold text-primary">Assign Week</p>
-              </div>
-            </Link>
-            <Link href="/batch/plan">
-              <div className="p-3 rounded-xl bg-muted/50 border border-border hover:bg-muted transition-all tap-scale">
-                <Calendar className="h-4 w-4 text-primary mx-auto mb-1" />
-                <p className="text-xs font-semibold text-foreground">Plan Week</p>
-              </div>
-            </Link>
+          <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+            <Calendar className="h-7 w-7 text-primary/60" />
           </div>
+          <p className="text-base font-semibold text-foreground mb-1">No post scheduled today</p>
+          <p className="text-sm text-muted-foreground mb-5 leading-relaxed">
+            Good time to plan next week so you&apos;re never scrambling.
+          </p>
+          <Link href="/weekly-assignment">
+            <Button className="w-full h-11 rounded-xl font-semibold tap-scale">
+              <Sparkles className="h-4 w-4 mr-2" />
+              Plan Next Week
+            </Button>
+          </Link>
         </CardContent>
       </Card>
+
+      {/* Monday with no scheduled post: still show recording section */}
+      {isMonday && recordingPosts.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 px-1">
+            <Camera className="h-3.5 w-3.5 text-amber-500" />
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Record Next Week
+            </p>
+          </div>
+          <RecordingSection posts={recordingPosts} nextWeekStart={nextWeekStart} />
+        </div>
+      )}
 
       <button
         onClick={() => handleMarkPosted(null, "TikTok")}
         disabled={marking}
-        className="w-full py-3 text-sm text-muted-foreground hover:text-foreground border border-border rounded-2xl transition-colors tap-scale"
+        className="w-full py-3.5 text-sm text-muted-foreground hover:text-foreground border border-border/60 rounded-2xl transition-colors tap-scale flex items-center justify-center gap-2 disabled:opacity-50"
       >
-        <Circle className="h-4 w-4 inline mr-2" />
-        {marking ? "Saving..." : "I posted something today"}
+        {marking ? <Loader2 className="h-4 w-4 animate-spin" /> : <Circle className="h-4 w-4" />}
+        {marking ? "Saving..." : "I posted something outside the plan"}
       </button>
 
-      <Card className="border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-900/10">
+      <Card className="border-amber-200/70 dark:border-amber-800/50 bg-amber-50/40 dark:bg-amber-900/10">
         <CardContent className="p-4">
           <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 mb-1">
-            Low energy day?
+            Low energy today?
           </p>
-          <p className="text-xs text-amber-700/80 dark:text-amber-400/80 mb-3">{tip}</p>
+          <p className="text-xs text-amber-700/80 dark:text-amber-400/80 mb-3 leading-relaxed">{tip}</p>
           <Link
             href="/inbox"
-            className="flex items-center gap-2 text-xs text-amber-700 dark:text-amber-400 hover:underline"
+            className="flex items-center gap-2 text-xs text-amber-700 dark:text-amber-400 hover:underline font-medium"
           >
             <MessageSquare className="h-3.5 w-3.5" />
             Answer a question from your audience

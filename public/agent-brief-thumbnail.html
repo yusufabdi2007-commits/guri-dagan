@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Agent Brief — YouTube Thumbnail System · Kobcinta Garaadka Caruurta</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --primary: #6C3EE8;
+      --primary-light: #EDE8FC;
+      --accent: #F59E0B;
+      --accent-light: #FEF3C7;
+      --dark: #0F0A1E;
+      --body: #1E1535;
+      --muted: #6B7280;
+      --border: #E5E7EB;
+      --success: #10B981;
+      --danger: #EF4444;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #F8F7FF;
+      color: var(--body);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .page {
+      width: 210mm;
+      min-height: 297mm;
+      margin: 0 auto;
+      background: white;
+      padding: 0;
+      box-shadow: 0 4px 40px rgba(0,0,0,0.12);
+    }
+
+    /* ── COVER ─────────────────────────────────────────────────────────── */
+    .cover {
+      background: linear-gradient(145deg, #0F0A1E 0%, #1E0B4A 50%, #2D1060 100%);
+      padding: 52px 48px 44px;
+      position: relative;
+      overflow: hidden;
+    }
+    .cover::before {
+      content: '';
+      position: absolute;
+      top: -80px; right: -80px;
+      width: 320px; height: 320px;
+      background: radial-gradient(circle, rgba(108,62,232,0.35) 0%, transparent 70%);
+      border-radius: 50%;
+    }
+    .cover::after {
+      content: '';
+      position: absolute;
+      bottom: -60px; left: 40px;
+      width: 200px; height: 200px;
+      background: radial-gradient(circle, rgba(245,158,11,0.2) 0%, transparent 70%);
+      border-radius: 50%;
+    }
+    .cover-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(108,62,232,0.3);
+      border: 1px solid rgba(108,62,232,0.5);
+      color: #C4B5FD;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 5px 12px;
+      border-radius: 100px;
+      margin-bottom: 28px;
+    }
+    .cover-tag-dot {
+      width: 6px; height: 6px;
+      background: #A78BFA;
+      border-radius: 50%;
+    }
+    .cover-channel {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #A78BFA;
+      margin-bottom: 10px;
+    }
+    .cover-title {
+      font-size: 36px;
+      font-weight: 900;
+      color: white;
+      line-height: 1.15;
+      margin-bottom: 8px;
+      letter-spacing: -0.02em;
+    }
+    .cover-title span {
+      background: linear-gradient(90deg, #A78BFA, #F59E0B);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .cover-subtitle {
+      font-size: 14px;
+      color: rgba(255,255,255,0.55);
+      font-weight: 400;
+      margin-bottom: 36px;
+    }
+    .cover-meta {
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+    .cover-meta-item {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .cover-meta-label {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.35);
+    }
+    .cover-meta-value {
+      font-size: 12px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.85);
+    }
+    .cover-divider {
+      height: 1px;
+      background: rgba(255,255,255,0.08);
+      margin: 28px 0;
+    }
+    .cover-from {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .cover-avatar {
+      width: 32px; height: 32px;
+      background: linear-gradient(135deg, #6C3EE8, #A78BFA);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 800;
+      color: white;
+    }
+    .cover-from-text {
+      font-size: 11px;
+      color: rgba(255,255,255,0.4);
+    }
+    .cover-from-text strong {
+      color: rgba(255,255,255,0.75);
+      font-weight: 600;
+    }
+
+    /* ── BODY ──────────────────────────────────────────────────────────── */
+    .body {
+      padding: 40px 48px 48px;
+    }
+
+    /* ── SECTION ───────────────────────────────────────────────────────── */
+    .section {
+      margin-bottom: 36px;
+    }
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .section-number {
+      width: 24px; height: 24px;
+      background: var(--primary);
+      color: white;
+      border-radius: 7px;
+      font-size: 11px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .section-title {
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--dark);
+      letter-spacing: -0.01em;
+    }
+    .section-line {
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* ── CARD ──────────────────────────────────────────────────────────── */
+    .card {
+      background: #FAFAFA;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-bottom: 10px;
+    }
+    .card-accent {
+      background: var(--primary-light);
+      border-color: #C4B5FD;
+    }
+    .card-amber {
+      background: var(--accent-light);
+      border-color: #FCD34D;
+    }
+    .card-dark {
+      background: var(--dark);
+      color: white;
+      border: none;
+    }
+
+    /* ── CHANNEL HERO ──────────────────────────────────────────────────── */
+    .channel-hero {
+      background: linear-gradient(135deg, var(--primary-light) 0%, #F0EBFF 100%);
+      border: 1px solid #C4B5FD;
+      border-radius: 14px;
+      padding: 20px 24px;
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 14px;
+    }
+    .channel-logo {
+      width: 52px; height: 52px;
+      background: linear-gradient(135deg, #6C3EE8, #A78BFA);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      flex-shrink: 0;
+    }
+    .channel-name {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--primary);
+      letter-spacing: -0.02em;
+      margin-bottom: 3px;
+    }
+    .channel-translation {
+      font-size: 11px;
+      color: var(--muted);
+      font-style: italic;
+      margin-bottom: 8px;
+    }
+    .channel-tags {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .tag {
+      display: inline-block;
+      padding: 3px 9px;
+      border-radius: 100px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+    }
+    .tag-purple { background: #EDE8FC; color: var(--primary); }
+    .tag-amber  { background: var(--accent-light); color: #92400E; }
+    .tag-green  { background: #D1FAE5; color: #065F46; }
+    .tag-red    { background: #FEE2E2; color: #991B1B; }
+    .tag-blue   { background: #DBEAFE; color: #1E40AF; }
+    .tag-rose   { background: #FFE4E6; color: #9F1239; }
+
+    /* ── PROGRAMS TABLE ────────────────────────────────────────────────── */
+    .programs-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 4px;
+    }
+    .program-card {
+      border-radius: 10px;
+      padding: 12px 14px;
+      border: 1px solid;
+    }
+    .program-name {
+      font-size: 12px;
+      font-weight: 800;
+      margin-bottom: 2px;
+    }
+    .program-so {
+      font-size: 10px;
+      font-weight: 600;
+      opacity: 0.7;
+      margin-bottom: 5px;
+      font-style: italic;
+    }
+    .program-transform {
+      font-size: 10px;
+      line-height: 1.4;
+      opacity: 0.75;
+    }
+    .prog-1 { background: #EDE8FC; border-color: #C4B5FD; color: #3B0764; }
+    .prog-2 { background: #FEE2E2; border-color: #FCA5A5; color: #7F1D1D; }
+    .prog-3 { background: #D1FAE5; border-color: #6EE7B7; color: #064E3B; }
+    .prog-4 { background: #DBEAFE; border-color: #93C5FD; color: #1E3A5F; }
+    .prog-5 { background: #FEF3C7; border-color: #FCD34D; color: #78350F; }
+
+    /* ── SCRIPT FLOW ───────────────────────────────────────────────────── */
+    .script-flow {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+    .script-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 10px 0;
+      position: relative;
+    }
+    .script-step:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      left: 15px;
+      top: 36px;
+      bottom: 0;
+      width: 2px;
+      background: var(--border);
+    }
+    .script-dot {
+      width: 30px; height: 30px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 800;
+      flex-shrink: 0;
+      border: 2px solid;
+      position: relative;
+      z-index: 1;
+      background: white;
+    }
+    .script-time {
+      font-size: 9px;
+      font-weight: 700;
+      color: var(--muted);
+      letter-spacing: 0.05em;
+      margin-bottom: 2px;
+    }
+    .script-label {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--dark);
+      margin-bottom: 1px;
+    }
+    .script-desc {
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+
+    /* ── THUMBNAIL FORMULAS ────────────────────────────────────────────── */
+    .formula-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .formula-card {
+      border-radius: 10px;
+      padding: 13px 14px;
+      border: 1px solid var(--border);
+      background: #FAFAFA;
+    }
+    .formula-num {
+      font-size: 9px;
+      font-weight: 800;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 5px;
+    }
+    .formula-name {
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--dark);
+      margin-bottom: 3px;
+    }
+    .formula-so {
+      font-size: 11px;
+      color: var(--primary);
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .formula-desc {
+      font-size: 10px;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+
+    /* ── DB TABLE ──────────────────────────────────────────────────────── */
+    .db-card {
+      background: #0F0A1E;
+      border-radius: 12px;
+      padding: 0;
+      overflow: hidden;
+    }
+    .db-header {
+      background: rgba(108,62,232,0.3);
+      padding: 10px 18px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .db-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .db-table-name {
+      font-size: 12px;
+      font-weight: 700;
+      color: #A78BFA;
+      font-family: 'Courier New', monospace;
+    }
+    .db-body {
+      padding: 14px 18px 16px;
+    }
+    .db-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 5px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+    }
+    .db-row:last-child { border-bottom: none; }
+    .db-col-name { color: #93C5FD; width: 200px; flex-shrink: 0; }
+    .db-col-type { color: #6EE7B7; width: 90px; flex-shrink: 0; }
+    .db-col-note { color: rgba(255,255,255,0.35); font-size: 10px; }
+
+    /* ── SUCCESS METRIC ────────────────────────────────────────────────── */
+    .success-card {
+      background: linear-gradient(135deg, #0F0A1E, #1E0B4A);
+      border-radius: 14px;
+      padding: 22px 24px;
+      color: white;
+    }
+    .success-title {
+      font-size: 13px;
+      font-weight: 800;
+      color: #A78BFA;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 12px;
+    }
+    .success-text {
+      font-size: 17px;
+      font-weight: 700;
+      line-height: 1.5;
+      color: white;
+      margin-bottom: 14px;
+    }
+    .success-text em {
+      color: #FCD34D;
+      font-style: normal;
+    }
+    .success-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+    .success-step {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 12px;
+      color: rgba(255,255,255,0.7);
+    }
+    .success-arrow {
+      color: #A78BFA;
+      font-weight: 800;
+      font-size: 14px;
+    }
+
+    /* ── RULES BOX ─────────────────────────────────────────────────────── */
+    .rules-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .rule-card {
+      border-radius: 10px;
+      padding: 13px 14px;
+      border: 1px solid var(--border);
+    }
+    .rule-icon { font-size: 18px; margin-bottom: 6px; }
+    .rule-title {
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--dark);
+      margin-bottom: 4px;
+    }
+    .rule-text {
+      font-size: 10px;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    /* ── FOOTER ─────────────────────────────────────────────────────────── */
+    .footer {
+      background: #F8F7FF;
+      border-top: 1px solid var(--border);
+      padding: 16px 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .footer-left {
+      font-size: 10px;
+      color: var(--muted);
+    }
+    .footer-right {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    /* ── INLINE HELPERS ─────────────────────────────────────────────────── */
+    p { margin-bottom: 6px; color: #374151; font-size: 12.5px; }
+    ul { padding-left: 18px; margin-top: 4px; }
+    li { margin-bottom: 4px; color: #374151; font-size: 12.5px; }
+    strong { color: var(--dark); }
+    .highlight {
+      background: var(--primary-light);
+      color: var(--primary);
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 4px;
+    }
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    /* ── PRINT ──────────────────────────────────────────────────────────── */
+    @media print {
+      body { background: white; }
+      .page { box-shadow: none; margin: 0; }
+      @page { margin: 0; size: A4; }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ══ COVER ══ -->
+  <div class="cover">
+    <div class="cover-tag">
+      <div class="cover-tag-dot"></div>
+      Claude Code Agent Brief
+    </div>
+    <div class="cover-channel">Kobcinta Garaadka Caruurta</div>
+    <div class="cover-title">YouTube Thumbnail<br><span>System Agent</span></div>
+    <div class="cover-subtitle">Full context brief for building an AI-powered thumbnail workspace</div>
+    <div class="cover-divider"></div>
+    <div class="cover-meta">
+      <div class="cover-meta-item">
+        <div class="cover-meta-label">Channel</div>
+        <div class="cover-meta-value">Kobcinta Garaadka Caruurta</div>
+      </div>
+      <div class="cover-meta-item">
+        <div class="cover-meta-label">Language</div>
+        <div class="cover-meta-value">Somali (af Soomaali)</div>
+      </div>
+      <div class="cover-meta-item">
+        <div class="cover-meta-label">Platform</div>
+        <div class="cover-meta-value">YouTube + TikTok</div>
+      </div>
+      <div class="cover-meta-item">
+        <div class="cover-meta-label">Format</div>
+        <div class="cover-meta-value">9:16 Vertical</div>
+      </div>
+      <div class="cover-meta-item">
+        <div class="cover-meta-label">App</div>
+        <div class="cover-meta-value">Guri Dagan OS</div>
+      </div>
+    </div>
+    <div class="cover-divider"></div>
+    <div class="cover-from">
+      <div class="cover-avatar">G</div>
+      <div class="cover-from-text">
+        Prepared by <strong>Guri Dagan</strong> coaching OS &nbsp;·&nbsp; Pass this entire document to the thumbnail agent
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ BODY ══ -->
+  <div class="body">
+
+    <!-- 1. CHANNEL IDENTITY -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-number">1</div>
+        <div class="section-title">Channel Identity</div>
+        <div class="section-line"></div>
+      </div>
+
+      <div class="channel-hero">
+        <div class="channel-logo">&#127909;</div>
+        <div>
+          <div class="channel-name">Kobcinta Garaadka Caruurta</div>
+          <div class="channel-translation">"Developing the Intelligence of Children" — Somali parenting education channel</div>
+          <div class="channel-tags">
+            <span class="tag tag-purple">Somali Language</span>
+            <span class="tag tag-amber">Parenting Education</span>
+            <span class="tag tag-green">Child Development</span>
+            <span class="tag tag-blue">Coaching Business</span>
+            <span class="tag tag-rose">Mobile-First</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div class="card">
+          <strong style="font-size:11px;color:#6B7280;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:8px;">Who She Serves</strong>
+          <p>Somali mothers and fathers who want to raise children that are confident, emotionally strong, and disciplined — without relying on punishment or shame.</p>
+        </div>
+        <div class="card">
+          <strong style="font-size:11px;color:#6B7280;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:8px;">Audience</strong>
+          <p>Somali-speaking parents, primarily <strong>mothers</strong>, watching on <strong>mobile phones</strong>. Emotionally driven. Respond to transformation stories, warnings, and practical tips.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. COACHING PROGRAMS -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-number">2</div>
+        <div class="section-title">The 5 Coaching Programs</div>
+        <div class="section-line"></div>
+      </div>
+      <p style="margin-bottom:12px;">Every video is assigned to one of these 5 programs. Thumbnails must reflect the program's emotional promise.</p>
+
+      <div class="programs-grid">
+        <div class="program-card prog-1">
+          <div class="program-name">Awood Dhis</div>
+          <div class="program-so">Confidence Building</div>
+          <div class="program-transform">Child becomes: Confident, self-believing, willing to try new things</div>
+        </div>
+        <div class="program-card prog-2">
+          <div class="program-name">Xoog Qalbi</div>
+          <div class="program-so">Emotional Resilience</div>
+          <div class="program-transform">Child becomes: Emotionally strong, bounces back from failure</div>
+        </div>
+        <div class="program-card prog-3">
+          <div class="program-name">Xukun Nafsi</div>
+          <div class="program-so">Self-Regulation</div>
+          <div class="program-transform">Child becomes: Calm, self-controlled, manages emotions well</div>
+        </div>
+        <div class="program-card prog-4">
+          <div class="program-name">Xiriir Wanaag</div>
+          <div class="program-so">Communication</div>
+          <div class="program-transform">Child becomes: Articulate, listens well, expresses feelings clearly</div>
+        </div>
+        <div class="program-card prog-5">
+          <div class="program-name">Hogaan Yar</div>
+          <div class="program-so">Young Leadership</div>
+          <div class="program-transform">Child becomes: Responsible, initiative-taking, a natural leader</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. VIDEO STRUCTURE -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-number">3</div>
+        <div class="section-title">Every Video Follows This Script</div>
+        <div class="section-line"></div>
+      </div>
+      <p style="margin-bottom:14px;">The thumbnail must tease the <strong>Hook</strong> — the first 3 seconds. Thumbnail and hook work together to pull the viewer in.</p>
+
+      <div class="script-flow">
+        <div class="script-step">
+          <div class="script-dot" style="color:#F59E0B;border-color:#FCD34D;">1</div>
+          <div>
+            <div class="script-time">0 – 3 seconds</div>
+            <div class="script-label">Hook</div>
+            <div class="script-desc">Pattern interrupt. Bold statement, shock, question, or relatable moment. <em>This is what the thumbnail must deliver.</em></div>
+          </div>
+        </div>
+        <div class="script-step">
+          <div class="script-dot" style="color:#EF4444;border-color:#FCA5A5;">2</div>
+          <div>
+            <div class="script-time">3 – 10 seconds</div>
+            <div class="script-label">Problem</div>
+            <div class="script-desc">Name the parent's specific pain. Make them feel seen.</div>
+          </div>
+        </div>
+        <div class="script-step">
+          <div class="script-dot" style="color:#8B5CF6;border-color:#C4B5FD;">3</div>
+          <div>
+            <div class="script-time">10 – 25 seconds</div>
+            <div class="script-label">Reframe</div>
+            <div class="script-desc">Shift their perspective. "It's not the child's fault — here's why."</div>
+          </div>
+        </div>
+        <div class="script-step">
+          <div class="script-dot" style="color:#3B82F6;border-color:#93C5FD;">4</div>
+          <div>
+            <div class="script-time">25 – 45 seconds</div>
+            <div class="script-label">Teaching</div>
+            <div class="script-desc">The core method or practical tip the parent can use.</div>
+          </div>
+        </div>
+        <div class="script-step">
+          <div class="script-dot" style="color:#10B981;border-color:#6EE7B7;">5</div>
+          <div>
+            <div class="script-time">45 – 60 seconds</div>
+            <div class="script-label">Action</div>
+            <div class="script-desc">One concrete thing to do today. Specific and immediate.</div>
+          </div>
+        </div>
+        <div class="script-step">
+          <div class="script-dot" style="color:#6C3EE8;border-color:#A78BFA;">6</div>
+          <div>
+            <div class="script-time">End</div>
+            <div class="script-label">CTA</div>
+            <div class="script-desc">Follow, comment, book a free call, join the program.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. THUMBNAIL FORMULAS -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-number">4</div>
+        <div class="section-title">Thumbnail Formulas That Work</div>
+        <div class="section-line"></div>
+      </div>
+      <p style="margin-bottom:12px;">For every video the agent generates <strong>3 thumbnail concepts</strong>, each using a different formula. Coach picks one winner.</p>
+
+      <div class="formula-grid">
+        <div class="formula-card">
+          <div class="formula-num">Formula 01</div>
+          <div class="formula-name">Question</div>
+          <div class="formula-so">"Ma garanaysaa?" — Do you know?</div>
+          <div class="formula-desc">Surprised or curious face. Creates an open loop the viewer must close by watching.</div>
+        </div>
+        <div class="formula-card">
+          <div class="formula-num">Formula 02</div>
+          <div class="formula-name">Warning</div>
+          <div class="formula-so">"Jooji!" — Stop doing this</div>
+          <div class="formula-desc">Serious face, red accent element. Fear of loss. "You're making this mistake right now."</div>
+        </div>
+        <div class="formula-card">
+          <div class="formula-num">Formula 03</div>
+          <div class="formula-name">Transformation</div>
+          <div class="formula-so">"Isbedel" — Change</div>
+          <div class="formula-desc">Warm, hopeful expression. Before/after concept. Promises a specific outcome for the child.</div>
+        </div>
+        <div class="formula-card">
+          <div class="formula-num">Formula 04</div>
+          <div class="formula-name">Secret / Insider</div>
+          <div class="formula-so">"Qarsoon" — Hidden</div>
+          <div class="formula-desc">Leaning-in pose, whisper energy. "Most parents don't know this." Exclusivity drive.</div>
+        </div>
+        <div class="formula-card" style="grid-column: 1 / -1;">
+          <div class="formula-num">Formula 05</div>
+          <div class="formula-name">Number / List</div>
+          <div class="formula-so">"3 Hab" — 3 Ways &nbsp;|&nbsp; "5 Qaab" — 5 Methods</div>
+          <div class="formula-desc">Confident smile. Specific number makes the content feel structured and completable. Works best for tips-based videos.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. THUMBNAIL RULES -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-number">5</div>
+        <div class="section-title">Design Rules for Every Thumbnail</div>
+        <div class="section-line"></div>
+      </div>
+
+      <div class="rules-grid">
+        <div class="rule-card">
+          <div class="rule-icon">&#128442;</div>
+          <div class="rule-title">Text Overlay — Max 5 Words</div>
+          <div class="rule-text">All-caps or title case. High contrast against face/background. The text and the hook must say the same thing in different ways.</div>
+        </div>
+        <div class="rule-card">
+          <div class="rule-icon">&#127757;</div>
+          <div class="rule-title">Language — Always Somali</div>
+          <div class="rule-text">Never transliterate. Never alter Somali text. Write it exactly. The audience reads Somali — English text kills CTR for this channel.</div>
+        </div>
+        <div class="rule-card">
+          <div class="rule-icon">&#128247;</div>
+          <div class="rule-title">Face Expression is Everything</div>
+          <div class="rule-text">Coach must be clearly visible, expressive, and facing camera. Describe exact expression: shocked, warm, serious, proud, urgent.</div>
+        </div>
+        <div class="rule-card">
+          <div class="rule-icon">&#128241;</div>
+          <div class="rule-title">Mobile-First — 9:16 Format</div>
+          <div class="rule-text">Vertical frame. Text should sit in the lower or upper third — never covering the face. Must be readable at thumb size on a phone screen.</div>
+        </div>
+        <div class="rule-card">
+          <div class="rule-icon">&#127775;</div>
+          <div class="rule-title">Emotion Tags</div>
+          <div class="rule-text">Assign one: <strong>Curiosity</strong> / <strong>Fear</strong> / <strong>Hope</strong> / <strong>Pride</strong> / <strong>Shock</strong> / <strong>Warmth</strong>. Curiosity and Fear outperform for this audience.</div>
+        </div>
+        <div class="rule-card">
+          <div class="rule-icon">&#127881;</div>
+          <div class="rule-title">Program Tag Required</div>
+          <div class="rule-text">Every thumbnail concept must be tagged to one of the 5 programs. This allows the system to learn which program's visuals get the most clicks.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 6. DATABASE SCHEMA -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-number">6</div>
+        <div class="section-title">Database — Build This Table</div>
+        <div class="section-line"></div>
+      </div>
+      <p style="margin-bottom:12px;">Add to the existing Supabase database. The app already has <span class="highlight">videos</span>, <span class="highlight">content_performance</span>, and <span class="highlight">batch_posts</span> tables.</p>
+
+      <div class="db-card">
+        <div class="db-header">
+          <div class="db-dot" style="background:#EF4444;"></div>
+          <div class="db-dot" style="background:#F59E0B;margin-left:4px;"></div>
+          <div class="db-dot" style="background:#10B981;margin-left:4px;"></div>
+          <div class="db-table-name" style="margin-left:8px;">thumbnail_concepts</div>
+        </div>
+        <div class="db-body">
+          <div class="db-row">
+            <span class="db-col-name">id</span>
+            <span class="db-col-type">UUID</span>
+            <span class="db-col-note">PRIMARY KEY DEFAULT gen_random_uuid()</span>
+          </div>
+          <div class="db-row">
+            <span class="db-col-name">user_id</span>
+            <span class="db-col-type">UUID</span>
+            <span class="db-col-note">REFERENCES auth.users</span>
+          </div>
+          <div class="db-row">
+            <span class="db-col-name">video_id</span>
+            <span class="db-col-type">UUID</span>
+            <span class="db-col-note">REFERENCES videos(id) — nullable for pre-recording</span>
+          </div>
+          <div class="db-row">
+            <span class="db-col-name">batch_post_id</span>
+            <span class="db-col-type">UUID</span>
+            <span class="db-col-note">REFERENCES batch_posts(id) — links to scheduled post</span>
+          </div>
+          <div class="db-row">
+            <span class="db-col-name">title_text</span>
+            <span class="db-col-type">TEXT</span>
+            <span class="db-col-note">Somali overlay text — max 5 words</span>
+          </div>
+          <div class="db-row">
+            <span class="db-col-name">visual_concept</span>
+            <span class="db-col-type">TEXT</span>
+            <span class="db-col-note">Pose / expression / background direction</span>
+          </div>
+          <div class="db-row">
+            <span class="db-col-name">emotion_tag</span>
+            <span class="db-col-type">TEXT</span>
+            <span class="db-col-note">curiosity / fear / hope / pride / shock / warmth</span>
+          </div>
+          <div class="db-row">
+            <span class="db-col-name">formula</span>
+            <span class="db-col-type">TEXT</span>
+            <span class="db-col-note">question / warning / transformation / secret / number</span>
+          </div>
+          <div class="db-row">
+            <span class="db-col-name">program</span>
+            <span class="db-col-type">TEXT</span>
+            <span class="db-col-note">One of the 5 program names</span>
+          </div>
+          <div class="db-row">
+            <span class="db-col-name">is_winner</span>
+            <span class="db-col-type">BOOLEAN</span>
+            <span class="db-col-note">DEFAULT false — coach marks which concept was used</span>
+          </div>
+          <div class="db-row">
+            <span class="db-col-name">ctr_result</span>
+            <span class="db-col-type">NUMERIC</span>
+            <span class="db-col-note">Logged after posting — % click-through rate</span>
+          </div>
+          <div class="db-row">
+            <span class="db-col-name">created_at</span>
+            <span class="db-col-type">TIMESTAMPTZ</span>
+            <span class="db-col-note">DEFAULT now()</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 7. WHAT TO BUILD -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-number">7</div>
+        <div class="section-title">What to Build — Feature Spec</div>
+        <div class="section-line"></div>
+      </div>
+
+      <div class="card card-accent" style="margin-bottom:10px;">
+        <strong>Route:</strong> <span class="highlight">/thumbnails</span> &nbsp;|&nbsp;
+        <strong>API:</strong> <span class="highlight">/api/thumbnails</span> (GET list, POST generate, PATCH mark winner, PATCH log CTR)
+      </div>
+
+      <div class="two-col" style="margin-bottom:10px;">
+        <div class="card">
+          <strong style="font-size:11px;display:block;margin-bottom:6px;">Step 1 — Pick a Video</strong>
+          <p>Show all scheduled batch posts from <code>batch_posts</code> table. Coach taps a video title to generate thumbnail concepts for it.</p>
+        </div>
+        <div class="card">
+          <strong style="font-size:11px;display:block;margin-bottom:6px;">Step 2 — AI Generates 3 Concepts</strong>
+          <p>Call AI with the video title, hook, and program. Returns 3 concepts — each with a different formula, Somali title text, visual direction, and emotion tag.</p>
+        </div>
+        <div class="card">
+          <strong style="font-size:11px;display:block;margin-bottom:6px;">Step 3 — Coach Picks Winner</strong>
+          <p>Coach taps "Use this one" on a concept. <code>is_winner = true</code> saved to DB. The selected concept becomes the filming brief.</p>
+        </div>
+        <div class="card">
+          <strong style="font-size:11px;display:block;margin-bottom:6px;">Step 4 — Log CTR After Posting</strong>
+          <p>After the video goes live, coach opens the card and enters the CTR %. Saved to <code>ctr_result</code>. Over time the system learns which formulas win.</p>
+        </div>
+      </div>
+
+      <div class="card card-amber">
+        <strong style="font-size:11px;display:block;margin-bottom:4px;">Future Intelligence (Phase 2)</strong>
+        <p>Once enough CTR data is collected, the AI prompt should include "Your top performing formula for [program] is [formula] with avg CTR of X% — lean toward this style." This creates a self-improving loop.</p>
+      </div>
+    </div>
+
+    <!-- 8. SUCCESS METRIC -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-number">8</div>
+        <div class="section-title">Success Definition</div>
+        <div class="section-line"></div>
+      </div>
+
+      <div class="success-card">
+        <div class="success-title">What Success Looks Like</div>
+        <div class="success-text">
+          Coach opens <em>/thumbnails</em>, picks a video, gets 3 ready-to-shoot thumbnail concepts with <em>Somali text</em> and exact <em>pose direction</em>, picks one, and after posting enters the CTR. The system learns what works.
+        </div>
+        <div class="success-steps">
+          <div class="success-step">
+            <span class="success-arrow">→</span>
+            <span>No more guessing what to write or how to pose</span>
+          </div>
+          <div class="success-step">
+            <span class="success-arrow">→</span>
+            <span>Every thumbnail is tied to a program and an emotion</span>
+          </div>
+          <div class="success-step">
+            <span class="success-arrow">→</span>
+            <span>CTR data builds a channel-specific formula intelligence over time</span>
+          </div>
+          <div class="success-step">
+            <span class="success-arrow">→</span>
+            <span>Works entirely in Somali — no translation needed</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /body -->
+
+  <!-- ══ FOOTER ══ -->
+  <div class="footer">
+    <div class="footer-left">Kobcinta Garaadka Caruurta &nbsp;·&nbsp; Guri Dagan Coaching OS &nbsp;·&nbsp; Agent Brief v1.0</div>
+    <div class="footer-right">Pass this entire document to the Claude Code thumbnail agent</div>
+  </div>
+
+</div><!-- /page -->
+</body>
+</html>

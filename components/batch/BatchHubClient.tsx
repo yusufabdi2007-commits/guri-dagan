@@ -11,7 +11,7 @@ import { toast } from "@/components/ui/use-toast";
 import {
   CalendarDays, Youtube, Video, CheckCircle2, Clock,
   AlertCircle, Mic2, Sparkles, ArrowRight, Circle,
-  PlayCircle, Edit3, Zap, Camera
+  PlayCircle, Edit3, Zap, Camera, Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -61,11 +61,11 @@ const BATCH_STATUS_BADGE = {
 };
 
 function getWeekDates(weekStart: string): string[] {
-  // 7-day batch: Sunday (week_start) through Saturday
+  // 7-day batch: Monday (week_start) through Sunday
   return Array.from({ length: 7 }, (_, i) => {
     const d = new Date(weekStart + "T12:00:00");
     d.setDate(d.getDate() + i);
-    return d.toISOString().split("T")[0];
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   });
 }
 
@@ -87,9 +87,30 @@ export function BatchHubClient({ batch, posts, todayStr, userId }: Props) {
       .eq("id", postId);
     if (error) {
       toast({ title: "Could not update status", variant: "destructive" as never });
-    } else {
-      router.refresh();
+      setUpdatingId(null);
+      return;
     }
+    // When marking posted, also record the daily completion so the streak updates
+    if (status === "posted") {
+      const post = posts.find(p => p.id === postId);
+      const { error: completionErr } = await supabase.from("daily_completions").insert({
+        user_id: userId,
+        completed_date: todayStr,
+        platform: post?.platform || "tiktok",
+      });
+      // Ignore 23505 (unique violation — already recorded today)
+      if (completionErr && completionErr.code !== "23505") {
+        // Rollback: revert batch_post to its previous status
+        await supabase
+          .from("batch_posts")
+          .update({ status: "scheduled", posted_at: null })
+          .eq("id", postId);
+        toast({ title: "Could not save — please try again", variant: "destructive" as never });
+        setUpdatingId(null);
+        return;
+      }
+    }
+    router.refresh();
     setUpdatingId(null);
   }
 
@@ -173,14 +194,29 @@ export function BatchHubClient({ batch, posts, todayStr, userId }: Props) {
       {/* Today's Post */}
       {todayPost ? (
         <div className="space-y-1.5">
-          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1">Today&apos;s Post</h3>
+          <div className="flex items-center gap-2 px-1">
+            <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Today&apos;s Post</h3>
+          </div>
           <TodayPostCard post={todayPost} updatingId={updatingId} onStatusChange={updatePostStatus} />
         </div>
       ) : (
-        <Card className="bg-muted/30">
+        <Card className="border-0 bg-muted/20 shadow-none">
           <CardContent className="p-4 flex items-center gap-3">
-            <CheckCircle2 className="h-5 w-5 text-green-500 shrink-0" />
-            <p className="text-sm text-muted-foreground">No post scheduled for today — rest day.</p>
+            {new Date().getDay() === 1 ? (
+              <>
+                <Camera className="h-4 w-4 text-amber-500 shrink-0" />
+                <div>
+                  <p className="text-sm font-semibold text-foreground">Record Next Week</p>
+                  <p className="text-xs text-muted-foreground">No posts today — record all 8 videos this session.</p>
+                </div>
+              </>
+            ) : (
+              <>
+                <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
+                <p className="text-sm text-muted-foreground">No post scheduled for today.</p>
+              </>
+            )}
           </CardContent>
         </Card>
       )}
@@ -189,25 +225,32 @@ export function BatchHubClient({ batch, posts, todayStr, userId }: Props) {
       <div className="space-y-1.5">
         <div className="flex items-center justify-between px-1">
           <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">This Week</h3>
-          <span className="text-xs text-muted-foreground">{remainingCount} remaining</span>
+          {remainingCount > 0 && (
+            <span className="text-xs font-medium text-primary">{remainingCount} remaining</span>
+          )}
+          {remainingCount === 0 && posts.length > 0 && (
+            <span className="text-xs font-semibold text-green-600 dark:text-green-400">All posted ✓</span>
+          )}
         </div>
         <div className="space-y-2">
           {weekDates.map((date, i) => {
             const dayPosts = posts.filter(p => p.scheduled_date === date);
             const isToday = date === todayStr;
             const isPast = date < todayStr;
+            const allPosted = dayPosts.length > 0 && dayPosts.every(p => p.status === "posted");
             return (
               <div
                 key={date}
                 className={cn(
                   "rounded-2xl border transition-all",
-                  isToday ? "border-primary/40 bg-primary/5" : "border-border bg-card"
+                  isToday ? "border-primary/50 bg-primary/5 shadow-sm" : "border-border bg-card",
+                  isPast && !isToday && "opacity-60"
                 )}
               >
                 <div className="flex items-center gap-3 p-3">
                   <div className={cn(
                     "w-9 h-9 rounded-xl flex flex-col items-center justify-center shrink-0 text-center",
-                    isToday ? "bg-primary text-white" : isPast ? "bg-muted text-muted-foreground" : "bg-muted/50 text-foreground"
+                    isToday ? "bg-primary text-white" : allPosted ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400" : isPast ? "bg-muted/70 text-muted-foreground" : "bg-muted/40 text-foreground"
                   )}>
                     <span className="text-[9px] font-semibold leading-none">{DAYS[i]}</span>
                     <span className="text-sm font-bold leading-none mt-0.5">
@@ -216,13 +259,13 @@ export function BatchHubClient({ batch, posts, todayStr, userId }: Props) {
                   </div>
                   <div className="flex-1 min-w-0">
                     {dayPosts.length === 0 ? (
-                      i === 1 ? (
+                      i === 0 ? (
                         <div className="flex items-center gap-1.5">
                           <Camera className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-                          <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">Recording Day</span>
+                          <span className="text-xs text-amber-600 dark:text-amber-400 font-semibold">Record Next Week</span>
                         </div>
                       ) : (
-                        <p className="text-xs text-muted-foreground italic">No post scheduled</p>
+                        <p className="text-xs text-muted-foreground/60">No post scheduled</p>
                       )
                     ) : (
                       <div className="space-y-1.5">
@@ -290,7 +333,9 @@ function TodayPostCard({
                 disabled={updatingId === post.id}
                 onClick={() => onStatusChange(post.id, "ready")}
               >
-                <Zap className="h-3 w-3 mr-1" />
+                {updatingId === post.id
+                  ? <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                  : <Zap className="h-3 w-3 mr-1" />}
                 Mark Ready
               </Button>
             )}
@@ -300,7 +345,9 @@ function TodayPostCard({
               disabled={updatingId === post.id}
               onClick={() => onStatusChange(post.id, "posted")}
             >
-              <CheckCircle2 className="h-3 w-3 mr-1" />
+              {updatingId === post.id
+                ? <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                : <CheckCircle2 className="h-3 w-3 mr-1" />}
               {updatingId === post.id ? "Saving..." : "Mark Posted"}
             </Button>
           </div>
@@ -340,11 +387,14 @@ function DayPostRow({
         className={cn(
           "shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-lg transition-all",
           cfg.bg, cfg.color,
-          post.status !== "posted" && "hover:opacity-80 active:scale-95 cursor-pointer"
+          post.status !== "posted" && "hover:opacity-80 active:scale-95 cursor-pointer",
+          updatingId === post.id && "opacity-60"
         )}
       >
-        <StatusIcon className="h-2.5 w-2.5 inline mr-0.5" />
-        {cfg.label}
+        {updatingId === post.id
+          ? <Loader2 className="h-2.5 w-2.5 inline mr-0.5 animate-spin" />
+          : <StatusIcon className="h-2.5 w-2.5 inline mr-0.5" />}
+        {updatingId === post.id ? "..." : cfg.label}
       </button>
     </div>
   );
@@ -354,15 +404,23 @@ function PastBatchesNote() {
   return (
     <Card className="bg-muted/20">
       <CardContent className="p-4">
-        <div className="flex items-center gap-3">
-          <PlayCircle className="h-5 w-5 text-muted-foreground shrink-0" />
-          <div>
-            <p className="text-sm font-medium text-foreground">How it works</p>
-            <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-              Plan a weekly theme → AI generates 1 YouTube + 7 TikTok topics → Record once → Post one per day. No daily recording needed.
-            </p>
+        <div className="flex items-start gap-3">
+          <PlayCircle className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="text-sm font-medium text-foreground mb-1">How it works</p>
+            <div className="space-y-0.5">
+              {[
+                "Mon — Post TikTok #1 + Record next week's videos",
+                "Tue — Post TikTok #2",
+                "Wed — Post TikTok #3 + Publish YouTube flagship",
+                "Thu / Fri / Sat — Post TikTok daily",
+                "Sun — Post TikTok #7 + Plan next week",
+              ].map((line, i) => (
+                <p key={i} className="text-xs text-muted-foreground leading-relaxed">{line}</p>
+              ))}
+            </div>
           </div>
-          <Link href="/batch/plan" className="shrink-0">
+          <Link href="/batch/plan" className="shrink-0 mt-0.5">
             <ArrowRight className="h-4 w-4 text-muted-foreground" />
           </Link>
         </div>

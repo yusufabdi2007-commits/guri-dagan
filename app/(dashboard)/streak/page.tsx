@@ -14,8 +14,11 @@ export default async function StreakPage() {
   ]);
 
   const dates = [...new Set((completions || []).map(c => c.completed_date.split("T")[0]))].sort().reverse();
-  const todayStr = new Date().toISOString().split("T")[0];
-  const yesterdayStr = new Date(Date.now() - 86400000).toISOString().split("T")[0];
+  const _now = new Date();
+  const todayStr = `${_now.getFullYear()}-${String(_now.getMonth() + 1).padStart(2, "0")}-${String(_now.getDate()).padStart(2, "0")}`;
+  const _yest = new Date(Date.now() - 86400000);
+  const yesterdayStr = `${_yest.getFullYear()}-${String(_yest.getMonth() + 1).padStart(2, "0")}-${String(_yest.getDate()).padStart(2, "0")}`;
+
 
   let currentStreak = 0;
   let longestStreak = 0;

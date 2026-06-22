@@ -5,16 +5,16 @@ export const runtime = 'edge';
 export const maxDuration = 60;
 
 // Fixed weekly program distribution — NEVER changes
+// YouTube: MePower™ — posts Wednesday (flagship, highest lead-conversion)
 // 7 TikToks: Mon→MePower, Tue→Inner Power, Wed→MePower, Thu→Inner Power,
 //             Fri→MindPower, Sat→DreamPower, Sun→Slaying Dragons
-// YouTube: MePower™ (flagship, highest lead-conversion)
 const TIKTOK_PROGRAM_ORDER = [
-  "MePower™",        // Mon
-  "Inner Power™",    // Tue
-  "MePower™",        // Wed
-  "Inner Power™",    // Thu
-  "MindPower™",      // Fri
-  "DreamPower™",     // Sat
+  "MePower™",         // Mon
+  "Inner Power™",     // Tue
+  "MePower™",         // Wed
+  "Inner Power™",     // Thu
+  "MindPower™",       // Fri
+  "DreamPower™",      // Sat
   "Slaying Dragons™", // Sun
 ] as const;
 
@@ -60,6 +60,35 @@ const PROGRAM_FALLBACKS: Record<string, { hook: string; problem: string; reframe
   },
 };
 
+/**
+ * Extracts the most theme-relevant sections from curriculum text.
+ * Splits into paragraphs, scores each by keyword overlap with the theme,
+ * then returns up to maxChars of the highest-scoring content.
+ */
+function extractRelevantSections(text: string, theme: string, maxChars: number): string {
+  const themeWords = theme.toLowerCase().split(/\W+/).filter(w => w.length > 3);
+  const paragraphs = text.split(/\n{2,}/).map(p => p.trim()).filter(p => p.length > 40);
+
+  // Score: count theme keyword occurrences in each paragraph
+  const scored = paragraphs.map(p => {
+    const lower = p.toLowerCase();
+    const score = themeWords.reduce((acc, w) => acc + (lower.split(w).length - 1), 0);
+    return { text: p, score };
+  });
+
+  // Always keep the first 2 paragraphs (context/intro), rank the rest by relevance
+  const intro = scored.slice(0, 2);
+  const ranked = scored.slice(2).sort((a, b) => b.score - a.score);
+  const ordered = [...intro, ...ranked];
+
+  let result = "";
+  for (const { text } of ordered) {
+    if (result.length + text.length + 2 > maxChars) break;
+    result += text + "\n\n";
+  }
+  return result.trim();
+}
+
 export async function POST(req: NextRequest) {
   const limit = rateLimit(req, { limit: 20, windowMs: 60 * 60_000 });
   if (!limit.ok) return NextResponse.json({ error: limit.error }, { status: 429 });
@@ -71,7 +100,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
 
-  const { theme } = body;
+  const { theme, userId } = body;
   if (!theme || typeof theme !== "string" || theme.trim().length < 3) {
     return NextResponse.json({ error: "Theme is required (min 3 characters)" }, { status: 400 });
   }
@@ -87,13 +116,49 @@ export async function POST(req: NextRequest) {
   try {
     const weekDate = new Date().toISOString().split("T")[0];
 
-    const prompt = `Write 8 SHORT marketing video scripts for Guri Dagan (Somali parenting coach). Week of: ${weekDate}.
+    // Fetch curriculum knowledge for all programs (public read, no auth required)
+    let curriculumContext = "";
+    try {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      if (supabaseUrl && supabaseAnonKey) {
+        const userFilter = typeof userId === "string" && userId.length > 0
+          ? `&user_id=eq.${encodeURIComponent(userId)}`
+          : "";
+        const kbRes = await fetch(
+          `${supabaseUrl}/rest/v1/program_knowledge?select=program_name,extracted_text&limit=10${userFilter}`,
+          {
+            headers: {
+              apikey: supabaseAnonKey,
+              Authorization: `Bearer ${supabaseAnonKey}`,
+            },
+            signal: AbortSignal.timeout(4000),
+          }
+        );
+        if (kbRes.ok) {
+          const knowledge = (await kbRes.json()) as { program_name: string; extracted_text: string }[];
+          if (knowledge.length > 0) {
+            curriculumContext =
+              "\n\nCURRICULUM KNOWLEDGE — The uploaded curriculum is the authoritative source for what is taught. Every script MUST teach a real concept, framework, exercise, tool, or principle that exists in the programme materials. Do not invent new programme techniques or attribute ideas to the programme that are not present in the curriculum. You MAY create original hooks, stories, family scenarios, analogies, examples, transitions, and calls to action — these creative elements exist only to explain or demonstrate the real curriculum, never to replace it. If the requested topic is only partially covered by the curriculum, stay faithful to the programme's philosophy and clearly ground the lesson in the closest relevant material rather than inventing a new framework.\n";
+            for (const k of knowledge) {
+              // Extract the most relevant sections for this week's theme (max 2500 chars per program)
+              const snippet = extractRelevantSections(k.extracted_text, t, 2500);
+              if (snippet) curriculumContext += `\n[${k.program_name}]\n${snippet}\n`;
+            }
+          }
+        }
+      }
+    } catch {
+      // Silently skip — scripts still generate with built-in fallback knowledge
+    }
+
+    const prompt = `Write 8 SHORT marketing video scripts for Guri Dagan (Somali parenting coach). Week of: ${weekDate}.${curriculumContext}
 Theme: "${t}"
 
 RULE: Every script is a completely different video. Same program appears multiple times — each slot still gets a totally different scenario, moment, and technique.
 
 VIDEO SLOTS (use the given scenario for each):
-1. YouTube — MePower™ — child said "I give up" after first failure at something they cared about
+1. YouTube Wed — MePower™ — child said "I give up" after first failure at something they cared about
 2. TikTok Mon — MePower™ — child quits mid-activity, won't try again despite gentle encouragement
 3. TikTok Tue — Inner Power™ — child becomes unrecognisable around friends, loses all their opinions
 4. TikTok Wed — MePower™ — child compares to sibling: "they're just smarter/better than me"
@@ -137,7 +202,7 @@ Return valid JSON only:
       body: JSON.stringify({
         model: "llama-3.3-70b-versatile",
         messages: [
-          { role: "system", content: "You are a marketing copywriter for a parenting coaching business. Write specific, emotionally precise video scripts. Every script must be completely different from the others. Return valid JSON only. No markdown, no code blocks, no text outside the JSON object." },
+          { role: "system", content: "You are a marketing copywriter for a parenting coaching business. Write specific, emotionally precise video scripts. Every script must be completely different from the others. The uploaded curriculum is the authoritative source for what is taught — every script must teach a real concept, framework, exercise, tool, or principle that exists in the programme materials. Do not invent new programme techniques or attribute ideas to the programme that are not present in the curriculum. You may create original hooks, stories, family scenarios, analogies, examples, transitions, and calls to action — these creative elements exist only to explain or demonstrate the real curriculum, never to replace it. Return valid JSON only. No markdown, no code blocks, no text outside the JSON object." },
           { role: "user", content: prompt },
         ],
         temperature: 0.9,

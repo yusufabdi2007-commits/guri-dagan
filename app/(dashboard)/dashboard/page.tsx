@@ -3,12 +3,15 @@ import { redirect } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { DashboardClient } from "@/components/dashboard/DashboardClient";
 
+function toLocalDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 function getWeekStart(): string {
+  // Most recent Sunday — matches all batch week_start values in DB
   const d = new Date();
-  const day = d.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  d.setDate(d.getDate() + diff);
-  return d.toISOString().split("T")[0];
+  d.setDate(d.getDate() - d.getDay());
+  return toLocalDate(d);
 }
 
 export default async function DashboardPage() {
@@ -17,7 +20,7 @@ export default async function DashboardPage() {
   if (!user) redirect("/login");
 
   const today = new Date();
-  const todayStr = today.toISOString().split("T")[0];
+  const todayStr = toLocalDate(today);
   const weekStart = getWeekStart();
 
   const [
@@ -76,8 +79,8 @@ export default async function DashboardPage() {
   let longestStreak = 0;
   if (allCompletions && allCompletions.length > 0) {
     const dates = [...new Set(allCompletions.map(c => c.completed_date.split("T")[0]))].sort().reverse();
-    const todayStr = new Date().toISOString().split("T")[0];
-    const yesterdayStr = new Date(Date.now() - 86400000).toISOString().split("T")[0];
+    const todayStr = toLocalDate(new Date());
+    const yesterdayStr = toLocalDate(new Date(Date.now() - 86400000));
 
     if (dates[0] === todayStr || dates[0] === yesterdayStr) {
       currentStreak = 1;
@@ -102,8 +105,7 @@ export default async function DashboardPage() {
   }
 
   const todayCompletions = allCompletions?.filter(c => {
-    const d = new Date(c.completed_date).toISOString().split("T")[0];
-    return d === new Date().toISOString().split("T")[0];
+    return c.completed_date.split("T")[0] === todayStr;
   }) || [];
 
   const weeklyGoal = profile?.weekly_goal ?? 5;

@@ -81,24 +81,28 @@ interface Props {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+function toLocalDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 function getWeekStart(): string {
-  // Most recent Sunday (or today if today is Sunday)
+  // Most recent Monday (or today if today is Monday)
   const d = new Date();
-  d.setDate(d.getDate() - d.getDay());
-  return d.toISOString().split("T")[0];
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  return toLocalDate(d);
 }
 
 function getNextWeekStart(): string {
-  // Next Sunday
+  // Next Monday
   const d = new Date();
-  d.setDate(d.getDate() - d.getDay() + 7);
-  return d.toISOString().split("T")[0];
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7) + 7);
+  return toLocalDate(d);
 }
 
 function formatWeekLabel(weekStart: string): string {
   const start = new Date(weekStart + "T12:00:00");
   const end = new Date(weekStart + "T12:00:00");
-  end.setDate(end.getDate() + 6); // Sun → Sat (7-day batch)
+  end.setDate(end.getDate() + 6); // Mon → Sun (7-day batch)
   const opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" };
   return `${start.toLocaleDateString("en-US", opts)} – ${end.toLocaleDateString("en-US", opts)}`;
 }
@@ -211,6 +215,7 @@ export function WeeklyAssignmentClient({
           growingCategory,
           underusedCategory,
           recentThemes,
+          userId,
         }),
       });
       if (!res.ok) {
@@ -256,13 +261,30 @@ export function WeeklyAssignmentClient({
 
       if (batchErr || !batch) throw new Error(batchErr?.message || "Failed to save batch");
 
+      // Guard: never delete posts that have already been published
+      const { count: postedCount } = await supabase
+        .from("batch_posts")
+        .select("id", { count: "exact", head: true })
+        .eq("batch_id", batch.id)
+        .eq("status", "posted");
+      if ((postedCount ?? 0) > 0) {
+        toast({
+          title: "Can't replace — posts already published",
+          description: `${postedCount} post${postedCount === 1 ? "" : "s"} from this week have been posted. Choose a different week or wait until next Sunday.`,
+          variant: "destructive",
+        });
+        setSaving(false);
+        return;
+      }
+
       await supabase.from("batch_posts").delete().eq("batch_id", batch.id);
 
       const weekBase = new Date(selectedWeek + "T12:00:00");
 
-      // YouTube goes on Sunday (= week_start). Recording happens Monday.
-      // TikToks: Tue(+2), Wed(+3), Thu(+4), Fri(+5), Sat(+6), Sun(+0), Sun(+0)
-      const ytDate = new Date(weekBase); // Sunday (+0)
+      // YouTube posts Wednesday (= week_start + 2). Recording happens Monday.
+      // TikToks: Mon(+0), Tue(+1), Wed(+2), Thu(+3), Fri(+4), Sat(+5), Sun(+6)
+      const ytDate = new Date(weekBase);
+      ytDate.setDate(ytDate.getDate() + 2); // Wednesday
 
       const ytNotes = formatScriptNotes({
         program: plan.youtube.program,
@@ -280,18 +302,19 @@ export function WeeklyAssignmentClient({
         {
           batch_id: batch.id,
           user_id: userId,
-          scheduled_date: ytDate.toISOString().split("T")[0], // Tuesday
+          scheduled_date: `${ytDate.getFullYear()}-${String(ytDate.getMonth() + 1).padStart(2, "0")}-${String(ytDate.getDate()).padStart(2, "0")}`, // Wednesday
           platform: "youtube",
           title: plan.youtube.title,
           angle_notes: ytNotes,
-          sort_order: 0,
+          sort_order: 8, // posts after TikTok #3 (sort_order 3) on Wednesday
           status: "scheduled",
         },
         ...plan.tiktoks.map((tt, i) => {
           const d = new Date(weekBase);
-          // i=0 → Tue(+2), i=1 → Wed(+3), i=2 → Thu(+4), i=3 → Fri(+5),
-          // i=4 → Sat(+6), i=5 → Sun(+0), i=6 → Sun(+0)
-          d.setDate(d.getDate() + (i < 5 ? i + 2 : 0));
+          // i=0 → Mon(+0), i=1 → Tue(+1), i=2 → Wed(+2), i=3 → Thu(+3),
+          // i=4 → Fri(+4), i=5 → Sat(+5), i=6 → Sun(+6)
+          const OFFSETS = [0, 1, 2, 3, 4, 5, 6];
+          d.setDate(d.getDate() + OFFSETS[i]);
           const notes = formatScriptNotes({
             program: tt.program,
             hookType: tt.hook_type,
@@ -305,7 +328,7 @@ export function WeeklyAssignmentClient({
           return {
             batch_id: batch.id,
             user_id: userId,
-            scheduled_date: d.toISOString().split("T")[0],
+            scheduled_date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`,
             platform: "tiktok",
             title: tt.title,
             angle_notes: notes,
@@ -702,7 +725,7 @@ export function WeeklyAssignmentClient({
                   <div className="p-3 rounded-xl bg-primary/5 border border-primary/15">
                     <p className="text-xs font-semibold text-primary mb-1">Monday recording goal</p>
                     <p className="text-xs text-foreground">
-                      Record YouTube first (most energy). Then record all 7 TikToks grouped by program for natural flow. YouTube + 2 TikToks post next Sunday. Remaining TikToks post Tue–Sat.
+                      Record YouTube first (most energy). Then record all 7 TikToks grouped by program for natural flow. YouTube + 2 TikToks post Sunday. TikToks: Tuesday, Wednesday–Saturday, then 2 on Sunday.
                     </p>
                   </div>
 

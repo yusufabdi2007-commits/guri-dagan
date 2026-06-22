@@ -4,41 +4,54 @@ import { TodayClient } from "@/components/today/TodayClient";
 import { redirect } from "next/navigation";
 import { seedFirstWeek } from "@/lib/seed-first-week";
 
-// Returns the most recent Sunday (or today if today is Sunday)
+// User timezone — set USER_TIMEZONE env var to override (e.g. "America/New_York").
+// Defaults to Europe/London (UK). Ensures correct date even when Vercel server runs UTC.
+const TZ = process.env.USER_TIMEZONE || "Europe/London";
+
+// Returns "YYYY-MM-DD" in the user's local timezone (never UTC offset bugs).
+function toLocalDate(d: Date): string {
+  // en-CA locale formats as "YYYY-MM-DD" natively
+  return new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(d);
+}
+
+// Returns the most recent Monday (or today if today is Monday) in the user's timezone.
 function getWeekStart(): string {
-  const d = new Date();
-  d.setDate(d.getDate() - d.getDay());
-  return d.toISOString().split("T")[0];
+  const now = new Date();
+  const todayStr = toLocalDate(now);
+  // Build a noon-UTC anchor for the local date so getDay() is unambiguous
+  const noon = new Date(todayStr + "T12:00:00");
+  const dow = noon.getDay(); // 0=Sun..6=Sat
+  const daysBack = (dow + 6) % 7; // 0 on Mon, 1 on Tue, ... 6 on Sun
+  noon.setDate(noon.getDate() - daysBack);
+  return toLocalDate(noon);
 }
 
 function addDays(dateStr: string, days: number): string {
   const d = new Date(dateStr + "T12:00:00");
   d.setDate(d.getDate() + days);
-  return d.toISOString().split("T")[0];
+  return toLocalDate(d);
 }
 
 export default async function TodayPage() {
   const supabase = await createClient();
 
-  const { data: { session } } = await supabase.auth.getSession();
-  const user = session?.user;
+  const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
   // Auto-seed first week of content if user has no batches yet.
   seedFirstWeek(supabase, user.id).catch(() => {});
 
-  const today = new Date();
-  const todayStr = today.toISOString().split("T")[0];
-  const dayOfWeek = today.getDay(); // 0=Sun, 1=Mon, 2=Tue, ..., 6=Sat
+  const now = new Date();
+  const todayStr = toLocalDate(now);
+  // Compute day-of-week from the local date string (noon UTC = correct day)
+  const dayOfWeek = new Date(todayStr + "T12:00:00").getDay(); // 0=Sun, 1=Mon, 2=Tue, ..., 6=Sat
 
-  // Monday = recording day. All other days (including Sunday) = posting day.
-  const weekPhase: "recording" | "posting" = dayOfWeek === 1 ? "recording" : "posting";
-
-  // week_start = most recent Sunday (the first posting day of the batch)
-  // Batch spans Sunday–Saturday: 3 posts on Sunday, 1 each on Tue–Sat.
+  // week_start = most recent Monday (the first posting day of the batch)
+  // Batch spans Monday–Sunday: Mon×TikTok#1, Tue×TikTok#2, Wed×TikTok#3+YouTube,
+  //   Thu×TikTok#4, Fri×TikTok#5, Sat×TikTok#6, Sun×TikTok#7.
   const weekStart = getWeekStart();
-  const weekEnd = addDays(weekStart, 6);   // Saturday
-  const nextWeekStart = addDays(weekStart, 7); // next Sunday
+  const weekEnd = addDays(weekStart, 6);    // Sunday
+  const nextWeekStart = addDays(weekStart, 7); // next Monday
 
   const [
     { data: batchPosts },
@@ -51,7 +64,7 @@ export default async function TodayPage() {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     { data: _unused },
   ] = await Promise.all([
-    // All unposted batch posts for today (can be multiple on Sunday)
+    // All unposted batch posts for today (can be multiple on Wednesday: TikTok + YouTube)
     supabase
       .from("batch_posts")
       .select("id, platform, title, angle_notes, status, batch_id")
@@ -87,7 +100,7 @@ export default async function TodayPage() {
       .order("week_start", { ascending: false })
       .limit(1)
       .maybeSingle(),
-    // All posts in this week's batch (Sunday–Saturday) for progress counting
+    // All posts in this week's batch (Monday–Sunday) for progress counting
     supabase
       .from("batch_posts")
       .select("status")
@@ -107,16 +120,16 @@ export default async function TodayPage() {
     Promise.resolve({ data: [] }),
   ]);
 
-  // Monday recording mode: find the nearest upcoming batch then fetch all its posts by ID
-  // (querying by date range fails if user saved for "this week" vs "next week")
+  // Monday recording mode: find next week's batch then fetch all its posts by ID
+  // (Monday is posting day + recording day for NEXT week)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let recordingPostsRaw: any[] = [];
-  if (weekPhase === "recording") {
+  if (dayOfWeek === 1) {
     const { data: upcomingBatch } = await supabase
       .from("weekly_batches")
       .select("id, week_start")
       .eq("user_id", user.id)
-      .gte("week_start", weekStart) // this Sunday or later
+      .gte("week_start", addDays(weekStart, 7)) // next Monday or later
       .order("week_start", { ascending: true })
       .limit(1)
       .maybeSingle();
@@ -137,20 +150,23 @@ export default async function TodayPage() {
     ? { posted: weekBatchPosts.filter(p => p.status === "posted").length, total: weekBatchPosts.length }
     : null;
 
-  const hour = today.getHours();
+  const hour = parseInt(
+    new Intl.DateTimeFormat("en-GB", { timeZone: TZ, hour: "numeric", hour12: false }).format(now)
+  );
   const greeting =
     hour < 12 ? "Subax wanaagsan" : hour < 17 ? "Galab wanaagsan" : "Habeyn wanaagsan";
 
-  const dateLabel = today.toLocaleDateString("en-US", {
+  const dateLabel = new Intl.DateTimeFormat("en-US", {
+    timeZone: TZ,
     weekday: "long",
     month: "long",
     day: "numeric",
-  });
+  }).format(now);
 
   return (
     <div className="flex flex-col min-h-full">
       <Header
-        title={weekPhase === "recording" ? "Recording Day" : "Today's Post"}
+        title="Today's Post"
         subtitle={`${greeting} — ${dateLabel}`}
       />
       <TodayClient
@@ -163,7 +179,7 @@ export default async function TodayPage() {
         weeklyTheme={weeklyBatch?.theme ?? null}
         weekProgress={weekProgress}
         nextPost={nextPostRaw ?? null}
-        weekPhase={weekPhase}
+        dayOfWeek={dayOfWeek}
         recordingPosts={recordingPostsRaw ?? []}
         nextWeekStart={nextWeekStart}
       />

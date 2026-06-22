@@ -5,13 +5,13 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Star, CalendarRange, BarChart3, MoreHorizontal,
-  UserCheck, Baby, Shield, Settings,
+  UserCheck, Shield, Settings, ClipboardList,
   LayoutDashboard, Lightbulb, Film, CheckCircle2, MessageSquare, Sparkles,
   CalendarDays, Video, Zap, TrendingUp, MessageSquareQuote, Users, Mic2, Layers,
   Package, Megaphone, Youtube, FileBarChart2, Clapperboard, Brain, GitBranch,
-  MonitorPlay, Wand2, Plug, Building2, PieChart, PhoneCall, PoundSterling,
-  Clock, HeartHandshake, ClipboardList, Activity,
-  Sun, Moon, LogOut, X,
+  MonitorPlay, Wand2, Plug, PieChart, PhoneCall, PoundSterling,
+  Clock, HeartHandshake, Activity, Baby, GraduationCap,
+  Sun, Moon, LogOut, X, ShieldAlert, Wrench,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/components/providers/ThemeProvider";
@@ -19,14 +19,15 @@ import { createClient } from "@/lib/supabase/client";
 
 const primaryNav = [
   { href: "/today", icon: Star, label: "Today" },
-  { href: "/batch", icon: CalendarRange, label: "Week" },
+  { href: "/children", icon: Baby, label: "Students" },
   { href: "/business", icon: BarChart3, label: "Results" },
+  { href: "/batch", icon: CalendarRange, label: "Weeks" },
 ];
 
 const keyItems = [
   { href: "/leads", icon: UserCheck, label: "Leads" },
-  { href: "/children", icon: Baby, label: "Children" },
   { href: "/programs", icon: Shield, label: "Programs" },
+  { href: "/checkins", icon: ClipboardList, label: "Check-ins" },
   { href: "/settings", icon: Settings, label: "Settings" },
 ];
 
@@ -39,9 +40,9 @@ const allTools = [
   { href: "/consultations", icon: PhoneCall, label: "Consults" },
   { href: "/clients", icon: Users, label: "Clients" },
   { href: "/success", icon: HeartHandshake, label: "Success" },
-  { href: "/checkins", icon: ClipboardList, label: "Check-ins" },
   { href: "/outcomes", icon: Activity, label: "Outcomes" },
   { href: "/program-report", icon: PieChart, label: "Prog. Report" },
+  { href: "/program-knowledge", icon: GraduationCap, label: "Knowledge" },
   { href: "/revenue", icon: PoundSterling, label: "Revenue" },
   { href: "/followups", icon: Clock, label: "Follow-ups" },
   { href: "/streak", icon: CheckCircle2, label: "Streak" },
@@ -63,6 +64,8 @@ const allTools = [
   { href: "/crm", icon: Users, label: "Client CRM" },
   { href: "/calendar", icon: CalendarDays, label: "Calendar" },
   { href: "/videos", icon: Video, label: "Videos" },
+  { href: "/system-health", icon: ShieldAlert, label: "System Health" },
+  { href: "/recovery", icon: Wrench, label: "Recovery" },
 ];
 
 const moreRoutes = [...keyItems, ...allTools];
@@ -74,8 +77,7 @@ export function BottomNav() {
   const router = useRouter();
 
   const isMoreActive = moreRoutes.some(i => pathname === i.href || pathname.startsWith(i.href + "/"))
-    || pathname.startsWith("/review/")
-    || pathname.startsWith("/children/");
+    || pathname.startsWith("/review/");
 
   async function handleLogout() {
     const supabase = createClient();

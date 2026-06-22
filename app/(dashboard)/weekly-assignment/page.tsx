@@ -3,11 +3,15 @@ import { Header } from "@/components/layout/Header";
 import { WeeklyAssignmentClient } from "@/components/weekly-assignment/WeeklyAssignmentClient";
 import { redirect } from "next/navigation";
 
+function toLocalDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 function getNextWeekStart(): string {
   // Next Sunday (the upcoming posting week's start day)
   const d = new Date();
   d.setDate(d.getDate() - d.getDay() + 7);
-  return d.toISOString().split("T")[0];
+  return toLocalDate(d);
 }
 
 interface CategoryStat {

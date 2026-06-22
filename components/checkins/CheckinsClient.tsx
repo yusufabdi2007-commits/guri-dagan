@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { TrendingUp, ChevronRight } from "lucide-react";
+import { TrendingUp, ChevronRight, CheckCircle2, XCircle, Clock } from "lucide-react";
+import { toast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 import { getProgramBadgeClass } from "@/lib/programs";
 
@@ -17,6 +18,7 @@ interface ActiveChild {
 interface RecentCheckin {
   id: string;
   week_number: number;
+  attendance: string | null;
   confidence_score: number | null;
   resilience_score: number | null;
   emotional_regulation_score: number | null;
@@ -80,6 +82,7 @@ export function CheckinsClient({ activeChildren, recentCheckins }: Props) {
   const router = useRouter();
   const [selectedChild, setSelectedChild] = useState(activeChildren[0]?.id ?? "");
   const [weekNumber, setWeekNumber] = useState("1");
+  const [attendance, setAttendance] = useState("attended");
   const [scores, setScores] = useState({ confidence_score: "5", resilience_score: "5", emotional_regulation_score: "5", communication_score: "5", responsibility_score: "5", leadership_score: "5" });
   const [parentNotes, setParentNotes] = useState("");
   const [coachNotes, setCoachNotes] = useState("");
@@ -100,6 +103,7 @@ export function CheckinsClient({ activeChildren, recentCheckins }: Props) {
         body: JSON.stringify({
           child_id: selectedChild,
           week_number: parseInt(weekNumber),
+          attendance,
           ...Object.fromEntries(Object.entries(scores).map(([k, v]) => [k, parseInt(v)])),
           parent_notes: parentNotes || null,
           coach_notes: coachNotes || null,
@@ -111,6 +115,8 @@ export function CheckinsClient({ activeChildren, recentCheckins }: Props) {
         setTimeout(() => setSaved(false), 3000);
         setParentNotes("");
         setCoachNotes("");
+      } else {
+        toast({ title: "Could not save check-in — please try again", variant: "destructive" });
       }
     } finally {
       setSaving(false);
@@ -155,6 +161,42 @@ export function CheckinsClient({ activeChildren, recentCheckins }: Props) {
                   onChange={e => setWeekNumber(e.target.value)}
                   className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm"
                 />
+              </div>
+            </div>
+
+            {/* Attendance selector */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">Attendance</label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { value: "attended", label: "Attended", Icon: CheckCircle2, color: "emerald" },
+                  { value: "absent", label: "Absent", Icon: XCircle, color: "rose" },
+                  { value: "late", label: "Late", Icon: Clock, color: "amber" },
+                ].map(({ value, label, Icon, color }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setAttendance(value)}
+                    className={cn(
+                      "flex flex-col items-center gap-1 py-2.5 rounded-xl border-2 text-xs font-semibold transition-all",
+                      attendance === value
+                        ? color === "emerald" ? "border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400"
+                          : color === "rose" ? "border-rose-500 bg-rose-50 text-rose-700 dark:bg-rose-900/20 dark:text-rose-400"
+                          : "border-amber-500 bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400"
+                        : "border-border text-muted-foreground hover:border-primary/40"
+                    )}
+                  >
+                    <Icon className={cn(
+                      "h-4 w-4",
+                      attendance === value
+                        ? color === "emerald" ? "text-emerald-500"
+                          : color === "rose" ? "text-rose-500"
+                          : "text-amber-500"
+                        : "text-muted-foreground"
+                    )} />
+                    {label}
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -226,6 +268,16 @@ export function CheckinsClient({ activeChildren, recentCheckins }: Props) {
                       {child?.program && (
                         <span className={cn("text-[9px] font-bold px-1 py-0.5 rounded border", getProgramBadgeClass(child.program))}>
                           {child.program.split(" ")[0]}
+                        </span>
+                      )}
+                      {c.attendance && c.attendance !== "attended" && (
+                        <span className={cn(
+                          "text-[9px] font-bold px-1.5 py-0.5 rounded border",
+                          c.attendance === "absent"
+                            ? "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-900/20 dark:text-rose-400 dark:border-rose-800"
+                            : "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800"
+                        )}>
+                          {c.attendance === "absent" ? "Absent" : "Late"}
                         </span>
                       )}
                       <span className="text-[10px] text-muted-foreground">{new Date(c.created_at).toLocaleDateString()}</span>

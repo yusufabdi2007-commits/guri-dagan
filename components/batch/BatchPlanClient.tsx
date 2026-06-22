@@ -45,24 +45,28 @@ interface Props {
   weekStart: string;
 }
 
+function toLocalDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 function getWeekStart(): string {
-  // Most recent Sunday (or today if Sunday)
+  // Most recent Monday (or today if Monday)
   const d = new Date();
-  d.setDate(d.getDate() - d.getDay());
-  return d.toISOString().split("T")[0];
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  return toLocalDate(d);
 }
 
 function getNextWeekStart(): string {
-  // Next Sunday
+  // Next Monday
   const d = new Date();
-  d.setDate(d.getDate() - d.getDay() + 7);
-  return d.toISOString().split("T")[0];
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7) + 7);
+  return toLocalDate(d);
 }
 
 function formatWeekLabel(weekStart: string): string {
   const start = new Date(weekStart + "T12:00:00");
   const end = new Date(weekStart + "T12:00:00");
-  end.setDate(end.getDate() + 6); // Sun → Sat (7-day batch)
+  end.setDate(end.getDate() + 6); // Mon → Sun (7-day batch)
   const opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" };
   return `${start.toLocaleDateString("en-US", opts)} – ${end.toLocaleDateString("en-US", opts)}`;
 }
@@ -130,7 +134,7 @@ export function BatchPlanClient({ userId, existingBatchId, weekStart }: Props) {
       const res = await fetch("/api/batch-plan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ theme: theme.trim() }),
+        body: JSON.stringify({ theme: theme.trim(), userId }),
       });
       if (!res.ok) {
         const err = await res.json();
@@ -181,13 +185,30 @@ export function BatchPlanClient({ userId, existingBatchId, weekStart }: Props) {
 
       if (batchErr || !batch) throw new Error(batchErr?.message || "Failed to save batch");
 
+      // Guard: never delete posts that have already been published
+      const { count: postedCount } = await supabase
+        .from("batch_posts")
+        .select("id", { count: "exact", head: true })
+        .eq("batch_id", batch.id)
+        .eq("status", "posted");
+      if ((postedCount ?? 0) > 0) {
+        toast({
+          title: "Can't replace — posts already published",
+          description: `${postedCount} post${postedCount === 1 ? "" : "s"} from this week have been posted. Choose a different week to re-plan.`,
+          variant: "destructive",
+        });
+        setSaving(false);
+        return;
+      }
+
       // Delete existing posts for this batch (re-plan)
       await supabase.from("batch_posts").delete().eq("batch_id", batch.id);
 
       const weekBase = new Date(selectedWeek + "T12:00:00");
 
-      // YouTube goes on Sunday (= week_start). Recording happens Monday.
-      const ytDate = new Date(weekBase); // Sunday (+0)
+      // YouTube posts Wednesday (= week_start + 2). Recording happens Monday.
+      const ytDate = new Date(weekBase);
+      ytDate.setDate(ytDate.getDate() + 2); // Wednesday
 
       // Build structured angle_notes for YouTube
       const ytNotes = formatScriptNotes({
@@ -203,22 +224,23 @@ export function BatchPlanClient({ userId, existingBatchId, weekStart }: Props) {
       });
 
       const posts = [
-        // YouTube — Tuesday
+        // YouTube — Wednesday (week_start + 2), sort_order 8 (posts after TikTok #3 on same day)
         {
           batch_id: batch.id,
           user_id: userId,
-          scheduled_date: ytDate.toISOString().split("T")[0],
+          scheduled_date: `${ytDate.getFullYear()}-${String(ytDate.getMonth() + 1).padStart(2, "0")}-${String(ytDate.getDate()).padStart(2, "0")}`,
           platform: "youtube",
           title: plan.youtube_title,
           angle_notes: ytNotes,
-          sort_order: 0,
+          sort_order: 8,
           status: "scheduled",
         },
-        // 7 TikToks: i=0→Tue(+2), i=1→Wed(+3), i=2→Thu(+4), i=3→Fri(+5),
-        //            i=4→Sat(+6), i=5→Sun(+0), i=6→Sun(+0)
+        // 7 TikToks: i=0→Mon(+0), i=1→Tue(+1), i=2→Wed(+2), i=3→Thu(+3),
+        //            i=4→Fri(+4), i=5→Sat(+5), i=6→Sun(+6)
         ...plan.tiktok_scripts.map((script, i) => {
           const d = new Date(weekBase);
-          d.setDate(d.getDate() + (i < 5 ? i + 2 : 0));
+          const OFFSETS = [0, 1, 2, 3, 4, 5, 6];
+          d.setDate(d.getDate() + OFFSETS[i]);
           const title = editingTitles[i] !== undefined ? editingTitles[i] : script.title;
           const notes = formatScriptNotes({
             program: script.program,
@@ -233,7 +255,7 @@ export function BatchPlanClient({ userId, existingBatchId, weekStart }: Props) {
           return {
             batch_id: batch.id,
             user_id: userId,
-            scheduled_date: d.toISOString().split("T")[0],
+            scheduled_date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`,
             platform: "tiktok",
             title,
             angle_notes: notes,
@@ -340,7 +362,7 @@ export function BatchPlanClient({ userId, existingBatchId, weekStart }: Props) {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">YouTube</p>
-                  <p className="text-[10px] text-muted-foreground">Sunday — Long-form</p>
+                  <p className="text-[10px] text-muted-foreground">Wednesday — Long-form</p>
                 </div>
                 <span className={cn(
                   "text-[10px] font-bold px-2 py-0.5 rounded-md border shrink-0",
@@ -363,11 +385,12 @@ export function BatchPlanClient({ userId, existingBatchId, weekStart }: Props) {
             <div className="flex items-center gap-2 px-1">
               <Video className="h-4 w-4 text-slate-500" />
               <p className="text-sm font-semibold text-foreground">7 TikTok Scripts</p>
-              <span className="text-xs text-muted-foreground ml-auto">Tue → Sat + Sun</span>
+              <span className="text-xs text-muted-foreground ml-auto">Mon · Tue · Wed · Thu · Fri · Sat · Sun</span>
             </div>
             {plan.tiktok_scripts.map((script, i) => {
               const d = new Date(selectedWeek + "T12:00:00");
-              d.setDate(d.getDate() + (i < 5 ? i + 2 : 0)); // match save logic
+              const OFFSETS = [0, 1, 2, 3, 4, 5, 6];
+              d.setDate(d.getDate() + OFFSETS[i]); // match save logic
               const isExpanded = expandedIndex === i;
               return (
                 <Card key={i} className="overflow-hidden">

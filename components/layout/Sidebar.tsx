@@ -9,8 +9,8 @@ import {
   CalendarDays, Video, Zap, TrendingUp, MessageSquareQuote, Users, Mic2, Layers,
   Package, Megaphone, Youtube, FileBarChart2, Clapperboard, Brain, GitBranch,
   MonitorPlay, Wand2, Plug, Building2, PieChart, PhoneCall, PoundSterling,
-  Clock, HeartHandshake, ClipboardList, Activity,
-  Sun, Moon, LogOut,
+  Clock, HeartHandshake, ClipboardList, Activity, GraduationCap,
+  Sun, Moon, LogOut, ShieldAlert, Wrench,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/components/providers/ThemeProvider";
@@ -18,15 +18,15 @@ import { createClient } from "@/lib/supabase/client";
 
 const primaryNav = [
   { href: "/today", icon: Star, label: "Today" },
-  { href: "/batch", icon: CalendarRange, label: "This Week" },
+  { href: "/children", icon: Baby, label: "Students" },
   { href: "/business", icon: BarChart3, label: "Results" },
+  { href: "/batch", icon: CalendarRange, label: "Weeks" },
 ];
 
 const clientsNav = [
   { href: "/leads", icon: UserCheck, label: "Lead Pipeline" },
   { href: "/consultations", icon: PhoneCall, label: "Consultations" },
   { href: "/clients", icon: Users, label: "Clients" },
-  { href: "/children", icon: Baby, label: "Children" },
   { href: "/success", icon: HeartHandshake, label: "Parent Success" },
   { href: "/checkins", icon: ClipboardList, label: "Weekly Check-ins" },
   { href: "/followups", icon: Clock, label: "Follow-ups" },
@@ -37,6 +37,7 @@ const programsNav = [
   { href: "/program-report", icon: PieChart, label: "Program Report" },
   { href: "/outcomes", icon: Activity, label: "Program Outcomes" },
   { href: "/revenue", icon: PoundSterling, label: "Revenue" },
+  { href: "/program-knowledge", icon: GraduationCap, label: "Program Knowledge" },
 ];
 
 const contentNav = [
@@ -47,6 +48,11 @@ const contentNav = [
   { href: "/calendar", icon: CalendarDays, label: "Calendar" },
   { href: "/videos", icon: Video, label: "Video Tracker" },
   { href: "/analytics", icon: BarChart3, label: "Analytics" },
+];
+
+const ownerNav = [
+  { href: "/system-health", icon: ShieldAlert, label: "System Health" },
+  { href: "/recovery", icon: Wrench, label: "Recovery Center" },
 ];
 
 const toolsNav = [
@@ -135,6 +141,7 @@ export function Sidebar() {
         <NavSection label="Programs" items={programsNav} />
         <NavSection label="Content" items={contentNav} />
         <NavSection label="Tools" items={toolsNav} />
+        <NavSection label="Owner" items={ownerNav} />
 
         <div className="pt-4 pb-1">
           <NavItem href="/settings" icon={Settings} label="Settings" />

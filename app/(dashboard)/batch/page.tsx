@@ -3,10 +3,14 @@ import { redirect } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { BatchHubClient } from "@/components/batch/BatchHubClient";
 
+function toLocalDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 function addDays(dateStr: string, days: number): string {
   const d = new Date(dateStr + "T12:00:00");
   d.setDate(d.getDate() + days);
-  return d.toISOString().split("T")[0];
+  return toLocalDate(d);
 }
 
 export default async function BatchPage() {
@@ -14,7 +18,7 @@ export default async function BatchPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const todayStr = new Date().toISOString().split("T")[0];
+  const todayStr = toLocalDate(new Date());
 
   // Find the active batch: week_start is the Sunday that started the current posting week.
   // Batch spans Sunday–Saturday (7 days). Search from up to 6 days ago to today.

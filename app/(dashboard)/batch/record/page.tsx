@@ -3,12 +3,15 @@ import { Header } from "@/components/layout/Header";
 import { BatchRecordClient } from "@/components/batch/BatchRecordClient";
 import { redirect } from "next/navigation";
 
+function toLocalDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 function getWeekStart(): string {
+  // Most recent Sunday (Sunday-based week — matches all batch week_start values in DB)
   const d = new Date();
-  const day = d.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  d.setDate(d.getDate() + diff);
-  return d.toISOString().split("T")[0];
+  d.setDate(d.getDate() - d.getDay());
+  return toLocalDate(d);
 }
 
 export default async function BatchRecordPage() {

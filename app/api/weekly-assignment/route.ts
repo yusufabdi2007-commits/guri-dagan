@@ -4,18 +4,19 @@ import { rateLimit } from "@/lib/rate-limit";
 export const runtime = 'edge';
 export const maxDuration = 60;
 
-// Recording is Monday. Posting: YouTube on Sunday, TikToks Tue–Sat + 2 on Sunday.
-const DAYS = ["Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday", "Sunday"];
+// Every day has 1 TikTok (Mon–Sun). YouTube posts Wednesday.
+// Monday = Post TikTok #1 + Record next week. Sunday = Post TikTok #7 + Plan next week.
+const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
 // Default program distribution for 7 TikToks
-// YouTube is assigned separately (usually the highest-engagement program)
+// YouTube is assigned separately (MePower™, posts Wednesday)
 const PROGRAM_SLOTS = [
-  "MePower™",         // Tuesday
-  "Inner Power™",     // Wednesday
-  "MePower™",         // Thursday
-  "Inner Power™",     // Friday
-  "MindPower™",       // Saturday
-  "DreamPower™",      // Sunday
+  "MePower™",         // Monday
+  "Inner Power™",     // Tuesday
+  "MePower™",         // Wednesday
+  "Inner Power™",     // Thursday
+  "MindPower™",       // Friday
+  "DreamPower™",      // Saturday
   "Slaying Dragons™", // Sunday
 ];
 
@@ -41,7 +42,7 @@ const VIDEO_TIPS: Array<{ hook: string; problem: string; reframe: string; teachi
     teaching: "That question works once. But the quitting pattern has roots — in how they talk to themselves, in what they believe failure means, in whether they trust that effort leads anywhere. MePower™ works through all of it systematically.",
     close: "If this is your child, MePower™ was built to change this pattern from the root — not patch it.",
   },
-  // Slot 1 — Wednesday — Inner Power™ — scenario: child becomes a different person around friends
+  // Slot 1 — Wednesday — Inner Power™ — scenario: child becomes unrecognisable around friends
   {
     hook: "At home your child is confident, funny, has opinions. The moment they're with their friends, you barely recognise them. They become whoever the group needs them to be.",
     problem: "A child without a settled sense of self becomes whoever the room demands. That is not flexibility — that is invisibility. Without an identity to return to, they'll follow whoever pulls hardest.",
@@ -57,7 +58,7 @@ const VIDEO_TIPS: Array<{ hook: string; problem: string; reframe: string; teachi
     teaching: "That redirect helps in the moment. But the deeper issue — why they compare, what they believe about their own ceiling — needs a structured process to shift. That's what MePower™ addresses week by week.",
     close: "If your child has already decided they're the 'less able' one, MePower™ is where that story gets challenged and rewritten.",
   },
-  // Slot 3 — Friday — Inner Power™ — scenario: child can't say no to friends
+  // Slot 3 — Friday — Inner Power™ — scenario: child can't say no to friends (now posts Friday)
   {
     hook: "Your child came home and told you something they did with their friends. You asked: 'Did you actually want to do that?' They paused. Then said: 'Not really, but everyone else was doing it.'",
     problem: "A child who can't say no is a child who hasn't learned that their discomfort is worth listening to. That leads to following, not leading — and it gets more dangerous as they get older.",
@@ -65,7 +66,7 @@ const VIDEO_TIPS: Array<{ hook: string; problem: string; reframe: string; teachi
     teaching: "That phrase is a start. But learning to hold your ground — to hear 'come on' and still say no — requires understanding where your values are, what your standards are, and what you're willing to stand for. That's Inner Power™.",
     close: "If your child follows when they should lead, Inner Power™ teaches them to stay themselves regardless of who's watching.",
   },
-  // Slot 4 — Saturday — MindPower™ — scenario: child says "I'm stupid" after getting something wrong
+  // Slot 4 — Saturday — MindPower™ — scenario: child says "I'm stupid" after getting something wrong (now posts Sat)
   {
     hook: "Your child got something wrong at school. You found out when they came home quiet, sat down, and said — almost to themselves — 'I'm just stupid.' Not upset. Matter-of-fact. Like it was settled.",
     problem: "When a child says 'I'm stupid' calmly, it's not frustration — it's a conclusion. They've decided. And a decided belief is harder to shift than a feeling. Every future challenge confirms it if nothing changes.",
@@ -91,6 +92,33 @@ const VIDEO_TIPS: Array<{ hook: string; problem: string; reframe: string; teachi
   },
 ];
 
+/**
+ * Extracts the most theme-relevant sections from curriculum text.
+ * Splits into paragraphs, scores each by keyword overlap with the theme,
+ * then returns up to maxChars of the highest-scoring content.
+ */
+function extractRelevantSections(text: string, theme: string, maxChars: number): string {
+  const themeWords = theme.toLowerCase().split(/\W+/).filter(w => w.length > 3);
+  const paragraphs = text.split(/\n{2,}/).map(p => p.trim()).filter(p => p.length > 40);
+
+  const scored = paragraphs.map(p => {
+    const lower = p.toLowerCase();
+    const score = themeWords.reduce((acc, w) => acc + (lower.split(w).length - 1), 0);
+    return { text: p, score };
+  });
+
+  // Keep intro paragraphs (context), rank the rest by relevance
+  const intro = scored.slice(0, 2);
+  const ranked = scored.slice(2).sort((a, b) => b.score - a.score);
+
+  let result = "";
+  for (const { text } of [...intro, ...ranked]) {
+    if (result.length + text.length + 2 > maxChars) break;
+    result += text + "\n\n";
+  }
+  return result.trim();
+}
+
 export async function POST(req: NextRequest) {
   const limit = rateLimit(req, { limit: 10, windowMs: 60 * 60_000 });
   if (!limit.ok) return NextResponse.json({ error: limit.error }, { status: 429 });
@@ -102,7 +130,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
 
-  const { theme, lowEnergy, topCategory, growingCategory, underusedCategory, recentThemes } = body;
+  const { theme, lowEnergy, topCategory, growingCategory, underusedCategory, recentThemes, userId } = body;
 
   if (!process.env.GROQ_API_KEY) {
     return NextResponse.json(
@@ -134,21 +162,56 @@ export async function POST(req: NextRequest) {
       (typeof topCategory === "string" && topCategory) ||
       "child confidence and parenting";
 
+    // Fetch curriculum knowledge for all programs (public read, no auth required)
+    let curriculumContext = "";
+    try {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      if (supabaseUrl && supabaseAnonKey) {
+        const userFilter = typeof userId === "string" && userId.length > 0
+          ? `&user_id=eq.${encodeURIComponent(userId)}`
+          : "";
+        const kbRes = await fetch(
+          `${supabaseUrl}/rest/v1/program_knowledge?select=program_name,extracted_text&limit=10${userFilter}`,
+          {
+            headers: {
+              apikey: supabaseAnonKey,
+              Authorization: `Bearer ${supabaseAnonKey}`,
+            },
+            signal: AbortSignal.timeout(4000),
+          }
+        );
+        if (kbRes.ok) {
+          const knowledge = (await kbRes.json()) as { program_name: string; extracted_text: string }[];
+          if (knowledge.length > 0) {
+            curriculumContext =
+              "\n\nCURRICULUM KNOWLEDGE — The uploaded curriculum is the authoritative source for what is taught. Every script MUST teach a real concept, framework, exercise, tool, or principle that exists in the programme materials. Do not invent new programme techniques or attribute ideas to the programme that are not present in the curriculum. You MAY create original hooks, stories, family scenarios, analogies, examples, transitions, and calls to action — these creative elements exist only to explain or demonstrate the real curriculum, never to replace it. If the requested topic is only partially covered by the curriculum, stay faithful to the programme's philosophy and clearly ground the lesson in the closest relevant material rather than inventing a new framework.\n";
+            for (const k of knowledge) {
+              const snippet = extractRelevantSections(k.extracted_text, t, 2500);
+              if (snippet) curriculumContext += `\n[${k.program_name}]\n${snippet}\n`;
+            }
+          }
+        }
+      }
+    } catch {
+      // Silently skip — scripts still generate with built-in fallback knowledge
+    }
+
     const weekDate = new Date().toISOString().split("T")[0]; // changes every week = fresh scripts
 
-    const prompt = `You are writing 8 SHORT marketing video scripts for Guri Dagan (Somali parenting coach). Week of: ${weekDate}.
+    const prompt = `You are writing 8 SHORT marketing video scripts for Guri Dagan (Somali parenting coach). Week of: ${weekDate}.${curriculumContext}
 Theme: "${t}"${recentLine ? `\nAvoid these recent themes: ${(recentThemes as string[]).join(", ")}` : ""}${energyNote ? `\n${energyNote}` : ""}
 
 RULE: Every script must be a completely unique video — different scenario, different parenting moment, different technique. Same program appears multiple times; each slot still gets a totally different script.
 
 VIDEO SLOTS (one script each, use the given scenario):
-1. YouTube — MePower™ — child said "I give up" after first failure at something they cared about
-2. TikTok Tue — MePower™ — child quits mid-activity, refuses to try again despite gentle encouragement
-3. TikTok Wed — Inner Power™ — child becomes unrecognisable around friends, loses their opinions completely
-4. TikTok Thu — MePower™ — child compares to sibling: "they're just smarter/better than me"
-5. TikTok Fri — Inner Power™ — child can't say no to friends, always goes along even feeling uncomfortable
-6. TikTok Sat — MindPower™ — child says "I'm stupid" quietly after one mistake, like it's settled
-7. TikTok Sun — DreamPower™ — child shrugs when asked what they want to do with their life
+1. YouTube Wed — MePower™ — child said "I give up" after first failure at something they cared about
+2. TikTok Mon — MePower™ — child quits mid-activity, refuses to try again despite gentle encouragement
+3. TikTok Tue — Inner Power™ — child becomes unrecognisable around friends, loses their opinions completely
+4. TikTok Wed — MePower™ — child compares to sibling: "they're just smarter/better than me"
+5. TikTok Thu — Inner Power™ — child can't say no to friends, always goes along even feeling uncomfortable
+6. TikTok Fri — MindPower™ — child says "I'm stupid" quietly after one mistake, like it's settled
+7. TikTok Sat — DreamPower™ — child shrugs when asked what they want to do with their life
 8. TikTok Sun — Slaying Dragons™ — child refuses to try anything new, panics at unfamiliar situations
 
 SCRIPT FIELDS — keep VERY SHORT (TikTok = 60 sec, every field = MAX 1 sentence except reframe):
@@ -169,15 +232,15 @@ Return valid JSON only:
   "category_used": null,
   "youtube": { "program": "MePower™", "title": "...", "hook_type": "...", "hook": "...", "problem": "...", "reframe": "...", "teaching": "...", "close": "...", "notes": "...", "cta": "..." },
   "tiktoks": [
-    { "day": "Tuesday", "program": "MePower™", "title": "...", "hook_type": "...", "hook": "...", "problem": "...", "reframe": "...", "teaching": "...", "close": "...", "cta": "..." },
-    { "day": "Wednesday", "program": "Inner Power™", "title": "...", "hook_type": "...", "hook": "...", "problem": "...", "reframe": "...", "teaching": "...", "close": "...", "cta": "..." },
-    { "day": "Thursday", "program": "MePower™", "title": "...", "hook_type": "...", "hook": "...", "problem": "...", "reframe": "...", "teaching": "...", "close": "...", "cta": "..." },
-    { "day": "Friday", "program": "Inner Power™", "title": "...", "hook_type": "...", "hook": "...", "problem": "...", "reframe": "...", "teaching": "...", "close": "...", "cta": "..." },
-    { "day": "Saturday", "program": "MindPower™", "title": "...", "hook_type": "...", "hook": "...", "problem": "...", "reframe": "...", "teaching": "...", "close": "...", "cta": "..." },
-    { "day": "Sunday", "program": "DreamPower™", "title": "...", "hook_type": "...", "hook": "...", "problem": "...", "reframe": "...", "teaching": "...", "close": "...", "cta": "..." },
+    { "day": "Monday", "program": "MePower™", "title": "...", "hook_type": "...", "hook": "...", "problem": "...", "reframe": "...", "teaching": "...", "close": "...", "cta": "..." },
+    { "day": "Tuesday", "program": "Inner Power™", "title": "...", "hook_type": "...", "hook": "...", "problem": "...", "reframe": "...", "teaching": "...", "close": "...", "cta": "..." },
+    { "day": "Wednesday", "program": "MePower™", "title": "...", "hook_type": "...", "hook": "...", "problem": "...", "reframe": "...", "teaching": "...", "close": "...", "cta": "..." },
+    { "day": "Thursday", "program": "Inner Power™", "title": "...", "hook_type": "...", "hook": "...", "problem": "...", "reframe": "...", "teaching": "...", "close": "...", "cta": "..." },
+    { "day": "Friday", "program": "MindPower™", "title": "...", "hook_type": "...", "hook": "...", "problem": "...", "reframe": "...", "teaching": "...", "close": "...", "cta": "..." },
+    { "day": "Saturday", "program": "DreamPower™", "title": "...", "hook_type": "...", "hook": "...", "problem": "...", "reframe": "...", "teaching": "...", "close": "...", "cta": "..." },
     { "day": "Sunday", "program": "Slaying Dragons™", "title": "...", "hook_type": "...", "hook": "...", "problem": "...", "reframe": "...", "teaching": "...", "close": "...", "cta": "..." }
   ],
-  "recording_checklist": ["Water bottle ready", "Ring light on face", "Phone charged", "Notifications silenced", "Record YouTube first", "Short break before TikToks", "Record all 7 TikToks back-to-back", "Mark complete in app"]
+  "recording_checklist": ["Water bottle ready", "Ring light on face", "Phone charged", "Notifications silenced", "Record YouTube first (posts Wednesday)", "Short break before TikToks", "Record all 7 TikToks back-to-back (Mon–Sun)", "Mark complete in app"]
 }`;
 
     const controller = new AbortController();
@@ -191,7 +254,7 @@ Return valid JSON only:
       body: JSON.stringify({
         model: "llama-3.3-70b-versatile",
         messages: [
-          { role: "system", content: "You are a marketing copywriter for a parenting coaching business. Write specific, emotionally precise video scripts. Every script must be completely different from the others. Return valid JSON only. No markdown, no code blocks, no text outside the JSON object." },
+          { role: "system", content: "You are a marketing copywriter for a parenting coaching business. Write specific, emotionally precise video scripts. Every script must be completely different from the others. The uploaded curriculum is the authoritative source for what is taught — every script must teach a real concept, framework, exercise, tool, or principle that exists in the programme materials. Do not invent new programme techniques or attribute ideas to the programme that are not present in the curriculum. You may create original hooks, stories, family scenarios, analogies, examples, transitions, and calls to action — these creative elements exist only to explain or demonstrate the real curriculum, never to replace it. Return valid JSON only. No markdown, no code blocks, no text outside the JSON object." },
           { role: "user", content: prompt },
         ],
         temperature: 0.9,
@@ -218,10 +281,14 @@ Return valid JSON only:
     ) {
       throw new Error("Invalid AI response shape");
     }
-    // Pad to 7 if AI returned fewer
+    // Pad to 7 if AI returned fewer (keep day/program from expected slots)
     while (parsed.tiktoks.length < 7) {
       const i = parsed.tiktoks.length;
-      parsed.tiktoks.push({ ...parsed.tiktoks[parsed.tiktoks.length - 1], day: DAYS[i] ?? DAYS[6], program: PROGRAM_SLOTS[i] ?? PROGRAM_SLOTS[6] });
+      parsed.tiktoks.push({
+        ...parsed.tiktoks[parsed.tiktoks.length - 1],
+        day: DAYS[i] ?? DAYS[6],
+        program: PROGRAM_SLOTS[i] ?? PROGRAM_SLOTS[6],
+      });
     }
 
     return NextResponse.json({ ...parsed, is_fallback: false });
@@ -271,9 +338,9 @@ Return valid JSON only:
         "Phone fully charged or plugged in",
         "Room is quiet — notifications silenced",
         "YouTube notes visible (printed or on screen)",
-        "Record YouTube first while energy is highest",
+        "Record YouTube first while energy is highest (posts Wednesday)",
         "Take a short break before recording TikToks",
-        "Record all 7 TikToks back-to-back for flow",
+        "Record all 7 TikToks back-to-back for flow (Mon · Tue–Fri · Sat · Sun)",
       ],
       is_fallback: true,
       _error: errorMsg,
