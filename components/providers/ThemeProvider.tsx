@@ -18,13 +18,13 @@ interface ThemeContextValue {
 }
 
 const ThemeContext = React.createContext<ThemeContextValue>({
-  theme: "light",
+  theme: "dark",
   setTheme: () => null,
 });
 
 export function ThemeProvider({
   children,
-  defaultTheme = "light",
+  defaultTheme = "dark",
 }: ThemeProviderProps) {
   const [theme, setThemeState] = React.useState<Theme>(defaultTheme);
 
@@ -33,6 +33,9 @@ export function ThemeProvider({
     if (stored) {
       setThemeState(stored);
       applyTheme(stored);
+    } else {
+      // First visit — apply dark mode immediately
+      applyTheme("dark");
     }
   }, []);
 
