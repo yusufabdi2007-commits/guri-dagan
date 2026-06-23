@@ -107,11 +107,11 @@ export function LeadPipelineClient({ leads: initial, userId }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ stage: newStage }),
       });
-      if (!res.ok) throw new Error();
-    } catch {
+      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || `HTTP ${res.status}`); }
+    } catch (err) {
       // Rollback
       setLeads(prev => prev.map(l => l.id === draggableId ? { ...l, stage: source.droppableId as LeadStage } : l));
-      toast({ title: "Could not move lead", variant: "destructive" as never });
+      toast({ title: "Could not move lead", description: err instanceof Error ? err.message : "Unknown error", variant: "destructive" as never });
     }
   }
 
@@ -127,14 +127,14 @@ export function LeadPipelineClient({ leads: initial, userId }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...form, phone: form.phone || null, email: form.email || null, notes: form.notes || null, program: form.program || null }),
       });
-      if (!res.ok) throw new Error();
+      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || `HTTP ${res.status}`); }
       const { lead } = await res.json();
       setLeads(prev => [lead, ...prev]);
       setForm(emptyForm);
       setDialogOpen(false);
       toast({ title: "Lead added" });
-    } catch {
-      toast({ title: "Could not add lead", variant: "destructive" as never });
+    } catch (err) {
+      toast({ title: "Could not add lead", description: err instanceof Error ? err.message : "Unknown error", variant: "destructive" as never });
     } finally {
       setSaving(false);
     }

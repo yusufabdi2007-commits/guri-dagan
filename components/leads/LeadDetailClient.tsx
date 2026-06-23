@@ -122,14 +122,14 @@ export function LeadDetailClient({ lead: initial, activity: initialActivity, att
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ stage: newStage }),
       });
-      if (!res.ok) throw new Error();
+      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || `HTTP ${res.status}`); }
       const { lead: updated } = await res.json();
       setLead(updated);
       setActivity(prevActivity => [{ id: Date.now().toString(), activity_type: "stage_changed", note: null, from_stage: prev, to_stage: newStage, created_at: new Date().toISOString() }, ...prevActivity]);
       toast({ title: `Moved to ${STAGES.find(s => s.key === newStage)?.label}` });
-    } catch {
+    } catch (err) {
       setLead(l => ({ ...l, stage: prev }));
-      toast({ title: "Could not update stage", variant: "destructive" as never });
+      toast({ title: "Could not update stage", description: err instanceof Error ? err.message : "Unknown error", variant: "destructive" as never });
     }
   }
 
@@ -149,12 +149,12 @@ export function LeadDetailClient({ lead: initial, activity: initialActivity, att
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      if (!res.ok) throw new Error();
+      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || `HTTP ${res.status}`); }
       const { lead: updated } = await res.json();
       setLead(updated);
       toast({ title: "Saved" });
-    } catch {
-      toast({ title: "Could not save", variant: "destructive" as never });
+    } catch (err) {
+      toast({ title: "Could not save", description: err instanceof Error ? err.message : "Unknown error", variant: "destructive" as never });
     } finally {
       setSaving(false);
     }
