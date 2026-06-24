@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,10 +8,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
 import {
-  Plus, GripVertical, Clock, Film, CheckCircle2, AlertCircle,
-  Circle, RefreshCw, Pencil, Trash2, Zap, Flame
+  Plus, Clock, Film, CheckCircle2, AlertCircle,
+  Circle, Pencil, Trash2, Zap, Flame, ChevronUp, ChevronDown
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "@/components/ui/use-toast";
@@ -68,21 +66,22 @@ export function QueueClient({ items: initial, ideas, userId }: Props) {
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
 
-  const readyItems     = items.filter(i => i.status === "Ready" || i.status === "Not Started");
-  const recordedItems  = items.filter(i => i.status === "Recorded");
-  const retakeItems    = items.filter(i => i.status === "Needs Retake");
+  const readyItems    = items.filter(i => i.status === "Ready" || i.status === "Not Started");
+  const recordedItems = items.filter(i => i.status === "Recorded");
+  const retakeItems   = items.filter(i => i.status === "Needs Retake");
 
-  async function handleDragEnd(result: DropResult) {
-    if (!result.destination) return;
-    const reordered = Array.from(items);
-    const [moved] = reordered.splice(result.source.index, 1);
-    reordered.splice(result.destination.index, 0, moved);
-    const updated = reordered.map((item, idx) => ({ ...item, priority_order: idx }));
+  async function handleMove(index: number, direction: "up" | "down") {
+    const newItems = Array.from(items);
+    const swapIndex = direction === "up" ? index - 1 : index + 1;
+    if (swapIndex < 0 || swapIndex >= newItems.length) return;
+
+    [newItems[index], newItems[swapIndex]] = [newItems[swapIndex], newItems[index]];
+    const updated = newItems.map((item, idx) => ({ ...item, priority_order: idx }));
     setItems(updated);
 
     const supabase = createClient();
     await Promise.all(
-      updated.map(item =>
+      [updated[index], updated[swapIndex]].map(item =>
         supabase.from("recording_queue").update({ priority_order: item.priority_order }).eq("id", item.id)
       )
     );
@@ -130,12 +129,14 @@ export function QueueClient({ items: initial, ideas, userId }: Props) {
 
     if (editingItem) {
       const { data, error } = await supabase.from("recording_queue").update(payload).eq("id", editingItem.id).select().single();
-      if (!error && data) { setItems(prev => prev.map(i => i.id === data.id ? data : i)); toast({ title: "Updated!" }); }
+      if (error) toast({ title: error.message, variant: "destructive" as never });
+      else if (data) { setItems(prev => prev.map(i => i.id === data.id ? data : i)); toast({ title: "Updated!" }); }
     } else {
       const { data, error } = await supabase.from("recording_queue")
         .insert({ ...payload, user_id: userId, priority_order: items.length })
         .select().single();
-      if (!error && data) { setItems(prev => [...prev, data]); toast({ title: "Added to queue!" }); }
+      if (error) toast({ title: error.message, variant: "destructive" as never });
+      else if (data) { setItems(prev => [...prev, data]); toast({ title: "Added to queue!" }); }
     }
     setSaving(false);
     setDialogOpen(false);
@@ -220,7 +221,7 @@ export function QueueClient({ items: initial, ideas, userId }: Props) {
         </Button>
       </div>
 
-      {/* Drag-and-drop list */}
+      {/* Queue list */}
       {items.length === 0 ? (
         <div className="text-center py-16 spring-in">
           <div className="w-16 h-16 gradient-cool rounded-2xl flex items-center justify-center mx-auto mb-4 glow-pulse">
@@ -233,97 +234,93 @@ export function QueueClient({ items: initial, ideas, userId }: Props) {
           <Button onClick={openAdd} className="mt-5 tap-scale btn-ripple"><Plus className="h-4 w-4 mr-2" />Plan Your Week</Button>
         </div>
       ) : (
-        <DragDropContext onDragEnd={handleDragEnd}>
-          <Droppable droppableId="queue">
-            {(provided) => (
-              <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-2">
-                {items.map((item, index) => {
-                  const statusCfg = STATUS_CONFIG[item.status];
-                  const StatusIcon = statusCfg.icon;
-                  return (
-                    <Draggable key={item.id} draggableId={item.id} index={index}>
-                      {(provided, snapshot) => (
-                        <div
-                          ref={provided.innerRef}
-                          {...provided.draggableProps}
+        <div className="space-y-2">
+          {items.map((item, index) => {
+            const statusCfg = STATUS_CONFIG[item.status];
+            return (
+              <div
+                key={item.id}
+                className="bg-card border border-border rounded-2xl overflow-hidden"
+              >
+                <div className="flex items-start gap-3 p-4">
+                  {/* Priority order buttons */}
+                  <div className="flex flex-col gap-0.5 shrink-0 mt-0.5">
+                    <button
+                      onClick={() => handleMove(index, "up")}
+                      disabled={index === 0}
+                      className="text-muted-foreground/50 hover:text-muted-foreground disabled:opacity-20 disabled:cursor-not-allowed"
+                    >
+                      <ChevronUp className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => handleMove(index, "down")}
+                      disabled={index === items.length - 1}
+                      className="text-muted-foreground/50 hover:text-muted-foreground disabled:opacity-20 disabled:cursor-not-allowed"
+                    >
+                      <ChevronDown className="h-4 w-4" />
+                    </button>
+                  </div>
+
+                  {/* Priority number */}
+                  <div className="w-6 h-6 rounded-lg bg-muted flex items-center justify-center shrink-0 mt-0.5">
+                    <span className="text-[10px] font-bold text-muted-foreground">{index + 1}</span>
+                  </div>
+
+                  {/* Content */}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm text-foreground line-clamp-1">{item.title}</p>
+                    {item.hook && <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">Hook: {item.hook}</p>}
+
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {STATUSES.map(s => (
+                        <button
+                          key={s}
+                          onClick={() => handleStatusChange(item, s)}
                           className={cn(
-                            "bg-card border border-border rounded-2xl overflow-hidden transition-shadow",
-                            snapshot.isDragging && "shadow-xl ring-2 ring-primary/30"
+                            "text-[10px] font-semibold px-2 py-0.5 rounded-lg transition-all",
+                            item.status === s ? statusCfg.color : "bg-muted/60 text-muted-foreground"
                           )}
                         >
-                          <div className="flex items-start gap-3 p-4">
-                            {/* Drag handle */}
-                            <div {...provided.dragHandleProps} className="mt-0.5 text-muted-foreground/50 hover:text-muted-foreground cursor-grab active:cursor-grabbing shrink-0">
-                              <GripVertical className="h-5 w-5" />
-                            </div>
+                          {s}
+                        </button>
+                      ))}
+                    </div>
 
-                            {/* Priority number */}
-                            <div className="w-6 h-6 rounded-lg bg-muted flex items-center justify-center shrink-0 mt-0.5">
-                              <span className="text-[10px] font-bold text-muted-foreground">{index + 1}</span>
-                            </div>
-
-                            {/* Content */}
-                            <div className="flex-1 min-w-0">
-                              <p className="font-semibold text-sm text-foreground line-clamp-1">{item.title}</p>
-                              {item.hook && <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">Hook: {item.hook}</p>}
-
-                              <div className="flex flex-wrap gap-1.5 mt-2">
-                                {/* Status selector */}
-                                {STATUSES.map(s => (
-                                  <button
-                                    key={s}
-                                    onClick={() => handleStatusChange(item, s)}
-                                    className={cn(
-                                      "text-[10px] font-semibold px-2 py-0.5 rounded-lg transition-all",
-                                      item.status === s ? statusCfg.color : "bg-muted/60 text-muted-foreground"
-                                    )}
-                                  >
-                                    {s}
-                                  </button>
-                                ))}
-                              </div>
-
-                              <div className="flex flex-wrap items-center gap-2 mt-2">
-                                {item.estimated_duration && (
-                                  <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                                    <Clock className="h-3 w-3" />
-                                    {Math.round(item.estimated_duration / 60)}min
-                                  </span>
-                                )}
-                                {item.tone_tags?.map(tag => (
-                                  <span key={tag} className="text-[10px] bg-accent text-accent-foreground px-1.5 py-0.5 rounded-md font-medium">
-                                    {tag}
-                                  </span>
-                                ))}
-                              </div>
-
-                              {item.filming_notes && (
-                                <p className="text-[10px] text-muted-foreground/70 mt-1.5 line-clamp-2 italic">
-                                  Note: {item.filming_notes}
-                                </p>
-                              )}
-                            </div>
-
-                            {/* Actions */}
-                            <div className="flex flex-col gap-1.5 shrink-0">
-                              <Button variant="ghost" size="icon-sm" onClick={() => openEdit(item)}>
-                                <Pencil className="h-3.5 w-3.5" />
-                              </Button>
-                              <Button variant="ghost" size="icon-sm" onClick={() => handleDelete(item.id)} className="text-destructive hover:bg-destructive/10">
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
+                    <div className="flex flex-wrap items-center gap-2 mt-2">
+                      {item.estimated_duration && (
+                        <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                          <Clock className="h-3 w-3" />
+                          {Math.round(item.estimated_duration / 60)}min
+                        </span>
                       )}
-                    </Draggable>
-                  );
-                })}
-                {provided.placeholder}
+                      {item.tone_tags?.map(tag => (
+                        <span key={tag} className="text-[10px] bg-accent text-accent-foreground px-1.5 py-0.5 rounded-md font-medium">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+
+                    {item.filming_notes && (
+                      <p className="text-[10px] text-muted-foreground/70 mt-1.5 line-clamp-2 italic">
+                        Note: {item.filming_notes}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex flex-col gap-1.5 shrink-0">
+                    <Button variant="ghost" size="icon-sm" onClick={() => openEdit(item)}>
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button variant="ghost" size="icon-sm" onClick={() => handleDelete(item.id)} className="text-destructive hover:bg-destructive/10">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
               </div>
-            )}
-          </Droppable>
-        </DragDropContext>
+            );
+          })}
+        </div>
       )}
 
       {/* Dialog */}

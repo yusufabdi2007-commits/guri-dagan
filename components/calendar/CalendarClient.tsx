@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { CalendarItem, ContentIdea, ContentStatus, Platform } from "@/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,12 +8,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronLeft, ChevronRight, Plus, CalendarDays, GripVertical, Youtube, Video, Shield } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Youtube, Video, Shield } from "lucide-react";
 import { getStatusColor, getPlatformColor, isToday } from "@/lib/utils";
 import { parseScriptNotes, getProgramBadgeClass } from "@/lib/programs";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "@/components/ui/use-toast";
-import { format, startOfWeek, addDays, addWeeks, subWeeks, isSameDay } from "date-fns";
+import { format, startOfWeek, addDays, addWeeks, isSameDay } from "date-fns";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const STATUSES: ContentStatus[] = ["Idea", "Recorded", "Edited", "Posted"];
@@ -96,7 +95,9 @@ export function CalendarClient({ items: initial, ideas, userId, batchPosts }: Pr
       .select()
       .single();
 
-    if (!error && data) {
+    if (error) {
+      toast({ title: error.message, variant: "destructive" as never });
+    } else if (data) {
       setItems(prev => [...prev, data]);
       toast({ title: "Added to calendar!" });
     }
@@ -121,43 +122,6 @@ export function CalendarClient({ items: initial, ideas, userId, batchPosts }: Pr
     const supabase = createClient();
     await supabase.from("calendar_items").delete().eq("id", id);
     setItems(prev => prev.filter(i => i.id !== id));
-  }
-
-  async function handleDragEnd(result: DropResult) {
-    if (!result.destination) return;
-
-    const sourceDateStr = result.source.droppableId;
-    const destDateStr = result.destination.droppableId;
-
-    if (sourceDateStr === destDateStr) return; // same day — no-op
-
-    const draggedId = result.draggableId;
-    const draggedItem = items.find(i => i.id === draggedId);
-    if (!draggedItem) return;
-
-    const newDate = new Date(destDateStr);
-    newDate.setHours(12, 0, 0, 0); // noon to avoid TZ edge cases
-
-    // Optimistic update
-    setItems(prev =>
-      prev.map(i => i.id === draggedId ? { ...i, scheduled_date: newDate.toISOString() } : i)
-    );
-
-    const supabase = createClient();
-    const { error } = await supabase
-      .from("calendar_items")
-      .update({ scheduled_date: newDate.toISOString() })
-      .eq("id", draggedId);
-
-    if (error) {
-      // Rollback
-      setItems(prev =>
-        prev.map(i => i.id === draggedId ? draggedItem : i)
-      );
-      toast({ title: "Could not move item", variant: "destructive" as never });
-    } else {
-      toast({ title: `Moved to ${format(newDate, "EEE, MMM d")}` });
-    }
   }
 
   const totalThisWeek = weekItems.length;
@@ -188,154 +152,124 @@ export function CalendarClient({ items: initial, ideas, userId, batchPosts }: Pr
             <span className="text-muted-foreground">{totalThisWeek} planned this week</span>
             <span className="font-semibold text-green-600 dark:text-green-400">{postedThisWeek} posted</span>
           </div>
-          {totalThisWeek > 0 && (
-            <p className="text-[10px] text-muted-foreground mt-1">Drag items between days to reschedule</p>
-          )}
         </CardContent>
       </Card>
 
-      {/* Weekly Grid with Drag-and-Drop */}
-      <DragDropContext onDragEnd={handleDragEnd}>
-        <div className="space-y-3">
-          {weekDates.map((date, idx) => {
-            const dayItems = getItemsForDate(date);
-            const dayBatchPosts = getBatchPostsForDate(date);
-            const todayMark = isToday(date);
-            const droppableId = date.toISOString().split("T")[0];
+      {/* Weekly Grid */}
+      <div className="space-y-3">
+        {weekDates.map((date, idx) => {
+          const dayItems = getItemsForDate(date);
+          const dayBatchPosts = getBatchPostsForDate(date);
+          const todayMark = isToday(date);
 
-            return (
-              <div
-                key={idx}
-                className={`rounded-2xl border overflow-hidden transition-all duration-200 ${
-                  todayMark ? "border-primary/50 shadow-sm" : "border-border"
-                }`}
-              >
-                {/* Day Header */}
-                <div className={`flex items-center justify-between px-4 py-2.5 ${todayMark ? "bg-primary/5" : "bg-muted/30"}`}>
-                  <div className="flex items-center gap-2">
-                    <span className={`text-sm font-semibold ${todayMark ? "text-primary" : "text-foreground"}`}>
-                      {DAYS[idx]}
-                    </span>
-                    <span className={`text-xs px-2 py-0.5 rounded-lg ${
-                      todayMark ? "bg-primary text-primary-foreground font-bold" : "text-muted-foreground"
-                    }`}>
-                      {format(date, "d")}
-                    </span>
-                    {todayMark && <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">Today</span>}
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={() => openAdd(date)}
-                    className="h-7 w-7 rounded-lg"
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
+          return (
+            <div
+              key={idx}
+              className={`rounded-2xl border overflow-hidden transition-all duration-200 ${
+                todayMark ? "border-primary/50 shadow-sm" : "border-border"
+              }`}
+            >
+              {/* Day Header */}
+              <div className={`flex items-center justify-between px-4 py-2.5 ${todayMark ? "bg-primary/5" : "bg-muted/30"}`}>
+                <div className="flex items-center gap-2">
+                  <span className={`text-sm font-semibold ${todayMark ? "text-primary" : "text-foreground"}`}>
+                    {DAYS[idx]}
+                  </span>
+                  <span className={`text-xs px-2 py-0.5 rounded-lg ${
+                    todayMark ? "bg-primary text-primary-foreground font-bold" : "text-muted-foreground"
+                  }`}>
+                    {format(date, "d")}
+                  </span>
+                  {todayMark && <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">Today</span>}
                 </div>
-
-                {/* Batch posts — read-only, from weekly batch system */}
-                {dayBatchPosts.length > 0 && (
-                  <div className="px-3 pt-2 space-y-1.5">
-                    {dayBatchPosts.map(post => {
-                      const script = parseScriptNotes(post.angle_notes);
-                      return (
-                        <div
-                          key={post.id}
-                          className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-primary/5 border border-primary/15"
-                        >
-                          {post.platform === "youtube"
-                            ? <Youtube className="h-3 w-3 text-red-500 shrink-0" />
-                            : <Video className="h-3 w-3 text-slate-500 shrink-0" />
-                          }
-                          <p className="text-[11px] font-medium text-foreground leading-snug flex-1 min-w-0 truncate">{post.title}</p>
-                          {script.program && (
-                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border shrink-0 ${getProgramBadgeClass(script.program)}`}>
-                              <Shield className="h-2 w-2 inline mr-0.5 -mt-0.5" />
-                              {script.program.replace("™", "")}
-                            </span>
-                          )}
-                          <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-md shrink-0 ${
-                            post.status === "posted" ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                            : "bg-primary/10 text-primary"
-                          }`}>
-                            {post.status === "posted" ? "Posted" : "Batch"}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {/* Droppable Day Body */}
-                <Droppable droppableId={droppableId}>
-                  {(provided, snapshot) => (
-                    <div
-                      ref={provided.innerRef}
-                      {...provided.droppableProps}
-                      className={`bg-background min-h-[48px] transition-colors duration-200 ${
-                        snapshot.isDraggingOver ? "bg-primary/5" : ""
-                      } ${dayItems.length === 0 ? "py-2" : "pb-2"}`}
-                    >
-                      {dayItems.length === 0 && !snapshot.isDraggingOver ? (
-                        <div className="px-4 py-1">
-                          <p className="text-xs text-muted-foreground/50">No content planned</p>
-                        </div>
-                      ) : (
-                        dayItems.map((item, index) => (
-                          <Draggable key={item.id} draggableId={item.id} index={index}>
-                            {(dragProvided, dragSnapshot) => (
-                              <div
-                                ref={dragProvided.innerRef}
-                                {...dragProvided.draggableProps}
-                                className={`mx-3 my-1.5 p-3 rounded-xl bg-muted/40 flex items-start gap-2 transition-shadow duration-200 ${
-                                  dragSnapshot.isDragging ? "shadow-lg ring-1 ring-primary/30 bg-background" : ""
-                                }`}
-                              >
-                                <div
-                                  {...dragProvided.dragHandleProps}
-                                  className="mt-0.5 text-muted-foreground/40 hover:text-muted-foreground cursor-grab active:cursor-grabbing shrink-0"
-                                >
-                                  <GripVertical className="h-3.5 w-3.5" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-xs font-semibold text-foreground line-clamp-1">{item.title}</p>
-                                  <div className="flex flex-wrap gap-1 mt-1">
-                                    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${getPlatformColor(item.platform)}`}>
-                                      {item.platform}
-                                    </span>
-                                    {STATUSES.map(s => (
-                                      <button
-                                        key={s}
-                                        onClick={() => handleStatusChange(item, s)}
-                                        className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md transition-all ${
-                                          item.status === s ? getStatusColor(s) : "bg-muted/60 text-muted-foreground"
-                                        }`}
-                                      >
-                                        {s}
-                                      </button>
-                                    ))}
-                                  </div>
-                                </div>
-                                <button
-                                  onClick={() => handleDelete(item.id)}
-                                  className="text-muted-foreground/50 hover:text-destructive text-xs shrink-0 mt-0.5"
-                                >
-                                  ×
-                                </button>
-                              </div>
-                            )}
-                          </Draggable>
-                        ))
-                      )}
-                      {provided.placeholder}
-                    </div>
-                  )}
-                </Droppable>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => openAdd(date)}
+                  className="h-7 w-7 rounded-lg"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
               </div>
-            );
-          })}
-        </div>
-      </DragDropContext>
+
+              {/* Batch posts — read-only, from weekly batch system */}
+              {dayBatchPosts.length > 0 && (
+                <div className="px-3 pt-2 space-y-1.5">
+                  {dayBatchPosts.map(post => {
+                    const script = parseScriptNotes(post.angle_notes);
+                    return (
+                      <div
+                        key={post.id}
+                        className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-primary/5 border border-primary/15"
+                      >
+                        {post.platform === "youtube"
+                          ? <Youtube className="h-3 w-3 text-red-500 shrink-0" />
+                          : <Video className="h-3 w-3 text-slate-500 shrink-0" />
+                        }
+                        <p className="text-[11px] font-medium text-foreground leading-snug flex-1 min-w-0 truncate">{post.title}</p>
+                        {script.program && (
+                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border shrink-0 ${getProgramBadgeClass(script.program)}`}>
+                            <Shield className="h-2 w-2 inline mr-0.5 -mt-0.5" />
+                            {script.program.replace("™", "")}
+                          </span>
+                        )}
+                        <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-md shrink-0 ${
+                          post.status === "posted" ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                          : "bg-primary/10 text-primary"
+                        }`}>
+                          {post.status === "posted" ? "Posted" : "Batch"}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Day Body */}
+              <div className={`bg-background min-h-[48px] ${dayItems.length === 0 ? "py-2" : "pb-2"}`}>
+                {dayItems.length === 0 ? (
+                  <div className="px-4 py-1">
+                    <p className="text-xs text-muted-foreground/50">No content planned</p>
+                  </div>
+                ) : (
+                  dayItems.map((item) => (
+                    <div
+                      key={item.id}
+                      className="mx-3 my-1.5 p-3 rounded-xl bg-muted/40 flex items-start gap-2"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-foreground line-clamp-1">{item.title}</p>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${getPlatformColor(item.platform)}`}>
+                            {item.platform}
+                          </span>
+                          {STATUSES.map(s => (
+                            <button
+                              key={s}
+                              onClick={() => handleStatusChange(item, s)}
+                              className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md transition-all ${
+                                item.status === s ? getStatusColor(s) : "bg-muted/60 text-muted-foreground"
+                              }`}
+                            >
+                              {s}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleDelete(item.id)}
+                        className="text-muted-foreground/50 hover:text-destructive text-xs shrink-0 mt-0.5"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
 
       {/* Add Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
