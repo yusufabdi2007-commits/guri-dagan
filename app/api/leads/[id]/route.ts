@@ -41,7 +41,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (source !== undefined) updates.source = source;
   if (stage !== undefined) updates.stage = stage;
   if (notes !== undefined) updates.notes = notes || null;
-  if (program !== undefined) updates.program = program || null;
+  if (program !== undefined && program !== null) updates.program = program;
 
   const { data: lead, error } = await supabase
     .from("leads")
@@ -75,20 +75,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       .single();
 
     if (existing) {
-      await supabase.from("content_attribution")
-        .update({ content_category, youtube_video_id: youtube_video_id || null, video_title: video_title || null, tiktok_topic: tiktok_topic || null, notes: attr_notes || null, program: attrProgram || null })
-        .eq("id", existing.id);
+      const attrUpdate: Record<string, unknown> = { content_category, youtube_video_id: youtube_video_id || null, video_title: video_title || null, tiktok_topic: tiktok_topic || null, notes: attr_notes || null };
+      if (attrProgram) attrUpdate.program = attrProgram;
+      await supabase.from("content_attribution").update(attrUpdate).eq("id", existing.id);
     } else {
-      await supabase.from("content_attribution").insert({
-        lead_id: id,
-        user_id: user.id,
-        content_category,
-        youtube_video_id: youtube_video_id || null,
-        video_title: video_title || null,
-        tiktok_topic: tiktok_topic || null,
-        notes: attr_notes || null,
-        program: attrProgram || null,
-      });
+      const attrInsert: Record<string, unknown> = { lead_id: id, user_id: user.id, content_category, youtube_video_id: youtube_video_id || null, video_title: video_title || null, tiktok_topic: tiktok_topic || null, notes: attr_notes || null };
+      if (attrProgram) attrInsert.program = attrProgram;
+      await supabase.from("content_attribution").insert(attrInsert);
       await supabase.from("lead_activity").insert({
         lead_id: id,
         user_id: user.id,

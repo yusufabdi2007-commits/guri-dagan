@@ -33,9 +33,12 @@ export async function POST(req: NextRequest) {
 
   if (!name?.trim()) return NextResponse.json({ error: "Name is required" }, { status: 400 });
 
+  const insertData: Record<string, unknown> = { user_id: user.id, name: name.trim(), phone: phone || null, email: email || null, source, stage, notes: notes || null };
+  if (program) insertData.program = program;
+
   const { data: lead, error } = await supabase
     .from("leads")
-    .insert({ user_id: user.id, name: name.trim(), phone: phone || null, email: email || null, source, stage, notes: notes || null, program: program || null })
+    .insert(insertData)
     .select()
     .single();
 
