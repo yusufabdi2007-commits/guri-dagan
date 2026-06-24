@@ -2,7 +2,6 @@
 
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import {
   Plus, Phone, Mail, ChevronRight, Users, TrendingUp, UserCheck,
-  Youtube, MessageCircle, Share2, UserPlus, ExternalLink, Clock, Shield
+  Youtube, MessageCircle, Share2, UserPlus, Clock, Shield, ChevronDown,
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
 import { toast } from "@/components/ui/use-toast";
@@ -47,14 +46,14 @@ interface Props {
   userId: string;
 }
 
-const STAGES: { key: LeadStage; label: string; color: string; bg: string }[] = [
-  { key: "new_lead",       label: "New Lead",       color: "text-sky-600 dark:text-sky-400",     bg: "bg-sky-500/10" },
-  { key: "contacted",      label: "Contacted",      color: "text-violet-600 dark:text-violet-400", bg: "bg-violet-500/10" },
-  { key: "call_scheduled", label: "Call Scheduled", color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-500/10" },
-  { key: "call_completed", label: "Call Done",      color: "text-orange-600 dark:text-orange-400", bg: "bg-orange-500/10" },
-  { key: "client",         label: "Client",         color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-500/10" },
-  { key: "follow_up",      label: "Follow Up",      color: "text-rose-600 dark:text-rose-400",   bg: "bg-rose-500/10" },
-  { key: "closed",         label: "Closed",         color: "text-zinc-500",                      bg: "bg-zinc-500/10" },
+const STAGES: { key: LeadStage; label: string; color: string; bg: string; dot: string }[] = [
+  { key: "new_lead",       label: "New Lead",      color: "text-sky-600 dark:text-sky-400",      bg: "bg-sky-500/10",     dot: "bg-sky-500" },
+  { key: "contacted",      label: "Contacted",     color: "text-violet-600 dark:text-violet-400", bg: "bg-violet-500/10", dot: "bg-violet-500" },
+  { key: "call_scheduled", label: "Call Booked",   color: "text-amber-600 dark:text-amber-400",  bg: "bg-amber-500/10",   dot: "bg-amber-500" },
+  { key: "call_completed", label: "Call Done",     color: "text-orange-600 dark:text-orange-400", bg: "bg-orange-500/10", dot: "bg-orange-500" },
+  { key: "client",         label: "Client",        color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-500/10", dot: "bg-emerald-500" },
+  { key: "follow_up",      label: "Follow Up",     color: "text-rose-600 dark:text-rose-400",    bg: "bg-rose-500/10",    dot: "bg-rose-500" },
+  { key: "closed",         label: "Closed",        color: "text-zinc-500",                        bg: "bg-zinc-500/10",   dot: "bg-zinc-400" },
 ];
 
 const SOURCES: { value: LeadSource; label: string }[] = [
@@ -76,42 +75,43 @@ const SOURCE_ICON: Record<LeadSource, React.ReactNode> = {
 };
 
 const PROGRAM_OPTIONS = Object.keys(PROGRAMS) as (keyof typeof PROGRAMS)[];
-
 const emptyForm = { name: "", phone: "", email: "", source: "other" as LeadSource, notes: "", program: "" };
 
 function sourceLabel(s: LeadSource) {
   return SOURCES.find(x => x.value === s)?.label ?? s;
 }
 
-export function LeadPipelineClient({ leads: initial, userId }: Props) {
+export function LeadPipelineClient({ leads: initial }: Props) {
   const router = useRouter();
   const [leads, setLeads] = useState<Lead[]>(initial);
+  const [activeStage, setActiveStage] = useState<LeadStage | "all">("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [movingId, setMovingId] = useState<string | null>(null);
 
-  // Group leads by stage
-  const byStage = useCallback((stage: LeadStage) => leads.filter(l => l.stage === stage), [leads]);
+  const filtered = useCallback(() =>
+    activeStage === "all" ? leads : leads.filter(l => l.stage === activeStage),
+  [leads, activeStage]);
 
-  // Drag end: optimistic update + API patch
-  async function onDragEnd(result: DropResult) {
-    const { destination, source, draggableId } = result;
-    if (!destination || destination.droppableId === source.droppableId) return;
-
-    const newStage = destination.droppableId as LeadStage;
-    setLeads(prev => prev.map(l => l.id === draggableId ? { ...l, stage: newStage } : l));
-
+  async function handleMoveStage(leadId: string, newStage: LeadStage) {
+    const prev = leads.find(l => l.id === leadId)?.stage;
+    if (!prev || prev === newStage) return;
+    setLeads(ls => ls.map(l => l.id === leadId ? { ...l, stage: newStage } : l));
+    setMovingId(leadId);
     try {
-      const res = await fetch(`/api/leads/${draggableId}`, {
+      const res = await fetch(`/api/leads/${leadId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ stage: newStage }),
       });
       if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || `HTTP ${res.status}`); }
+      toast({ title: `Moved to ${STAGES.find(s => s.key === newStage)?.label}` });
     } catch (err) {
-      // Rollback
-      setLeads(prev => prev.map(l => l.id === draggableId ? { ...l, stage: source.droppableId as LeadStage } : l));
+      setLeads(ls => ls.map(l => l.id === leadId ? { ...l, stage: prev } : l));
       toast({ title: "Could not move lead", description: err instanceof Error ? err.message : "Unknown error", variant: "destructive" as never });
+    } finally {
+      setMovingId(null);
     }
   }
 
@@ -122,10 +122,19 @@ export function LeadPipelineClient({ leads: initial, userId }: Props) {
     }
     setSaving(true);
     try {
+      const body: Record<string, unknown> = {
+        name: form.name,
+        phone: form.phone || null,
+        email: form.email || null,
+        source: form.source,
+        notes: form.notes || null,
+      };
+      if (form.program) body.program = form.program;
+
       const res = await fetch("/api/leads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, phone: form.phone || null, email: form.email || null, notes: form.notes || null, program: form.program || null }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || `HTTP ${res.status}`); }
       const { lead } = await res.json();
@@ -144,123 +153,154 @@ export function LeadPipelineClient({ leads: initial, userId }: Props) {
   const clients = leads.filter(l => l.stage === "client").length;
   const callsScheduled = leads.filter(l => l.stage === "call_scheduled").length;
   const conversionRate = totalLeads > 0 ? Math.round((clients / totalLeads) * 100) : 0;
+  const visibleLeads = filtered();
 
   return (
-    <div className="flex flex-col min-h-full">
-      {/* Summary bar */}
-      <div className="px-4 md:px-6 pt-4 pb-2 grid grid-cols-4 gap-3">
+    <div className="flex flex-col min-h-full pb-24">
+      {/* Stats */}
+      <div className="px-4 pt-4 pb-2 grid grid-cols-4 gap-2">
         {[
-          { label: "Total Leads", value: totalLeads, icon: <Users className="h-4 w-4 text-sky-500" /> },
-          { label: "Calls Booked", value: callsScheduled, icon: <Clock className="h-4 w-4 text-amber-500" /> },
+          { label: "Total", value: totalLeads, icon: <Users className="h-4 w-4 text-sky-500" /> },
+          { label: "Calls", value: callsScheduled, icon: <Clock className="h-4 w-4 text-amber-500" /> },
           { label: "Clients", value: clients, icon: <UserCheck className="h-4 w-4 text-emerald-500" /> },
-          { label: "Conversion", value: `${conversionRate}%`, icon: <TrendingUp className="h-4 w-4 text-primary" /> },
+          { label: "Rate", value: `${conversionRate}%`, icon: <TrendingUp className="h-4 w-4 text-primary" /> },
         ].map(({ label, value, icon }) => (
-          <div key={label} className="bg-card border border-border rounded-2xl p-3 flex flex-col items-center gap-1 text-center">
+          <div key={label} className="bg-card border border-border rounded-2xl p-2.5 flex flex-col items-center gap-1 text-center">
             {icon}
-            <div className="text-lg font-bold text-foreground">{value}</div>
-            <div className="text-[10px] text-muted-foreground leading-tight">{label}</div>
+            <div className="text-base font-bold text-foreground">{value}</div>
+            <div className="text-[9px] text-muted-foreground">{label}</div>
           </div>
         ))}
       </div>
 
-      {/* Add lead button */}
-      <div className="px-4 md:px-6 py-2 flex items-center justify-between">
-        <p className="text-xs text-muted-foreground">Drag cards between stages to update</p>
+      {/* Stage filter tabs */}
+      <div className="px-4 pb-2">
+        <div className="flex gap-1.5 overflow-x-auto scrollbar-hide py-1">
+          <button
+            onClick={() => setActiveStage("all")}
+            className={cn(
+              "shrink-0 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all",
+              activeStage === "all"
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted text-muted-foreground"
+            )}
+          >
+            All ({totalLeads})
+          </button>
+          {STAGES.map(s => {
+            const count = leads.filter(l => l.stage === s.key).length;
+            return (
+              <button
+                key={s.key}
+                onClick={() => setActiveStage(s.key)}
+                className={cn(
+                  "shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all",
+                  activeStage === s.key ? `${s.bg} ${s.color}` : "bg-muted text-muted-foreground"
+                )}
+              >
+                <span className={cn("w-1.5 h-1.5 rounded-full", s.dot)} />
+                {s.label}
+                {count > 0 && <span className="font-bold">({count})</span>}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Add button */}
+      <div className="px-4 pb-2 flex justify-end">
         <Button size="sm" onClick={() => setDialogOpen(true)}>
           <Plus className="h-4 w-4 mr-1" />Add Lead
         </Button>
       </div>
 
-      {/* Kanban board */}
-      <div className="flex-1 overflow-x-auto pb-6">
-        <DragDropContext onDragEnd={onDragEnd}>
-          <div className="flex gap-3 px-4 md:px-6 min-w-max pb-4">
-            {STAGES.map(({ key, label, color, bg }) => {
-              const stageLeads = byStage(key);
-              return (
-                <div key={key} className="flex flex-col w-[220px] shrink-0">
-                  {/* Column header */}
-                  <div className={cn("flex items-center justify-between px-3 py-2 rounded-xl mb-2", bg)}>
-                    <span className={cn("text-xs font-semibold", color)}>{label}</span>
-                    <span className={cn("text-xs font-bold px-1.5 py-0.5 rounded-lg bg-background/60", color)}>{stageLeads.length}</span>
-                  </div>
-
-                  <Droppable droppableId={key}>
-                    {(provided, snapshot) => (
-                      <div
-                        ref={provided.innerRef}
-                        {...provided.droppableProps}
-                        className={cn(
-                          "flex flex-col gap-2 flex-1 min-h-[120px] rounded-xl transition-colors duration-150 p-1",
-                          snapshot.isDraggingOver && "bg-primary/5"
-                        )}
-                      >
-                        {stageLeads.map((lead, index) => (
-                          <Draggable key={lead.id} draggableId={lead.id} index={index}>
-                            {(prov, snap) => (
-                              <div
-                                ref={prov.innerRef}
-                                {...prov.draggableProps}
-                                {...prov.dragHandleProps}
-                                className={cn(
-                                  "bg-card border border-border rounded-2xl p-3 cursor-pointer group transition-all duration-150",
-                                  snap.isDragging && "shadow-lg ring-2 ring-primary/30 rotate-1"
-                                )}
-                                onClick={() => router.push(`/leads/${lead.id}`)}
-                              >
-                                {/* Name */}
-                                <div className="flex items-center justify-between mb-1.5">
-                                  <div className="w-6 h-6 gradient-primary rounded-lg flex items-center justify-center shrink-0">
-                                    <span className="text-white font-bold text-[10px]">{lead.name[0]?.toUpperCase()}</span>
-                                  </div>
-                                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50 group-hover:text-primary transition-colors" />
-                                </div>
-                                <p className="text-sm font-semibold text-foreground leading-tight mb-1.5 line-clamp-2">{lead.name}</p>
-
-                                {/* Source badge */}
-                                <div className="flex items-center gap-1 mb-1.5 flex-wrap">
-                                  <span className="flex items-center gap-1 text-[10px] bg-muted/50 text-muted-foreground px-1.5 py-0.5 rounded-lg font-medium">
-                                    {SOURCE_ICON[lead.source]}
-                                    {sourceLabel(lead.source)}
-                                  </span>
-                                  {lead.program && (
-                                    <span className={cn("flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded border", getProgramBadgeClass(lead.program))}>
-                                      <Shield className="h-2 w-2 shrink-0" />
-                                      {lead.program.replace("™", "")}
-                                    </span>
-                                  )}
-                                  {lead.content_attribution && lead.content_attribution.length > 0 && (
-                                    <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-lg font-medium">
-                                      linked
-                                    </span>
-                                  )}
-                                </div>
-
-                                {/* Contact icons */}
-                                <div className="flex items-center gap-1.5 text-muted-foreground/50">
-                                  {lead.phone && <Phone className="h-3 w-3" />}
-                                  {lead.email && <Mail className="h-3 w-3" />}
-                                  <span className="text-[10px] ml-auto">{formatDate(lead.created_at)}</span>
-                                </div>
-                              </div>
-                            )}
-                          </Draggable>
-                        ))}
-                        {provided.placeholder}
-
-                        {stageLeads.length === 0 && !snapshot.isDraggingOver && (
-                          <div className="flex items-center justify-center h-16 rounded-xl border-2 border-dashed border-border/40">
-                            <span className="text-[10px] text-muted-foreground/40">Drop here</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </Droppable>
-                </div>
-              );
-            })}
+      {/* Lead list */}
+      <div className="px-4 flex flex-col gap-2">
+        {visibleLeads.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="w-12 h-12 bg-muted rounded-2xl flex items-center justify-center mb-3">
+              <Users className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <p className="text-sm font-medium text-muted-foreground">No leads here yet</p>
+            <p className="text-xs text-muted-foreground/60 mt-1">Tap Add Lead to get started</p>
           </div>
-        </DragDropContext>
+        )}
+
+        {visibleLeads.map(lead => {
+          const stageInfo = STAGES.find(s => s.key === lead.stage)!;
+          return (
+            <div key={lead.id} className="bg-card border border-border rounded-2xl p-4">
+              {/* Top row */}
+              <div className="flex items-start gap-3 mb-3">
+                <div className="w-9 h-9 gradient-primary rounded-xl flex items-center justify-center shrink-0">
+                  <span className="text-white font-bold text-sm">{lead.name[0]?.toUpperCase()}</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-foreground leading-tight">{lead.name}</p>
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                      {SOURCE_ICON[lead.source]}
+                      {sourceLabel(lead.source)}
+                    </span>
+                    {lead.program && (
+                      <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded border flex items-center gap-0.5", getProgramBadgeClass(lead.program))}>
+                        <Shield className="h-2 w-2" />
+                        {lead.program.replace("™", "")}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <button
+                  onClick={() => router.push(`/leads/${lead.id}`)}
+                  className="p-1.5 rounded-lg hover:bg-muted transition-colors"
+                >
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                </button>
+              </div>
+
+              {/* Contact row */}
+              {(lead.phone || lead.email) && (
+                <div className="flex items-center gap-3 mb-3">
+                  {lead.phone && (
+                    <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Phone className="h-3 w-3" />{lead.phone}
+                    </span>
+                  )}
+                  {lead.email && (
+                    <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Mail className="h-3 w-3" />{lead.email}
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {/* Stage selector */}
+              <div className="flex items-center gap-2">
+                <Select
+                  value={lead.stage}
+                  onValueChange={v => handleMoveStage(lead.id, v as LeadStage)}
+                  disabled={movingId === lead.id}
+                >
+                  <SelectTrigger className={cn("h-8 text-xs font-semibold rounded-xl border-0 flex-1", stageInfo.bg, stageInfo.color)}>
+                    <div className="flex items-center gap-1.5">
+                      <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", stageInfo.dot)} />
+                      <SelectValue />
+                    </div>
+                    <ChevronDown className="h-3 w-3 ml-auto opacity-60" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {STAGES.map(s => (
+                      <SelectItem key={s.key} value={s.key}>
+                        <span className={cn("font-medium", s.color)}>{s.label}</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <span className="text-[10px] text-muted-foreground shrink-0">{formatDate(lead.created_at)}</span>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       {/* Add Lead Dialog */}
