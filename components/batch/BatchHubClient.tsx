@@ -43,7 +43,7 @@ interface Props {
   userId: string;
 }
 
-const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 const STATUS_CONFIG = {
   scheduled: { label: "Scheduled", color: "text-muted-foreground", bg: "bg-muted/60", icon: Clock },

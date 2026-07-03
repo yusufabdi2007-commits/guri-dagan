@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="so">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Guri Dagan — Kaalmo Waalidka</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #fff;
+      color: #1a1a1a;
+      max-width: 794px;
+      margin: 0 auto;
+    }
+
+    /* ── HEADER ── */
+    .header {
+      background: linear-gradient(135deg, #4a1a8a 0%, #6b2fa0 40%, #7c3bb5 100%);
+      color: #fff;
+      padding: 32px 36px 36px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .header::before {
+      content: '';
+      position: absolute;
+      top: -40px; right: -40px;
+      width: 220px; height: 220px;
+      background: rgba(255,255,255,0.04);
+      border-radius: 50%;
+    }
+
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 24px;
+    }
+
+    .header-left { flex: 1; }
+
+    .brand {
+      font-size: 28px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      color: #fff;
+      text-transform: uppercase;
+      line-height: 1;
+    }
+
+    .brand-sub {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.65);
+      margin-top: 4px;
+      margin-bottom: 18px;
+    }
+
+    .phone-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #25D366;
+      border-radius: 100px;
+      padding: 9px 20px;
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: 0.02em;
+    }
+
+    .headline {
+      margin-top: 28px;
+    }
+
+    .headline h1 {
+      font-size: 34px;
+      font-weight: 800;
+      line-height: 1.15;
+      color: #fff;
+    }
+
+    .headline h1 .gold {
+      color: #f0c040;
+      display: block;
+    }
+
+    .photo-wrap {
+      width: 200px;
+      flex-shrink: 0;
+    }
+
+    .photo-wrap img {
+      width: 200px;
+      height: 220px;
+      object-fit: cover;
+      object-position: center top;
+      border-radius: 14px;
+      display: block;
+      border: 3px solid rgba(255,255,255,0.15);
+    }
+
+    /* ── BODY ── */
+    .body {
+      padding: 36px 36px 0;
+    }
+
+    .intro-heading {
+      font-size: 17px;
+      font-weight: 700;
+      color: #5b2da0;
+      line-height: 1.4;
+      margin-bottom: 14px;
+    }
+
+    .intro-text {
+      font-size: 14px;
+      color: #444;
+      line-height: 1.8;
+      margin-bottom: 10px;
+    }
+
+    /* ── PROGRAMS ── */
+    .programs-section {
+      margin-top: 28px;
+      padding: 0 36px;
+    }
+
+    .programs-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #5b2da0;
+      margin-bottom: 16px;
+    }
+
+    .program-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .program-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .program-num {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: #6b2fa0;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .program-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: #5b2da0;
+    }
+
+    .program-name span {
+      font-weight: 400;
+      color: #555;
+    }
+
+    /* ── QUOTE ── */
+    .quote-block {
+      margin: 28px 36px 0;
+      padding: 18px 20px;
+      border-left: 4px solid #e8a020;
+      background: #faf7ff;
+      border-radius: 0 10px 10px 0;
+    }
+
+    .quote-text {
+      font-size: 14px;
+      font-style: italic;
+      color: #333;
+      line-height: 1.7;
+    }
+
+    .quote-author {
+      font-size: 13px;
+      font-weight: 600;
+      color: #5b2da0;
+      margin-top: 8px;
+    }
+
+    /* ── CTA FOOTER ── */
+    .cta {
+      margin: 28px 36px 0;
+      background: linear-gradient(135deg, #4a1a8a, #7c3bb5);
+      border-radius: 14px;
+      padding: 24px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    .cta-text {
+      color: #fff;
+    }
+
+    .cta-text h3 {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .cta-text p {
+      font-size: 13px;
+      color: rgba(255,255,255,0.75);
+    }
+
+    .cta-phone {
+      font-size: 18px;
+      font-weight: 800;
+      color: #f0c040;
+      white-space: nowrap;
+      letter-spacing: 0.02em;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* ── DIVIDER ── */
+    .divider {
+      height: 1px;
+      background: #ece8f5;
+      margin: 28px 36px 0;
+    }
+
+    /* ── TESTIMONIALS ── */
+    .social-section {
+      padding: 24px 36px 0;
+    }
+
+    .social-title {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #aaa;
+      margin-bottom: 16px;
+    }
+
+    .testimonials {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .testimonial {
+      background: #f9f9f9;
+      border-radius: 10px;
+      padding: 16px 18px;
+    }
+
+    .testimonial p {
+      font-size: 13px;
+      color: #444;
+      font-style: italic;
+      line-height: 1.65;
+      margin-bottom: 8px;
+    }
+
+    .testimonial-name {
+      font-size: 12px;
+      font-weight: 600;
+      color: #6b2fa0;
+    }
+
+    /* ── FOOTER ── */
+    .footer {
+      margin-top: 28px;
+      padding: 20px 36px;
+      background: #f5f0ff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .footer-brand {
+      font-size: 13px;
+      font-weight: 700;
+      color: #5b2da0;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .footer-contact {
+      font-size: 12px;
+      color: #888;
+      text-align: right;
+    }
+
+    .footer-contact strong {
+      color: #5b2da0;
+    }
+
+    @media print {
+      body { max-width: 100%; }
+      .header, .cta { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── HEADER ── -->
+  <div class="header">
+    <div class="header-top">
+      <div class="header-left">
+        <div class="brand">Guri Dagan</div>
+<div class="phone-badge">
+          <svg width="17" height="17" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0">
+            <path d="M22.5 19.9c-.3-.15-1.8-.9-2.1-1-.3-.1-.5-.15-.7.15-.2.3-.8 1-.95 1.2-.18.2-.35.22-.65.07-1.8-.9-3-1.6-4.2-3.6-.32-.55.32-.5.9-1.68.1-.2.05-.38-.03-.53-.08-.15-.7-1.7-.96-2.32-.25-.6-.5-.52-.7-.53h-.6c-.2 0-.52.07-.8.37-.27.3-1.04 1.02-1.04 2.48s1.07 2.88 1.22 3.08c.15.2 2.1 3.2 5.08 4.5.7.3 1.25.48 1.68.62.7.22 1.34.19 1.84.11.56-.08 1.8-.73 2.06-1.44.25-.7.25-1.3.17-1.44-.07-.14-.27-.22-.57-.37z" fill="white"/>
+          </svg>
+          WhatsApp  +1 (763) 412-7695
+        </div>
+
+        <div class="headline">
+          <h1>
+            Noqo Waalidka
+            <span class="gold">Carruurtoodu<br>Jecel Yihiin</span>
+          </h1>
+        </div>
+      </div>
+
+      <div class="photo-wrap">
+        <img src="./rahma-photo.jpg.jpeg" alt="Coach Rahma Hussein" />
+      </div>
+    </div>
+  </div>
+
+  <!-- ── INTRO ── -->
+  <div class="body">
+    <p class="intro-heading">
+      Coach Rahma waxay kaa caawinaysaa adiga iyo caruurtadda sida aad isku fahmi lahaayeen
+    </p>
+    <p class="intro-text">
+      Waxay waalidka bartaa sida caruurta ay u la dhaqmi lahaayeen iyaado abaareeso da'da iyo
+      dabeecadda cunuga. Waxay kalo bartaa waalidiinta sida gurigooda sharci u dagsan lahaayeen
+      iyaado abaareeso qoys kasta iyo dhibka haysta.
+    </p>
+    <p class="intro-text">
+      Waxay leedahay 5 barnaamij oo loogu talagalay carruurtaada. Waxaad dooran kartaa mid ama dhammaantood.
+    </p>
+  </div>
+
+  <!-- ── PROGRAMS ── -->
+  <div class="programs-section">
+    <p class="programs-title">Barnaamijyada Carruurtaada</p>
+    <div class="program-list">
+      <div class="program-item">
+        <div class="program-num">1</div>
+        <div class="program-name">Maskaxda <span>— sida loo isticmaalo</span></div>
+      </div>
+      <div class="program-item">
+        <div class="program-num">2</div>
+        <div class="program-name">Xushmad iyo mas'uuliyad <span>— sida saaxiibbada xun looga badbaadin lahaa</span></div>
+      </div>
+      <div class="program-item">
+        <div class="program-num">3</div>
+        <div class="program-name">Kalsooni <span>— sida ay isku kalsoonaan lahaayeen</span></div>
+      </div>
+      <div class="program-item">
+        <div class="program-num">4</div>
+        <div class="program-name">Yoolalka <span>— sida hami dheer run loo gaaro</span></div>
+      </div>
+      <div class="program-item">
+        <div class="program-num">5</div>
+        <div class="program-name">Baqdin iyo khalad <span>— sida loo maareeyo</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── QUOTE ── -->
+  <div class="quote-block">
+    <p class="quote-text">
+      "Waalid kasta wuxuu awoodaa inuu beddelo nolosha carruurtiisa. Waxaan halkan u jooga si aan
+      kaa caawiyo — kalsooni, iyo xiriir wanaagsan adiga iyo caruurtaada."
+    </p>
+    <p class="quote-author">— Rahma Hussein</p>
+  </div>
+
+  <!-- ── CTA ── -->
+  <div class="cta">
+    <div class="cta-text">
+      <h3>Bilow Hadda — La Xiriir Coach Rahma</h3>
+      <p>WhatsApp kaliya — Talooyin bilaash ah ayaa heli kartaa</p>
+    </div>
+    <div class="cta-phone">
+      <svg width="24" height="24" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="16" cy="16" r="16" fill="#25D366"/>
+        <path d="M22.5 19.9c-.3-.15-1.8-.9-2.1-1-.3-.1-.5-.15-.7.15-.2.3-.8 1-.95 1.2-.18.2-.35.22-.65.07-1.8-.9-3-1.6-4.2-3.6-.32-.55.32-.5.9-1.68.1-.2.05-.38-.03-.53-.08-.15-.7-1.7-.96-2.32-.25-.6-.5-.52-.7-.53h-.6c-.2 0-.52.07-.8.37-.27.3-1.04 1.02-1.04 2.48s1.07 2.88 1.22 3.08c.15.2 2.1 3.2 5.08 4.5.7.3 1.25.48 1.68.62.7.22 1.34.19 1.84.11.56-.08 1.8-.73 2.06-1.44.25-.7.25-1.3.17-1.44-.07-.14-.27-.22-.57-.37z" fill="white"/>
+      </svg>
+      +1 (763) 412-7695
+    </div>
+  </div>
+
+  <!-- ── FOOTER ── -->
+  <div class="footer">
+    <div class="footer-brand">Guri Dagan · Kaalmo Waalidka</div>
+    <div class="footer-contact">
+      <strong>+1 (763) 412-7695</strong><br>
+      WhatsApp kaliya
+    </div>
+  </div>
+
+</body>
+</html>

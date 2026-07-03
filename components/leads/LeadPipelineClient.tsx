@@ -75,7 +75,7 @@ const SOURCE_ICON: Record<LeadSource, React.ReactNode> = {
 };
 
 const PROGRAM_OPTIONS = Object.keys(PROGRAMS) as (keyof typeof PROGRAMS)[];
-const emptyForm = { name: "", phone: "", email: "", source: "other" as LeadSource, notes: "", program: "" };
+const emptyForm = { name: "", phone: "", email: "", source: "other" as LeadSource, notes: "", program: "none" };
 
 function sourceLabel(s: LeadSource) {
   return SOURCES.find(x => x.value === s)?.label ?? s;
@@ -129,7 +129,7 @@ export function LeadPipelineClient({ leads: initial }: Props) {
         source: form.source,
         notes: form.notes || null,
       };
-      if (form.program) body.program = form.program;
+      if (form.program && form.program !== "none") body.program = form.program;
 
       const res = await fetch("/api/leads", {
         method: "POST",
@@ -286,7 +286,6 @@ export function LeadPipelineClient({ leads: initial }: Props) {
                       <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", stageInfo.dot)} />
                       <SelectValue />
                     </div>
-                    <ChevronDown className="h-3 w-3 ml-auto opacity-60" />
                   </SelectTrigger>
                   <SelectContent>
                     {STAGES.map(s => (
@@ -336,7 +335,7 @@ export function LeadPipelineClient({ leads: initial }: Props) {
               <Select value={form.program} onValueChange={v => setForm(f => ({ ...f, program: v }))}>
                 <SelectTrigger><SelectValue placeholder="Select program..." /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Unknown</SelectItem>
+                  <SelectItem value="none">Unknown</SelectItem>
                   {PROGRAM_OPTIONS.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
                 </SelectContent>
               </Select>

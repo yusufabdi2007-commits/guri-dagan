@@ -93,24 +93,24 @@ export function LeadDetailClient({ lead: initial, activity: initialActivity, att
   const [email, setEmail] = useState(lead.email || "");
   const [source, setSource] = useState<LeadSource>(lead.source);
   const [notes, setNotes] = useState(lead.notes || "");
-  const [program, setProgram] = useState(lead.program || "");
+  const [program, setProgram] = useState(lead.program || "none");
 
   // Attribution fields
-  const [attrCategory, setAttrCategory] = useState(attribution[0]?.content_category || "");
+  const [attrCategory, setAttrCategory] = useState(attribution[0]?.content_category || "none");
   const [attrVideoTitle, setAttrVideoTitle] = useState(attribution[0]?.video_title || "");
   const [attrYoutubeId, setAttrYoutubeId] = useState(attribution[0]?.youtube_video_id || "");
   const [attrTiktokTopic, setAttrTiktokTopic] = useState(attribution[0]?.tiktok_topic || "");
   const [attrNotes, setAttrNotes] = useState(attribution[0]?.notes || "");
-  const [attrProgram, setAttrProgram] = useState(attribution[0]?.program || "");
+  const [attrProgram, setAttrProgram] = useState(attribution[0]?.program || "none");
 
   const isDirty = name !== lead.name || phone !== (lead.phone || "") || email !== (lead.email || "")
-    || source !== lead.source || notes !== (lead.notes || "") || program !== (lead.program || "");
-  const attrDirty = attrCategory !== (attribution[0]?.content_category || "")
+    || source !== lead.source || notes !== (lead.notes || "") || program !== (lead.program || "none");
+  const attrDirty = attrCategory !== (attribution[0]?.content_category || "none")
     || attrVideoTitle !== (attribution[0]?.video_title || "")
     || attrYoutubeId !== (attribution[0]?.youtube_video_id || "")
     || attrTiktokTopic !== (attribution[0]?.tiktok_topic || "")
     || attrNotes !== (attribution[0]?.notes || "")
-    || attrProgram !== (attribution[0]?.program || "");
+    || attrProgram !== (attribution[0]?.program || "none");
 
   async function handleStageChange(newStage: LeadStage) {
     if (newStage === lead.stage) return;
@@ -140,9 +140,12 @@ export function LeadDetailClient({ lead: initial, activity: initialActivity, att
     }
     setSaving(true);
     try {
-      const body: Record<string, unknown> = { name, phone: phone || null, email: email || null, source, notes: notes || null, program: program || null };
-      if (attrDirty && attrCategory) {
-        body.attribution = { content_category: attrCategory, youtube_video_id: attrYoutubeId || null, video_title: attrVideoTitle || null, tiktok_topic: attrTiktokTopic || null, attr_notes: attrNotes || null, program: attrProgram || null };
+      const resolvedProgram = (program === "none" ? null : program) || null;
+      const resolvedAttrProgram = (attrProgram === "none" ? null : attrProgram) || null;
+      const body: Record<string, unknown> = { name, phone: phone || null, email: email || null, source, notes: notes || null, program: resolvedProgram };
+      const resolvedCategory = attrCategory === "none" ? null : attrCategory;
+      if (attrDirty && resolvedCategory) {
+        body.attribution = { content_category: resolvedCategory, youtube_video_id: attrYoutubeId || null, video_title: attrVideoTitle || null, tiktok_topic: attrTiktokTopic || null, attr_notes: attrNotes || null, program: resolvedAttrProgram };
       }
       const res = await fetch(`/api/leads/${lead.id}`, {
         method: "PATCH",
@@ -164,11 +167,12 @@ export function LeadDetailClient({ lead: initial, activity: initialActivity, att
     if (!confirm(`Delete lead "${lead.name}"? This cannot be undone.`)) return;
     setDeleting(true);
     try {
-      await fetch(`/api/leads/${lead.id}`, { method: "DELETE" });
+      const res = await fetch(`/api/leads/${lead.id}`, { method: "DELETE" });
+      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || `HTTP ${res.status}`); }
       router.push("/leads");
       toast({ title: "Lead deleted" });
-    } catch {
-      toast({ title: "Could not delete", variant: "destructive" as never });
+    } catch (err) {
+      toast({ title: "Could not delete", description: err instanceof Error ? err.message : "Unknown error", variant: "destructive" as never });
       setDeleting(false);
     }
   }
@@ -221,7 +225,7 @@ export function LeadDetailClient({ lead: initial, activity: initialActivity, att
             {currentStageConfig?.label}
           </div>
         </div>
-        <Button variant="ghost" size="icon-sm" onClick={handleDelete} disabled={deleting} className="text-destructive hover:bg-destructive/10 shrink-0">
+        <Button variant="ghost" size="icon" onClick={handleDelete} disabled={deleting} className="text-destructive hover:bg-destructive/10 shrink-0">
           <Trash2 className="h-4 w-4" />
         </Button>
       </div>
@@ -322,7 +326,7 @@ export function LeadDetailClient({ lead: initial, activity: initialActivity, att
               <Select value={program} onValueChange={setProgram}>
                 <SelectTrigger><SelectValue placeholder="Select program..." /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Unknown</SelectItem>
+                  <SelectItem value="none">Unknown</SelectItem>
                   {PROGRAM_OPTIONS.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
                 </SelectContent>
               </Select>
@@ -349,7 +353,7 @@ export function LeadDetailClient({ lead: initial, activity: initialActivity, att
               <Select value={attrProgram} onValueChange={setAttrProgram}>
                 <SelectTrigger><SelectValue placeholder="Select program..." /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Unknown</SelectItem>
+                  <SelectItem value="none">Unknown</SelectItem>
                   {PROGRAM_OPTIONS.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
                 </SelectContent>
               </Select>
@@ -359,7 +363,7 @@ export function LeadDetailClient({ lead: initial, activity: initialActivity, att
               <Select value={attrCategory} onValueChange={setAttrCategory}>
                 <SelectTrigger><SelectValue placeholder="Select category..." /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="none">None</SelectItem>
                   {CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                 </SelectContent>
               </Select>

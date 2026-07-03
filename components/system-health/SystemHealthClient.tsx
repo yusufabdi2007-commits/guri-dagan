@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import {
   CheckCircle2, AlertTriangle, XCircle, RefreshCw,
   Shield, Calendar, FileText, Cpu, ChevronDown, ChevronUp,
-  Activity, Database,
+  Activity, Database, Wrench, Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -134,6 +134,8 @@ export function SystemHealthClient() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastRun, setLastRun] = useState<string | null>(null);
+  const [repairing, setRepairing] = useState(false);
+  const [repairMsg, setRepairMsg] = useState<string | null>(null);
 
   const runCheck = useCallback(async () => {
     setLoading(true);
@@ -150,6 +152,27 @@ export function SystemHealthClient() {
       setLoading(false);
     }
   }, []);
+
+  const repairPosts = useCallback(async () => {
+    if (!report?.meta?.weekStart) return;
+    setRepairing(true);
+    setRepairMsg(null);
+    try {
+      const res = await fetch("/api/batch-repair", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ weekStart: report.meta.weekStart }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Repair failed");
+      setRepairMsg(data.message);
+      await runCheck();
+    } catch (e) {
+      setRepairMsg(e instanceof Error ? e.message : "Repair failed");
+    } finally {
+      setRepairing(false);
+    }
+  }, [report, runCheck]);
 
   useEffect(() => { runCheck(); }, [runCheck]);
 
@@ -238,6 +261,35 @@ export function SystemHealthClient() {
           {loading ? "Checking…" : "Run Again"}
         </button>
       </div>
+
+      {/* Repair Missing Posts */}
+      {report && (
+        (() => {
+          const needsRepair = report.checks.some(
+            c => ["tiktok_count", "youtube_count"].includes(c.id) && c.status === "critical"
+          );
+          if (!needsRepair) return null;
+          return (
+            <div className="rounded-2xl border-2 border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-700/60 p-4 flex items-center gap-3 flex-wrap">
+              <Wrench className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">Posts missing for this week</p>
+                <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
+                  {repairMsg || "Batch exists but posts were not saved. Click to auto-create all 8 scheduled posts."}
+                </p>
+              </div>
+              <button
+                onClick={repairPosts}
+                disabled={repairing}
+                className="flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-60 text-white rounded-xl text-sm font-semibold transition-colors shrink-0"
+              >
+                {repairing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wrench className="w-4 h-4" />}
+                {repairing ? "Repairing…" : "Repair Missing Posts"}
+              </button>
+            </div>
+          );
+        })()
+      )}
 
       {/* Check Groups */}
       {report && (

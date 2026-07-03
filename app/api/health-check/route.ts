@@ -136,8 +136,13 @@ export async function GET() {
     ok("current_batch", "Current Week Batch", `Batch exists for ${weekStart} — "${batch.theme || "no theme set"}"`);
   }
 
-  if (!nextBatch) {
-    warn("next_batch", "Next Week Batch", `No batch planned for next week (${nextWeekStart}). Run weekly assignment on Sunday to plan ahead.`);
+  // Only warn about next week's batch on Thu/Fri/Sat/Sun — earlier in the week it's expected
+  const todayDow = new Date(todayStr + "T12:00:00").getDay(); // 0=Sun,1=Mon,...,6=Sat
+  const isPlanningWindow = todayDow === 0 || todayDow >= 4; // Sun, Thu, Fri, Sat
+  if (!nextBatch && isPlanningWindow) {
+    warn("next_batch", "Next Week Batch", `No batch planned for next week (${nextWeekStart}). Plan it before the week ends.`);
+  } else if (!nextBatch) {
+    ok("next_batch", "Next Week Batch", `Next week (${nextWeekStart}) not planned yet — that's normal mid-week`);
   } else {
     ok("next_batch", "Next Week Batch", `Next week batch exists (${nextWeekStart})`);
   }
@@ -159,8 +164,8 @@ export async function GET() {
       crit(id, label, "Cannot check — no batch exists for this week")
     );
   } else {
-    const tiktokPosts = posts.filter(p => p.platform === "TikTok");
-    const youtubePosts = posts.filter(p => p.platform === "YouTube");
+    const tiktokPosts = posts.filter(p => p.platform === "tiktok");
+    const youtubePosts = posts.filter(p => p.platform === "youtube");
 
     // TikTok count
     if (tiktokPosts.length === 7) {
@@ -262,7 +267,7 @@ export async function GET() {
   const lowQuality = (knowledgeItems || []).filter(k => k.char_count < 500);
 
   if (knownPrograms.size === 0) {
-    warn("program_knowledge", "Program Knowledge", "No curriculum uploaded yet. Scripts use built-in fallback content. Upload PDFs at /program-knowledge.");
+    ok("program_knowledge", "Program Knowledge", "No curriculum uploaded — AI uses built-in programme knowledge. Upload PDFs at /program-knowledge to unlock custom content.");
   } else if (missingPrograms.length > 0) {
     warn("program_knowledge", "Program Knowledge", `${knownPrograms.size}/5 programs have curriculum. Missing: ${missingPrograms.join(", ")}`);
   } else if (lowQuality.length > 0) {

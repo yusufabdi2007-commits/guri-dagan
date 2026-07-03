@@ -21,12 +21,20 @@ export default async function BatchPlanPage() {
 
   const weekStart = getWeekStart();
 
-  const { data: existingBatch } = await supabase
-    .from("weekly_batches")
-    .select("id")
-    .eq("user_id", user!.id)
-    .eq("week_start", weekStart)
-    .maybeSingle();
+  const [{ data: existingBatch }, { data: pastBatches }] = await Promise.all([
+    supabase
+      .from("weekly_batches")
+      .select("id")
+      .eq("user_id", user!.id)
+      .eq("week_start", weekStart)
+      .maybeSingle(),
+    supabase
+      .from("weekly_batches")
+      .select("id, week_start, theme, status, recording_completed, created_at")
+      .eq("user_id", user!.id)
+      .order("week_start", { ascending: false })
+      .limit(10),
+  ]);
 
   return (
     <div className="flex flex-col min-h-full">
@@ -35,6 +43,7 @@ export default async function BatchPlanPage() {
         userId={user!.id}
         existingBatchId={existingBatch?.id || null}
         weekStart={weekStart}
+        pastBatches={pastBatches || []}
       />
     </div>
   );

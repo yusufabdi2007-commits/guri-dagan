@@ -22,6 +22,71 @@ const YOUTUBE_PROGRAM = "MePower™";
 
 const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 
+// Pool of scenario variants per slot — one is picked randomly each generation
+// so scripts never feel repetitive even with the same program distribution
+const SCENARIO_POOLS: Record<string, string[]> = {
+  youtube_mepower: [
+    "child said 'I give up' after their very first failure at something they cared about",
+    "child refused to go back to an activity after one embarrassing moment in front of others",
+    "child says 'I'm just bad at this' and believes it — not fishing for praise, genuinely convinced",
+    "child gave up on a hobby they loved the moment it got harder",
+    "child cried after a test result and said 'I'm never trying again'",
+  ],
+  mon_mepower: [
+    "child quits mid-activity, won't try again despite gentle encouragement from parent",
+    "child scrunches up their work and throws it away in frustration instead of fixing the mistake",
+    "child walks out of a challenge saying 'this is stupid' — really meaning 'I'm scared I'll fail'",
+    "child refuses to do any task they've previously struggled with, even an easy version",
+    "child shuts down completely after a small correction and won't engage for the rest of the day",
+  ],
+  tue_innerpower: [
+    "child becomes a completely different person around their friends — unrecognisable at home vs. outside",
+    "child changed their opinion mid-sentence the moment a friend disagreed with them",
+    "child started dressing, talking, and acting like one specific friend — losing all their own personality",
+    "child came home from school clearly copying another child's phrases, interests, and jokes",
+    "child agreed to something they clearly hated just to avoid standing out from the group",
+  ],
+  wed_mepower: [
+    "child compares themselves to a sibling: 'they're just smarter than me'",
+    "child watched a sibling succeed at something and went silent — then refused to try the same thing",
+    "child said 'everyone is better than me' after a normal group activity",
+    "child celebrated another child's achievement out loud, then whispered 'I could never do that'",
+    "child stopped trying at school the week a sibling got praised for their results",
+  ],
+  thu_innerpower: [
+    "child can't say no to friends even when they can feel it's the wrong choice",
+    "child agreed to leave out another friend from a group because the leader said so",
+    "child came home clearly uncomfortable about something they did with friends — but defended it anyway",
+    "child joined in mocking something they privately love, just to fit in with the group",
+    "child lied to a parent about where they were going because 'everyone else was going'",
+  ],
+  fri_mindpower: [
+    "child said 'I'm stupid' quietly after one mistake — not as a complaint, but like it's a settled fact",
+    "child failed one question on a test and said 'I knew it — I'm just dumb'",
+    "child said 'my brain doesn't work like other people's' with complete calm, as if describing their eye colour",
+    "child stopped raising their hand in class because 'what's the point, I always get it wrong'",
+    "child whispered 'I'm the worst in the class' to themselves while doing homework",
+  ],
+  sat_dreampower: [
+    "child shrugs and says 'I don't know' when asked what they want to do with their life",
+    "child laughed nervously when asked about their dreams — like it was a silly question",
+    "child said 'it doesn't matter what I want' when planning for the future came up",
+    "child gave a completely blank answer when asked what excites them — like the question itself confused them",
+    "child listed only things other people want for them when asked about their goals",
+  ],
+  sun_dragons: [
+    "child refuses to try anything new — every unfamiliar situation triggers a quiet panic",
+    "child pretended to be sick on the morning of something new to avoid having to go",
+    "child cried at the door of a new activity and refused to go in even with a parent beside them",
+    "child spent a whole weekend dreading one small unfamiliar thing next week",
+    "child said 'what if I'm the only one who doesn't know how' — and that was enough to make them quit before starting",
+  ],
+};
+
+function pickOne(pool: string[]): string {
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
 const PROGRAM_FALLBACKS: Record<string, { hook: string; problem: string; reframe: string; teaching: string; close: string }> = {
   "MePower™": {
     hook: "Your child tried something new, couldn't get it first try, and said 'I can't do this.' You told them to keep going. They shut down.",
@@ -152,20 +217,32 @@ export async function POST(req: NextRequest) {
       // Silently skip — scripts still generate with built-in fallback knowledge
     }
 
+    // Pick a random scenario variant for each slot — ensures different scripts every generation
+    const scenarios = {
+      yt:  pickOne(SCENARIO_POOLS.youtube_mepower),
+      mon: pickOne(SCENARIO_POOLS.mon_mepower),
+      tue: pickOne(SCENARIO_POOLS.tue_innerpower),
+      wed: pickOne(SCENARIO_POOLS.wed_mepower),
+      thu: pickOne(SCENARIO_POOLS.thu_innerpower),
+      fri: pickOne(SCENARIO_POOLS.fri_mindpower),
+      sat: pickOne(SCENARIO_POOLS.sat_dreampower),
+      sun: pickOne(SCENARIO_POOLS.sun_dragons),
+    };
+
     const prompt = `Write 8 SHORT marketing video scripts for Guri Dagan (Somali parenting coach). Week of: ${weekDate}.${curriculumContext}
 Theme: "${t}"
 
-RULE: Every script is a completely different video. Same program appears multiple times — each slot still gets a totally different scenario, moment, and technique.
+RULE: Every script is a completely different video. Same program appears multiple times — each slot still gets a totally different scenario, moment, and technique. Write fresh, specific content for each slot.
 
-VIDEO SLOTS (use the given scenario for each):
-1. YouTube Wed — MePower™ — child said "I give up" after first failure at something they cared about
-2. TikTok Mon — MePower™ — child quits mid-activity, won't try again despite gentle encouragement
-3. TikTok Tue — Inner Power™ — child becomes unrecognisable around friends, loses all their opinions
-4. TikTok Wed — MePower™ — child compares to sibling: "they're just smarter/better than me"
-5. TikTok Thu — Inner Power™ — child can't say no to friends, always goes along even feeling wrong
-6. TikTok Fri — MindPower™ — child says "I'm stupid" quietly after one mistake, like it's settled
-7. TikTok Sat — DreamPower™ — child shrugs when asked what they want to do with their life
-8. TikTok Sun — Slaying Dragons™ — child refuses to try anything new, panics at unfamiliar situations
+VIDEO SLOTS (use the exact scenario given for each — do not swap or reuse):
+1. YouTube Wed — MePower™ — ${scenarios.yt}
+2. TikTok Mon — MePower™ — ${scenarios.mon}
+3. TikTok Tue — Inner Power™ — ${scenarios.tue}
+4. TikTok Wed — MePower™ — ${scenarios.wed}
+5. TikTok Thu — Inner Power™ — ${scenarios.thu}
+6. TikTok Fri — MindPower™ — ${scenarios.fri}
+7. TikTok Sat — DreamPower™ — ${scenarios.sat}
+8. TikTok Sun — Slaying Dragons™ — ${scenarios.sun}
 
 SCRIPT FIELDS — VERY SHORT (every field MAX 1 sentence, except reframe = 2 sentences):
 - hookType: fear hook / mistake hook / identity hook / emotional truth hook
@@ -191,36 +268,137 @@ Return valid JSON only:
   ]
 }`;
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 25_000);
-    const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${process.env.GROQ_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
-        messages: [
-          { role: "system", content: "You are a marketing copywriter for a parenting coaching business. Write specific, emotionally precise video scripts. Every script must be completely different from the others. The uploaded curriculum is the authoritative source for what is taught — every script must teach a real concept, framework, exercise, tool, or principle that exists in the programme materials. Do not invent new programme techniques or attribute ideas to the programme that are not present in the curriculum. You may create original hooks, stories, family scenarios, analogies, examples, transitions, and calls to action — these creative elements exist only to explain or demonstrate the real curriculum, never to replace it. Return valid JSON only. No markdown, no code blocks, no text outside the JSON object." },
-          { role: "user", content: prompt },
-        ],
-        temperature: 0.9,
-        max_tokens: 3000,
-        response_format: { type: "json_object" },
-      }),
-      signal: controller.signal,
-    });
-    clearTimeout(timeoutId);
-    if (!groqRes.ok) {
-      const errText = await groqRes.text();
-      throw new Error(`Groq ${groqRes.status}: ${errText.slice(0, 200)}`);
-    }
-    const groqData = await groqRes.json();
-    const content = groqData.choices?.[0]?.message?.content;
-    if (!content) throw new Error("No content from Groq");
+    const AI_SYSTEM = "You are a marketing copywriter for a parenting coaching business. Write specific, emotionally precise video scripts. Every script must be completely different from the others — different scenario, different moment, different technique. The uploaded curriculum is the authoritative source for what is taught — every script must teach a real concept, framework, exercise, tool, or principle that exists in the programme materials. Do not invent new programme techniques or attribute ideas to the programme that are not present in the curriculum. You may create original hooks, stories, family scenarios, analogies, examples, transitions, and calls to action — these creative elements exist only to explain or demonstrate the real curriculum, never to replace it. Return valid JSON only. No markdown, no code blocks, no text outside the JSON object.";
 
-    const parsed = JSON.parse(content);
+    // Attempt 1: Groq (fast, free)
+    async function callGroq(): Promise<string> {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 28_000);
+      try {
+        const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${process.env.GROQ_API_KEY}`,
+          },
+          body: JSON.stringify({
+            model: "llama-3.3-70b-versatile",
+            messages: [
+              { role: "system", content: AI_SYSTEM },
+              { role: "user", content: prompt },
+            ],
+            temperature: 1.0,
+            max_tokens: 2800,
+            response_format: { type: "json_object" },
+          }),
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+        if (!groqRes.ok) {
+          const errText = await groqRes.text();
+          throw new Error(`Groq ${groqRes.status}: ${errText.slice(0, 200)}`);
+        }
+        const groqData = await groqRes.json();
+        const content = groqData.choices?.[0]?.message?.content;
+        if (!content) throw new Error("No content from Groq");
+        return content;
+      } catch (err) {
+        clearTimeout(timeoutId);
+        throw err;
+      }
+    }
+
+    // Attempt 2: OpenAI GPT-4o-mini (reliable paid fallback)
+    async function callOpenAI(): Promise<string> {
+      if (!process.env.OPENAI_API_KEY) throw new Error("No OPENAI_API_KEY");
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 45_000);
+      try {
+        const oaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+          },
+          body: JSON.stringify({
+            model: "gpt-4o-mini",
+            messages: [
+              { role: "system", content: AI_SYSTEM },
+              { role: "user", content: prompt },
+            ],
+            temperature: 1.0,
+            max_tokens: 2800,
+            response_format: { type: "json_object" },
+          }),
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+        if (!oaiRes.ok) {
+          const errText = await oaiRes.text();
+          throw new Error(`OpenAI ${oaiRes.status}: ${errText.slice(0, 200)}`);
+        }
+        const oaiData = await oaiRes.json();
+        const content = oaiData.choices?.[0]?.message?.content;
+        if (!content) throw new Error("No content from OpenAI");
+        return content;
+      } catch (err) {
+        clearTimeout(timeoutId);
+        throw err;
+      }
+    }
+
+    // Attempt 1b: Groq fast model (20,000 TPM — much higher limits)
+    async function callGroqFast(): Promise<string> {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 28_000);
+      try {
+        const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${process.env.GROQ_API_KEY}`,
+          },
+          body: JSON.stringify({
+            model: "llama-3.1-8b-instant",
+            messages: [
+              { role: "system", content: AI_SYSTEM },
+              { role: "user", content: prompt },
+            ],
+            temperature: 1.0,
+            max_tokens: 2800,
+            response_format: { type: "json_object" },
+          }),
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+        if (!groqRes.ok) {
+          const errText = await groqRes.text();
+          throw new Error(`GroqFast ${groqRes.status}: ${errText.slice(0, 200)}`);
+        }
+        const groqData = await groqRes.json();
+        const content = groqData.choices?.[0]?.message?.content;
+        if (!content) throw new Error("No content from GroqFast");
+        return content;
+      } catch (err) {
+        clearTimeout(timeoutId);
+        throw err;
+      }
+    }
+
+    let rawContent: string;
+    try {
+      rawContent = await callGroq();
+    } catch (groqErr) {
+      console.warn("Groq 70B failed, trying Groq 8B:", groqErr instanceof Error ? groqErr.message : groqErr);
+      try {
+        rawContent = await callGroqFast();
+      } catch (groqFastErr) {
+        console.warn("Groq 8B failed, trying OpenAI:", groqFastErr instanceof Error ? groqFastErr.message : groqFastErr);
+        rawContent = await callOpenAI(); // throws to outer catch → static fallback
+      }
+    }
+
+    const parsed = JSON.parse(rawContent);
     if (
       !parsed.youtube_title ||
       !parsed.youtube_script?.hook ||
@@ -229,9 +407,23 @@ Return valid JSON only:
     ) {
       throw new Error("Invalid AI response shape");
     }
-    // Pad to 7 if AI returned fewer
+    // Pad to 7 if AI returned fewer — use fallback for missing slots, not duplicates
+    const slotKeys = ["mon","tue","wed","thu","fri","sat","sun"] as const;
     while (parsed.tiktok_scripts.length < 7) {
-      parsed.tiktok_scripts.push({ ...parsed.tiktok_scripts[parsed.tiktok_scripts.length - 1] });
+      const i = parsed.tiktok_scripts.length;
+      const prog = TIKTOK_PROGRAM_ORDER[i];
+      const fb = PROGRAM_FALLBACKS[prog] || PROGRAM_FALLBACKS["MePower™"];
+      parsed.tiktok_scripts.push({
+        title: `${prog} — ${t}`,
+        hookType: "value-tip hook",
+        hook: fb.hook,
+        problem: fb.problem,
+        reframe: fb.reframe,
+        teaching: fb.teaching,
+        close: fb.close,
+        cta: fb.cta,
+      });
+      void slotKeys;
     }
     // Ensure close field exists (backfill from cta if missing)
     if (!parsed.youtube_script.close) parsed.youtube_script.close = parsed.youtube_script.cta;
@@ -253,33 +445,49 @@ Return valid JSON only:
       tiktok_scripts,
     });
   } catch (error) {
-    console.error("Batch plan error:", error);
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error("Batch plan error:", errorMsg);
 
-    // Fallback: return structured marketing scripts
+    // Fallback: return theme-aware scripts (NOT static — every field references the actual theme)
+    const tLower = t.toLowerCase();
+    const tCapital = t.charAt(0).toUpperCase() + t.slice(1);
     return NextResponse.json({
-      youtube_title: `Why Your Child Still Struggles With ${t} — And What Really Changes It`,
+      youtube_title: `The Real Reason "${tCapital}" Is So Hard For Your Child — And What Actually Changes It`,
       youtube_program: YOUTUBE_PROGRAM,
       youtube_script: {
         hookType: "contrast hook",
-        hook: `You've tried everything with your child around ${t.toLowerCase()} — and it's still not working. What if the problem isn't your child at all?`,
-        problem: `Most Somali parents are doing everything they were taught — and their children are still losing confidence, shutting down, or acting out. The pain of watching your child struggle and not knowing why is exhausting.`,
-        reframe: `The real issue isn't the behavior. It's that your child doesn't yet have the internal belief system to handle life's challenges. That's not a discipline problem — it's a development gap that has a specific solution.`,
-        teaching: `In my MePower™ program, we don't patch symptoms. We rebuild the root — your child's self-belief and identity. Parents who've gone through it say the change happens faster than they expected, because we work on the right thing. I've seen children transform in weeks. But there's a process, and it requires the right guidance.`,
-        close: `If you're watching this and thinking "that's my child" — this is your sign. MePower™ has limited spots and I only work with parents who are ready to commit.`,
-        cta: `Book a free 20-minute call from the link in my bio — let's talk about your child specifically.`,
+        hook: `Your child is struggling with ${tLower} — and you've tried everything. What if the problem isn't effort, but a missing belief?`,
+        problem: `Without the right foundation, children hit the same wall with ${tLower} again and again — and each time they do, they quietly decide this is just who they are.`,
+        reframe: `Next time your child shuts down around ${tLower}, don't push harder. Say: "What's one tiny thing we could try right now?" That shifts them from stuck to moving. Try it today.`,
+        teaching: `That one move helps in the moment. But building the confidence to handle ${tLower} consistently requires five deeper shifts — and that's exactly what MePower™ is designed to work through with your child.`,
+        close: `If ${tLower} is something your family is facing right now, MePower™ was built for this.`,
+        cta: `Book a free 20-minute call from the link in my bio — let's talk about your child and ${tLower} specifically.`,
       },
       tiktok_scripts: TIKTOK_PROGRAM_ORDER.map((program, i) => {
         const fb = PROGRAM_FALLBACKS[program] || PROGRAM_FALLBACKS["MePower™"];
+        const themeHook = fb.hook.replace(
+          /something|challenges|hard things|life/gi,
+          tLower
+        );
+        const themeReframe = fb.reframe.replace(
+          /something|challenge|hard thing/gi,
+          tLower
+        );
         return {
           day: DAY_NAMES[i],
           program,
-          title: `${fb.hook.split(".")[0].replace(/^Your child/, "When your child")}`,
+          title: `When Your Child Struggles With ${tCapital} — ${program}`,
           hookType: "value-tip hook",
-          ...fb,
-          cta: `DM me "${program.replace("™", "").replace(/ /g, "").toUpperCase()}" and I'll tell you if the programme is right for your child.`,
+          hook: themeHook,
+          problem: fb.problem,
+          reframe: themeReframe,
+          teaching: fb.teaching,
+          close: fb.close,
+          cta: `DM me "${program.replace("™", "").replace(/ /g, "").toUpperCase()}" and I'll tell you if the programme is right for your child's ${tLower} journey.`,
         };
       }),
       is_fallback: true,
+      fallback_reason: errorMsg,
     });
   }
 }

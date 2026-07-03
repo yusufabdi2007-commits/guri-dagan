@@ -9,7 +9,7 @@ import { createClient } from "@/lib/supabase/client";
 import { toast } from "@/components/ui/use-toast";
 import {
   Sparkles, Youtube, Video, ArrowRight, Loader2,
-  ChevronLeft, CheckCircle2, ChevronDown, ChevronUp, AlertTriangle, Zap,
+  ChevronLeft, CheckCircle2, ChevronDown, ChevronUp, AlertTriangle, Zap, History, CheckCheck, Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
@@ -39,10 +39,20 @@ interface BatchPlan {
   is_fallback?: boolean;
 }
 
+interface PastBatch {
+  id: string;
+  week_start: string;
+  theme: string | null;
+  status: string | null;
+  recording_completed: boolean | null;
+  created_at: string;
+}
+
 interface Props {
   userId: string;
   existingBatchId: string | null;
   weekStart: string;
+  pastBatches: PastBatch[];
 }
 
 function toLocalDate(d: Date): string {
@@ -110,7 +120,7 @@ function ScriptPreview({ script, expanded, onToggle }: {
   );
 }
 
-export function BatchPlanClient({ userId, existingBatchId, weekStart }: Props) {
+export function BatchPlanClient({ userId, existingBatchId, weekStart, pastBatches }: Props) {
   const router = useRouter();
   const [theme, setTheme] = useState("");
   const [selectedWeek, setSelectedWeek] = useState(weekStart);
@@ -443,6 +453,63 @@ export function BatchPlanClient({ userId, existingBatchId, weekStart }: Props) {
             Schedules 8 posts with full scripts across {formatWeekLabel(selectedWeek)}.
           </p>
         </>
+      )}
+
+      {/* ── HISTORY ── */}
+      {pastBatches.length > 0 && (
+        <div className="pt-2">
+          <div className="flex items-center gap-2 px-1 mb-3">
+            <History className="h-4 w-4 text-muted-foreground" />
+            <p className="text-sm font-semibold text-foreground">Past Plans</p>
+            <span className="text-xs text-muted-foreground ml-auto">{pastBatches.length} weeks</span>
+          </div>
+          <div className="space-y-2">
+            {pastBatches.map(b => {
+              const isThisWeek = b.week_start === thisWeek;
+              return (
+                <div
+                  key={b.id}
+                  className={cn(
+                    "flex items-center gap-3 p-3 rounded-2xl border",
+                    isThisWeek ? "border-primary/30 bg-primary/5" : "border-border bg-card"
+                  )}
+                >
+                  {/* Status icon */}
+                  <div className="shrink-0">
+                    {b.recording_completed ? (
+                      <CheckCheck className="h-4 w-4 text-emerald-500" />
+                    ) : b.status === "planned" ? (
+                      <Clock className="h-4 w-4 text-amber-500" />
+                    ) : (
+                      <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+                    )}
+                  </div>
+                  {/* Week + theme */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-xs font-semibold text-foreground">{formatWeekLabel(b.week_start)}</p>
+                      {isThisWeek && (
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-primary/15 text-primary">THIS WEEK</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground truncate mt-0.5">
+                      {b.theme || <span className="italic">No theme set</span>}
+                    </p>
+                  </div>
+                  {/* Status badge */}
+                  <span className={cn(
+                    "text-[9px] font-bold px-2 py-0.5 rounded-full shrink-0",
+                    b.recording_completed
+                      ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                      : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                  )}>
+                    {b.recording_completed ? "Recorded" : "Planned"}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       )}
     </div>
   );

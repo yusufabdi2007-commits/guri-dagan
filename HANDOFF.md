@@ -7,11 +7,12 @@ It covers what is built, how everything is wired, known limitations, and what to
 
 ## Current State
 
-**Build status:** Production build passes clean (`npm run build`). 56 routes.
-**Phase 14B complete** — Client Growth Intelligence: Lead Pipeline (/leads, /leads/[id]), Business Intelligence (/business), Content Attribution, Analytics upgrade, Strategist upgrade with lead data. Run 015_client_growth_schema.sql in Supabase.
-**Runtime status:** `npm run dev` works at `http://localhost:3010`. `.env.local` has Supabase keys. OpenAI key still needs to be filled in.
-**Phase:** Phase 6C complete. Phase 10A complete (Channel Dashboard). Phase 11A complete (Review Mode). Stability Hardening complete (ErrorBoundary, fetch-safe, safe-json, logger, usePersistentState, ReviewPlayer error state, API timeout protection, OfflineBanner upgrade). Reliability Audit complete (coach/momentum req.json() double-read bug fixed, IdeasClient save/delete error feedback, DashboardClient streak error feedback, MomentumCard sessionStorage crash fix, generate/coach/momentum OpenAI timeouts added). Production Readiness complete (security headers, review-markers rateLimit bug fixed, /api/book rate limited, transcribe timeout added, DEPLOYMENT.md created). Real Creator Pilot Mode complete (ContinueWorking widget, Friction Log system).
-**Deployment plan:** Deploy to Vercel for production. Developer uses laptop locally. End user (mum) installs as PWA on her phone via the Vercel URL.
+**Build status:** Production build passes clean (`npm run build`). ~91 routes. Deployed live at **https://guri-dagan.vercel.app** (Vercel CLI — GitHub auto-deploy is disconnected, deploy manually with `npx vercel --prod`).
+**Runtime status:** `npm run dev` works at `http://localhost:3010`. `.env.local` has Supabase + OpenAI keys.
+**Phase:** Phase 17.1 complete (latest). All phases 1–17 complete. See phase log below.
+**Recent fixes (June 2026):** Dark mode now defaults on fresh install (ThemeProvider reads localStorage, falls back to dark). DnD fully removed from Calendar + Queue + Leads — React 19 incompatible. Real error messages surfaced on leads save/move/add failures.
+**Business context (June 2026):** Pricing model confirmed — US/UK/Europe: $100/month (1-on-1, 2x/week). Africa/Somalia/Kenya: $25/month (group 5–10 families, 2x/month). Free 20-min consultation call as entry point. All 5 programs same price. WhatsApp: +1 (763) 412-7695.
+**Deployment plan:** Vercel production. Developer uses laptop locally. End user (mum) installs as PWA on her phone via https://guri-dagan.vercel.app
 
 ---
 
@@ -35,7 +36,7 @@ Supabase dashboard → **Authentication → Settings → uncheck "Enable email c
 | Environment | URL | Who uses it |
 |---|---|---|
 | Local dev | `http://localhost:3010` | Developer (laptop) |
-| Production | Vercel URL (TBD) | Mum (phone, installed as PWA) |
+| Production | https://guri-dagan.vercel.app | Mum (phone, installed as PWA) |
 
 **To deploy to Vercel:**
 1. Push repo to GitHub (private)
@@ -160,7 +161,7 @@ MOM/
 │   ├── generator/
 │   │   └── GeneratorClient.tsx       Form → /api/generate → tabbed results + Save to Ideas + duplicate topic warning
 │   ├── calendar/
-│   │   └── CalendarClient.tsx        Week navigator, 7-day list, per-day add/status
+│   │   └── CalendarClient.tsx        Week navigator, 7-day list, per-day add/status/delete (no DnD — React 19 incompatible)
 │   ├── streak/
 │   │   ├── StreakClient.tsx          Mark posted, 3 SVG rings, confetti, streak freeze, 30-day heatmap, milestones, Supabase Realtime
 │   │   ├── StreakRing.tsx            SVG circular progress ring (color, size, strokeWidth props)
@@ -170,7 +171,7 @@ MOM/
 │   ├── analytics/
 │   │   └── AnalyticsClient.tsx       Bar + pie charts, category bars, 30-day heatmap, growth velocity, best posting day
 │   ├── queue/
-│   │   └── QueueClient.tsx           @hello-pangea/dnd drag-and-drop board, 4 status columns, import from ideas
+│   │   └── QueueClient.tsx           Priority list with Up/Down reorder buttons, 4 status columns, import from ideas (DnD removed — React 19 incompatible)
 │   ├── transcript/
 │   │   └── TranscriptClient.tsx      File drag-drop zone, Whisper transcribe → /api/shorts, saves to DB, history tab
 │   ├── hook-scorer/
@@ -263,7 +264,7 @@ Initial data is server-rendered (fast). Mutations update local state optimistica
 4. `(dashboard)/layout.tsx` has a secondary server-side auth check
 
 ### Theme
-Custom `ThemeProvider` (not next-themes). Reads/writes `localStorage`. Applies `.dark` class to `<html>`. Toggle in both `Sidebar` (desktop) and `BottomNav` More sheet (mobile).
+Custom `ThemeProvider` (not next-themes). Reads/writes `localStorage`. Applies `.dark` class to `<html>`. Toggle in both `Sidebar` (desktop) and `BottomNav` More sheet (mobile). **Default is dark** — if no localStorage value exists, app starts in dark mode (prevents plain white flash on first install).
 
 ### Streak calculation
 Done server-side in `streak/page.tsx` and `dashboard/page.tsx`:
@@ -309,8 +310,12 @@ The `/api/transcribe` route accepts up to 25MB (Whisper API limit). Long videos 
 ### 2. Supabase Realtime — streak only
 Realtime is set up in `StreakClient.tsx` only (subscribes to `postgres_changes` INSERT on `daily_completions`). Other pages do not auto-refresh on remote changes — they require manual `router.refresh()`.
 
-### 3. Calendar is list view only
-`@hello-pangea/dnd` is used in the Queue page. The Calendar still renders as a vertical day list — items cannot be dragged between days yet.
+### 3. No drag-and-drop (React 19 incompatibility)
+`@hello-pangea/dnd` v16.6.0 only supports React ^16/17/18. This project uses React 19 — importing DnD crashes the entire page with no error shown. All DnD has been removed:
+- `/leads` — Kanban replaced with mobile-friendly stage selector (Select dropdown per card); DnD removed June 2026
+- `/calendar` — drag-to-reschedule removed June 2026; delete + re-add to change day
+- `/queue` — drag-to-reorder replaced with Up/Down arrow buttons June 2026
+Do NOT re-add `@hello-pangea/dnd`. Use `@dnd-kit/core` (supports React 19) if DnD is needed in future.
 
 ### 4. No image upload for thumbnails
 `videos.thumbnail_url` column exists. YouTube URLs auto-show a thumbnail via `img.youtube.com/vi/{id}/hqdefault.jpg`. Non-YouTube videos have no thumbnail upload (no Supabase storage bucket set up).
@@ -324,8 +329,8 @@ Realtime is set up in `StreakClient.tsx` only (subscribes to `postgres_changes` 
 ### 6. TikTok is manual entry only
 TikTok API access is not publicly available. All TikTok stats are entered manually via `/tiktok`. CSV import is a future enhancement.
 
-### 7. WhatsApp number is a placeholder
-`/book/page.tsx` has `wa.me/447700000000` — replace with the real number before going live.
+### 7. WhatsApp number needs updating
+`/book/page.tsx` has `wa.me/447700000000` — replace with real number: **+1 (763) 412-7695** → `wa.me/17634127695`
 
 ### 8. team_roles table is schema-only
 The `team_roles` table exists in the database but there is no UI to invite team members. The full multi-user system is a Phase 6 task.
@@ -430,7 +435,7 @@ The platform should feel like an AI creative director, calm business operator, m
 - Full team/collaborator access (use `team_roles` table foundation)
 - CSV import for TikTok analytics
 - PDF export for weekly reports
-- Calendar drag-and-drop between days (extend existing `@hello-pangea/dnd` setup)
+- Calendar drag-and-drop between days (use `@dnd-kit/core` — NOT `@hello-pangea/dnd` which crashes React 19)
 - Supabase Storage bucket for custom video thumbnails
 
 ### Phase 10A — COMPLETE ✓
@@ -449,6 +454,18 @@ The platform should feel like an AI creative director, calm business operator, m
 7. ✅ Navigation — BottomNav `isMoreActive` extended with `|| pathname.startsWith("/review/")` (no top-level nav item needed)
 8. ✅ DB — `video_reviews` + `review_markers` tables — run `011_review_schema.sql`
 9. ✅ Graceful degradation — if migration not run, markers return temp IDs; status save returns 500 warning without crashing UI
+
+### Phases 12–17.1 — COMPLETE ✓
+
+- **Phase 12** — Weekly Content Batching System (/batch, /batch/plan, /batch/record, /api/batch-plan, weekly_batches + batch_posts tables)
+- **Phase 13** — Creator Consistency + Low-Stress Workflow (/today one-tap execution, voice idea capture mic FAB → /api/voice-idea → Whisper+GPT, /inbox → /api/inbox-convert, question_inbox table)
+- **Phase 14A** — Real Social Intelligence (/connections, /api/connections, YouTube auto-sync + GPT category classification, platform_connections + content_performance + sync_logs tables)
+- **Phase 14B** — Client Growth Intelligence (/leads Kanban pipeline, /leads/[id] detail, /business dashboard, content_attribution + leads + lead_activity tables)
+- **Phase 14 Programs** — /programs, /program-report, /api/program-stats, /api/program-report, program column on leads (016_program_funnel_schema.sql)
+- **Phase 15** — Enrollment & Conversion System (/consultations, /clients, /clients/[id], /revenue, /followups, client_enrollments + consultations + payments + testimonial_requests tables)
+- **Phase 16** — Parent Success System (/success, /children, /children/[id], /checkins, /outcomes, child_profiles + child_goals + progress_checkins + milestones + success_stories tables)
+- **Phase 17** — Unified Content + Business OS (Sunday Recording Mode, Mon-Sat single post, fixed program distribution, full 8-video scripts, 6D child scoring, 019_phase17_schema.sql)
+- **Phase 17.1** — UX Simplification (BottomNav primary: Today/Week/Results; Sidebar reorganized; More sheet streamlined)
 
 ### Phase 11 — IN PROGRESS (Creator Acceleration)
 
@@ -661,7 +678,7 @@ All colors are CSS variables in `globals.css`, supporting dark mode automaticall
 ## Dependency Notes
 
 - `canvas-confetti` — streak/milestone celebrations in `ConfettiEffect.tsx`
-- `@hello-pangea/dnd` — drag-and-drop in `QueueClient.tsx`
+- `@hello-pangea/dnd` — **REMOVED** — incompatible with React 19 (crashes page). Do not re-add.
 - `recharts` — bar + pie charts in `AnalyticsClient.tsx`
 - `framer-motion` — page transitions (`PageTransition.tsx` in dashboard layout)
 - `date-fns` — date formatting and week calculations in `WeeklyReportClient.tsx` and `TikTokClient.tsx`
@@ -687,7 +704,7 @@ All colors are CSS variables in `globals.css`, supporting dark mode automaticall
 - [ ] Add `OWNER_USER_ID` to `.env.local` ← coach's UUID from Supabase → Auth → Users (after first signup)
 - [ ] Deploy to Vercel and update `NEXT_PUBLIC_APP_URL` to the live URL
 - [ ] Add all env vars to Vercel dashboard (same as `.env.local`)
-- [ ] Update WhatsApp number in `/app/book/page.tsx` (`wa.me/447700000000` → real number)
+- [ ] Update WhatsApp number in `/app/book/page.tsx` → `wa.me/17634127695` (+1 763 412-7695)
 - [ ] Mum installs PWA on phone: open Vercel URL in Safari → Share → Add to Home Screen
 - [ ] (Optional) Add `YOUTUBE_API_KEY` for YouTube channel sync
 - [ ] (Optional) Generate VAPID keys (`npx web-push generate-vapid-keys`) and add to env for push notifications

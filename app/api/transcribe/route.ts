@@ -10,7 +10,12 @@ export async function POST(req: NextRequest) {
 
   try {
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-    const formData = await req.formData();
+    let formData: FormData;
+    try {
+      formData = await req.formData();
+    } catch {
+      return NextResponse.json({ error: "Audio file required (send as multipart/form-data with field 'file')" }, { status: 400 });
+    }
     const file = formData.get("file") as File | null;
 
     if (!file) {
