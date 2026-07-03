@@ -421,7 +421,6 @@ Return valid JSON only:
         reframe: fb.reframe,
         teaching: fb.teaching,
         close: fb.close,
-        cta: fb.cta,
       });
       void slotKeys;
     }

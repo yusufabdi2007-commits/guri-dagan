@@ -74,7 +74,6 @@ export async function POST(req: NextRequest) {
       platform: "youtube" as const,
       title: batch.youtube_title || `${themeCapital} — MePower™ YouTube`,
       angle_notes: `PROGRAM: MePower™\n\nYouTube Long-form\n\nHOOK [value hook]: ${themeCapital} is something every parent needs to understand.\nPROBLEM: Without the right approach, children struggle with ${theme} long-term.\nREFRAME: Next time your child struggles with ${theme}, try this one thing: "What's one small step you can try right now?"\nTEACHING: That tip helps in the moment, but MePower™ works through the full system.\nCLOSE: If this resonates, MePower™ was built for exactly this.\nCTA: Book a free call from the link in bio.`,
-      sort_order_val: 8,
       status: "scheduled",
     },
     // 7 TikToks: Mon–Sun
@@ -92,8 +91,7 @@ export async function POST(req: NextRequest) {
 
   // Only insert posts with missing sort_orders
   const toInsert = allPosts
-    .filter(p => !existingSortOrders.has(p.sort_order))
-    .map(({ sort_order_val: _, ...rest }) => rest); // remove helper field
+    .filter(p => !existingSortOrders.has(p.sort_order));
 
   if (toInsert.length === 0) {
     return NextResponse.json({ message: "All 8 posts already exist — nothing to repair.", repaired: 0 });
