@@ -3,14 +3,16 @@ import { redirect } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { BatchPlanClient } from "@/components/batch/BatchPlanClient";
 
+export const dynamic = "force-dynamic";
+
 function toLocalDate(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 function getWeekStart(): string {
-  // Most recent Sunday (the canonical week_start for all batches in this system)
+  // Monday-based week start — must match client formula everywhere
   const d = new Date();
-  d.setDate(d.getDate() - d.getDay());
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
   return toLocalDate(d);
 }
 
