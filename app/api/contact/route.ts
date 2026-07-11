@@ -10,7 +10,7 @@ const SOURCE_LABELS: Record<string, string> = {
 
 export async function POST(req: NextRequest) {
   const form = await req.json();
-  const { who, addChildCoaching, childCount, childAges, name, country, phone, source, message } = form;
+  const { who, addChildCoaching, childCount, childAges, name, country, phone, source, message, _noEmail } = form;
   const whatsapp = phone; // field renamed in form but kept as whatsapp for email display
 
   const hasChildren = who === 'children' || who === 'both' || (who === 'parent' && addChildCoaching === 'yes');
@@ -81,6 +81,10 @@ export async function POST(req: NextRequest) {
       </div>
     </div>
   `;
+
+  if (_noEmail) {
+    return NextResponse.json({ ok: true, email: 'skipped' });
+  }
 
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
