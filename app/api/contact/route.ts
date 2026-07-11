@@ -103,7 +103,7 @@ export async function POST(req: NextRequest) {
         from: 'Guri Dagan Contact <onboarding@resend.dev>',
         // Both addresses: Resend shared domain only delivers to the account owner email.
         // rhussein612@gmail.com will work once a verified domain is added in Resend.
-        to: ['rhussein612@gmail.com', 'ymo441993@gmail.com'],
+        to: ['yusufabdi2007@gmail.com'],
         subject: `New Inquiry — ${name} from ${country}`,
         html,
       }),
