@@ -1,4 +1,4 @@
-# HANDOFF.md — Hooyada Coaching OS
+# HANDOFF.md — Guri Dagan Coaching OS
 
 This document is for the next developer or AI session picking up this project.
 It covers what is built, how everything is wired, known limitations, and what to do next.
@@ -7,12 +7,93 @@ It covers what is built, how everything is wired, known limitations, and what to
 
 ## Current State
 
-**Build status:** Production build passes clean (`npm run build`). ~91 routes. Deployed live at **https://guri-dagan.vercel.app** (Vercel CLI — GitHub auto-deploy is disconnected, deploy manually with `npx vercel --prod`).
+**Build status:** Production build passes clean (`npm run build`). ~93 routes. Deployed live at **https://guri-dagan.vercel.app** (Vercel CLI — GitHub auto-deploy is disconnected, deploy manually with `vercel --prod`).
 **Runtime status:** `npm run dev` works at `http://localhost:3010`. `.env.local` has Supabase + OpenAI keys.
 **Phase:** Phase 17.1 complete (latest). All phases 1–17 complete. See phase log below.
 **Recent fixes (June 2026):** Dark mode now defaults on fresh install (ThemeProvider reads localStorage, falls back to dark). DnD fully removed from Calendar + Queue + Leads — React 19 incompatible. Real error messages surfaced on leads save/move/add failures.
+**Recent additions (July 2026):** Public contact form `/contact` + email delivery via Resend. See full change log below.
 **Business context (June 2026):** Pricing model confirmed — US/UK/Europe: $100/month (1-on-1, 2x/week). Africa/Somalia/Kenya: $25/month (group 5–10 families, 2x/month). Free 20-min consultation call as entry point. All 5 programs same price. WhatsApp: +1 (763) 412-7695.
 **Deployment plan:** Vercel production. Developer uses laptop locally. End user (mum) installs as PWA on her phone via https://guri-dagan.vercel.app
+
+---
+
+## July 2026 — Contact Form + Email Delivery (full change log)
+
+### What was built
+
+**Public contact form** at `/contact` (`app/contact/page.tsx` + `components/contact/ContactForm.tsx`).
+No auth required — anyone can access it without logging in. Already added to middleware public routes.
+
+**Multi-step flow** (computed dynamically by `getFlow(form)`):
+1. `intro` — program breakdown screen (Somali text, user's exact words, do NOT alter)
+2. `who` — parent / children / both
+3. `upsell` — shown only if `who === 'parent'`, asks if they want child coaching too
+4. `children` — shown only if children are involved, collects count + age ranges
+5. `details` — name, country (dropdown from `lib/countries.ts`), phone number
+6. `source` — how did they find Guri Dagan
+7. `message` — free text
+8. `done` — success screen (Somali text, do NOT alter)
+9. `error` — retry screen shown if API call fails
+
+**API route** at `/api/contact/route.ts`:
+- Receives form JSON, builds HTML email, sends via Resend REST API
+- `_noEmail: true` flag skips the Resend call (used by stress test script)
+- If `RESEND_API_KEY` missing → returns `{ok:true, email:'skipped'}` (never 500s)
+- If Resend rejects → returns `{ok:false, error:...}` with status 502 (form shows error screen)
+- If Resend accepts → returns `{ok:true}` (form shows done screen)
+- Email goes to: `yusufabdi2007@gmail.com` (Resend account owner — see constraint below)
+- Gmail forwards automatically to: `rhussein612@gmail.com` (Rahma's inbox)
+
+**Countries list** at `lib/countries.ts` — 195 countries for the contact form dropdown.
+
+**Stress test script** at `scripts/stress-contact.mjs`:
+- Sends 100 POST requests to production, 10 with real emails (every 10th), 90 silent (`_noEmail:true`)
+- 5 concurrent requests per batch, 200ms delay after any batch containing an email send
+- Shows live coloured output per request (status, ms, email/silent, name/country)
+
+### Mistakes made and why they were corrected
+
+**Mistake 1 — WhatsApp as primary delivery**
+Original plan had the form generate a WhatsApp deep link and open it. User said: "remove the WhatsApp, I want this message sent straight to email." Fixed: removed all WhatsApp logic (`buildWhatsAppText`, `waLink`, `window.open`), form now POSTs to `/api/contact` and email is the only delivery.
+
+**Mistake 2 — Word "shakhsi" added to Somali done screen**
+The done screen Somali text read: *"Coach Rahma waxay heshay su'aashaada waxayna kula xiriiri doontaa si shakhsi ah 24 saacadood gudahood."* The assistant added "si shakhsi ah" (meaning "personally") — a word the user never wrote. User flagged it: "what is this shaqsi". Fixed: removed those words entirely. Rule: **never add, alter, or translate Somali text. Only use the user's exact words.**
+
+**Mistake 3 — RESEND_API_KEY not set in Vercel**
+Stress test showed 20/20 passing (200 OK) but no emails arrived. Root cause: API key was missing from Vercel env vars. When the key is absent the API silently returns `{ok:true, email:'skipped'}` so the form still showed success — no visible error. Added key to Vercel via `vercel env add`.
+
+**Mistake 4 — BOM encoding corruption when saving API key**
+Used PowerShell `echo "re_..." | vercel env add` which added a UTF-16 BOM character (U+FEFF, decimal 65279) to the key. Resend rejected every email with: *"Cannot convert argument to a ByteString because the character at index 7 has a value of 65279."* Fixed: deleted the corrupted key and re-added it using the Vercel REST API directly (`Invoke-RestMethod POST /v10/projects/{id}/env`) which avoids PowerShell's pipe encoding.
+
+**Mistake 5 — Sending to wrong email address**
+Was sending to `rhussein612@gmail.com` (Rahma's email). Resend error: *"You can only send testing emails to your own email address (yusufabdi2007@gmail.com)."* Resend's shared `onboarding@resend.dev` domain can only deliver to the Resend account owner's email — any other recipient is silently dropped or rejected. Fixed: changed `to` to `yusufabdi2007@gmail.com`. Then set up Gmail forwarding from `yusufabdi2007@gmail.com` → `rhussein612@gmail.com` so Rahma receives every submission automatically.
+
+**Mistake 6 — Stress test flooded Resend (429 rate limit)**
+First stress test sent 100 requests with no throttling on email sends. Resend rate limit is 10 requests/second — concurrent email sends from the test exceeded this. All 10 email attempts were rejected with 429. Emails never arrived. Fixed: added 200ms delay between batches that contain an email send, and added `_noEmail` flag so 90/100 requests bypass Resend entirely.
+
+### Resend constraint (IMPORTANT)
+
+**Until a custom domain is verified in Resend, emails can only be sent TO `yusufabdi2007@gmail.com`.**
+
+The `from` address is `onboarding@resend.dev` (Resend's shared sandbox domain). This domain is restricted — Resend will only deliver mail sent from it to the account owner's verified email. Attempting to send to any other address results in a 403.
+
+**Current workaround:** Gmail forwarding — `yusufabdi2007@gmail.com` forwards all mail to `rhussein612@gmail.com`.
+
+**Permanent fix (when ready):** Verify a custom domain (e.g. `guridagan.com`) at resend.com/domains, then update `from` to `contact@guridagan.com` and `to` to `['rhussein612@gmail.com']` in `app/api/contact/route.ts`.
+
+### Somali text in ContactForm — DO NOT CHANGE
+
+The intro screen and done screen contain Somali text written by the user. It must never be altered, translated, or added to. The exact strings live in `components/contact/ContactForm.tsx` inside the `T.so` object:
+- `introGreeting`, `introWelcome`, `introParentLabel`, `introParentDesc`, `introChildLabel`, `introChildPrograms[]`, `introClosing`, `introStart`
+- `doneTitle`, `doneText`
+
+### Environment variables added (July 2026)
+
+| Variable | Value | Purpose |
+|---|---|---|
+| `RESEND_API_KEY` | `re_JHEE7FKG_...` | Resend email delivery for `/api/contact` |
+
+Added to Vercel production via REST API (not CLI — CLI corrupts with BOM on Windows PowerShell).
 
 ---
 
