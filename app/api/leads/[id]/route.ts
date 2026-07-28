@@ -28,7 +28,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
-  const { name, phone, email, source, stage, notes, program, attribution } = body;
+  const { name, phone, email, source, stage, notes, program, country, attribution } = body;
 
   // Fetch current state to detect stage changes
   const { data: current } = await supabase.from("leads").select("stage").eq("id", id).eq("user_id", user.id).single();
@@ -42,6 +42,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (stage !== undefined) updates.stage = stage;
   if (notes !== undefined) updates.notes = notes || null;
   if (program !== undefined && program !== null) updates.program = program;
+  if (country !== undefined) updates.country = country || null;
 
   const { data: lead, error } = await supabase
     .from("leads")

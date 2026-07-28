@@ -29,11 +29,11 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
-  const { name, phone, email, source = "other", stage = "new_lead", notes, program } = body;
+  const { name, phone, email, source = "other", stage = "new_lead", notes, program, country } = body;
 
   if (!name?.trim()) return NextResponse.json({ error: "Name is required" }, { status: 400 });
 
-  const insertData: Record<string, unknown> = { user_id: user.id, name: name.trim(), phone: phone || null, email: email || null, source, stage, notes: notes || null };
+  const insertData: Record<string, unknown> = { user_id: user.id, name: name.trim(), phone: phone || null, email: email || null, source, stage, notes: notes || null, country: country || null };
   if (program) insertData.program = program;
 
   const { data: lead, error } = await supabase

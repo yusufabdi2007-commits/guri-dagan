@@ -10,6 +10,7 @@ export async function updateSession(request: NextRequest) {
     const isPublicRoute =
       request.nextUrl.pathname.startsWith("/api") ||
       request.nextUrl.pathname.startsWith("/book") ||
+      request.nextUrl.pathname.startsWith("/contact") ||
       request.nextUrl.pathname.startsWith("/status") ||
       request.nextUrl.pathname.startsWith("/offline");
     if (!isAuthPage && !isPublicRoute) {
@@ -54,6 +55,7 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname.includes(".");
   const isPublicRoute =
     request.nextUrl.pathname.startsWith("/book") ||
+    request.nextUrl.pathname.startsWith("/contact") ||
     request.nextUrl.pathname.startsWith("/status") ||
     request.nextUrl.pathname.startsWith("/offline");
 

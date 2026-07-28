@@ -11,8 +11,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import {
   ArrowLeft, Phone, Mail, Trash2, Save, Link2, Clock,
   CheckCircle2, UserCheck, PhoneCall, PhoneIncoming,
-  MessageCircle, Users, Share2, Youtube, UserPlus, Shield, Sparkles, X
+  MessageCircle, Users, Share2, Youtube, UserPlus, Shield, Sparkles, X, Globe
 } from "lucide-react";
+import { COUNTRIES } from "@/lib/countries";
 import { cn, formatDate } from "@/lib/utils";
 import { toast } from "@/components/ui/use-toast";
 import type { Lead, LeadStage, LeadSource } from "./LeadPipelineClient";
@@ -94,6 +95,7 @@ export function LeadDetailClient({ lead: initial, activity: initialActivity, att
   const [source, setSource] = useState<LeadSource>(lead.source);
   const [notes, setNotes] = useState(lead.notes || "");
   const [program, setProgram] = useState(lead.program || "none");
+  const [country, setCountry] = useState((lead as { country?: string | null }).country || "");
 
   // Attribution fields
   const [attrCategory, setAttrCategory] = useState(attribution[0]?.content_category || "none");
@@ -104,7 +106,8 @@ export function LeadDetailClient({ lead: initial, activity: initialActivity, att
   const [attrProgram, setAttrProgram] = useState(attribution[0]?.program || "none");
 
   const isDirty = name !== lead.name || phone !== (lead.phone || "") || email !== (lead.email || "")
-    || source !== lead.source || notes !== (lead.notes || "") || program !== (lead.program || "none");
+    || source !== lead.source || notes !== (lead.notes || "") || program !== (lead.program || "none")
+    || country !== ((lead as { country?: string | null }).country || "");
   const attrDirty = attrCategory !== (attribution[0]?.content_category || "none")
     || attrVideoTitle !== (attribution[0]?.video_title || "")
     || attrYoutubeId !== (attribution[0]?.youtube_video_id || "")
@@ -142,7 +145,7 @@ export function LeadDetailClient({ lead: initial, activity: initialActivity, att
     try {
       const resolvedProgram = (program === "none" ? null : program) || null;
       const resolvedAttrProgram = (attrProgram === "none" ? null : attrProgram) || null;
-      const body: Record<string, unknown> = { name, phone: phone || null, email: email || null, source, notes: notes || null, program: resolvedProgram };
+      const body: Record<string, unknown> = { name, phone: phone || null, email: email || null, source, notes: notes || null, program: resolvedProgram, country: country || null };
       const resolvedCategory = attrCategory === "none" ? null : attrCategory;
       if (attrDirty && resolvedCategory) {
         body.attribution = { content_category: resolvedCategory, youtube_video_id: attrYoutubeId || null, video_title: attrVideoTitle || null, tiktok_topic: attrTiktokTopic || null, attr_notes: attrNotes || null, program: resolvedAttrProgram };
@@ -330,6 +333,19 @@ export function LeadDetailClient({ lead: initial, activity: initialActivity, att
                   {PROGRAM_OPTIONS.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs flex items-center gap-1"><Globe className="h-3 w-3" />Country</Label>
+              <input
+                list="countries-list-detail"
+                value={country}
+                onChange={e => setCountry(e.target.value)}
+                placeholder="Type to search country..."
+                className="flex h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+              <datalist id="countries-list-detail">
+                {COUNTRIES.map(c => <option key={c} value={c} />)}
+              </datalist>
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Notes</Label>

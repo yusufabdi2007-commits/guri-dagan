@@ -15,6 +15,8 @@ import {
 import { cn, formatDate } from "@/lib/utils";
 import { toast } from "@/components/ui/use-toast";
 import { PROGRAMS, getProgramBadgeClass } from "@/lib/programs";
+import { COUNTRIES } from "@/lib/countries";
+import { Globe } from "lucide-react";
 
 export type LeadStage = "new_lead" | "contacted" | "call_scheduled" | "call_completed" | "client" | "follow_up" | "closed";
 export type LeadSource = "tiktok" | "youtube" | "whatsapp" | "referral" | "existing_client" | "other";
@@ -29,6 +31,7 @@ export interface Lead {
   stage: LeadStage;
   notes: string | null;
   program: string | null;
+  country: string | null;
   created_at: string;
   updated_at: string;
   content_attribution?: Array<{
@@ -75,7 +78,7 @@ const SOURCE_ICON: Record<LeadSource, React.ReactNode> = {
 };
 
 const PROGRAM_OPTIONS = Object.keys(PROGRAMS) as (keyof typeof PROGRAMS)[];
-const emptyForm = { name: "", phone: "", email: "", source: "other" as LeadSource, notes: "", program: "none" };
+const emptyForm = { name: "", phone: "", email: "", source: "other" as LeadSource, notes: "", program: "none", country: "" };
 
 function sourceLabel(s: LeadSource) {
   return SOURCES.find(x => x.value === s)?.label ?? s;
@@ -128,6 +131,7 @@ export function LeadPipelineClient({ leads: initial }: Props) {
         email: form.email || null,
         source: form.source,
         notes: form.notes || null,
+        country: form.country || null,
       };
       if (form.program && form.program !== "none") body.program = form.program;
 
@@ -237,11 +241,16 @@ export function LeadPipelineClient({ leads: initial }: Props) {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-foreground leading-tight">{lead.name}</p>
-                  <div className="flex items-center gap-1 mt-0.5">
+                  <div className="flex items-center gap-1 mt-0.5 flex-wrap">
                     <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
                       {SOURCE_ICON[lead.source]}
                       {sourceLabel(lead.source)}
                     </span>
+                    {lead.country && (
+                      <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                        <Globe className="h-2.5 w-2.5" />{lead.country}
+                      </span>
+                    )}
                     {lead.program && (
                       <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded border flex items-center gap-0.5", getProgramBadgeClass(lead.program))}>
                         <Shield className="h-2 w-2" />
@@ -329,6 +338,19 @@ export function LeadPipelineClient({ leads: initial }: Props) {
                   {SOURCES.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5"><Globe className="h-3 w-3" />Country</Label>
+              <input
+                list="countries-list-add"
+                value={form.country}
+                onChange={e => setForm(f => ({ ...f, country: e.target.value }))}
+                placeholder="Type to search country..."
+                className="flex h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+              <datalist id="countries-list-add">
+                {COUNTRIES.map(c => <option key={c} value={c} />)}
+              </datalist>
             </div>
             <div className="space-y-2">
               <Label className="flex items-center gap-1.5"><Shield className="h-3 w-3 text-primary" />Which program attracted them?</Label>
