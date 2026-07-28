@@ -5,11 +5,9 @@ export const runtime = 'edge';
 export const maxDuration = 60;
 
 // Every day has 1 TikTok (Mon–Sun). YouTube posts Wednesday.
-// Monday = Post TikTok #1 + Record next week. Sunday = Post TikTok #7 + Plan next week.
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
-// Default program distribution for 7 TikToks
-// YouTube is assigned separately (MePower™, posts Wednesday)
+// Default program distribution for 7 TikToks — fixed, never changes
 const PROGRAM_SLOTS = [
   "MePower™",         // Monday
   "Inner Power™",     // Tuesday
@@ -20,103 +18,142 @@ const PROGRAM_SLOTS = [
   "Slaying Dragons™", // Sunday
 ];
 
-const FALLBACK_TIKTOKS = [
-  { title: "Signs your child is losing confidence", program: "MePower™" },
-  { title: "The discipline mistake that destroys trust", program: "Inner Power™" },
-  { title: "What to say after your child fails", program: "MePower™" },
-  { title: "One value every child needs before age 10", program: "Inner Power™" },
-  { title: "Why your child gives up too easily", program: "MindPower™" },
-  { title: "How to help your child believe in their future", program: "DreamPower™" },
-  { title: "What brave parenting actually looks like", program: "Slaying Dragons™" },
-];
+const YOUTUBE_PROGRAM = "MePower™";
 
-const HOOK_TYPES = ["fear hook", "mistake hook", "identity hook", "emotional truth hook"];
+// Large fallback title pools (used only if AI is unavailable). MePower™ appears
+// 3x/week and Inner Power™ 2x/week, so their pools are sized well above the
+// ~5-week (40-post) recent-history window checked before reuse, so 100 straight
+// weeks of pure fallback still never force an early repeat.
+const FALLBACK_TITLE_POOLS: Record<string, string[]> = {
+  "MePower™": [
+    "Signs your child is losing confidence",
+    "What to say after your child fails",
+    "The praise habit that quietly backfires",
+    "Why your child gives up too easily",
+    "The moment your child stopped believing in themselves",
+    "One sentence that rebuilds a child's confidence",
+    "Why 'you can do it' doesn't work anymore",
+    "The confidence gap no parent notices in time",
+    "The comparison trap that's quietly crushing your child",
+    "Why praise alone doesn't build real confidence",
+    "The moment your child gave up on themselves",
+    "What silence after failure is really teaching your child",
+    "The confidence lie most parents accidentally tell",
+    "Why your child hides their mistakes from you",
+    "The one habit that rebuilds a broken sense of self",
+    "What your child's self-talk reveals about their confidence",
+    "Why 'good job' isn't landing anymore",
+    "The confidence rebuild every child eventually needs",
+    "The question that reveals how your child sees themselves",
+    "Why your child apologizes for things that aren't their fault",
+    "What perfectionism is quietly costing your child",
+    "The moment your child stopped raising their hand",
+    "Why your child needs permission to be average sometimes",
+    "The confidence your child fakes vs. the confidence they need",
+    "What happens in your child's head after you say 'try again'",
+    "The one fear behind almost every 'I give up'",
+  ],
+  "Inner Power™": [
+    "The discipline mistake that destroys trust",
+    "One value every child needs before age 10",
+    "Why your child changes around different friends",
+    "The identity question every child needs answered",
+    "How to raise a child who doesn't follow the crowd",
+    "What real character looks like at age 10",
+    "The values conversation most parents skip",
+    "Why your child says yes when they mean no",
+    "The peer pressure moment every parent should expect",
+    "What your child becomes when no one's watching",
+    "The identity crisis hiding behind good behaviour",
+    "Why your child copies whoever they're around",
+    "The values gap between what you teach and what they do",
+    "What your child does when you're not in the room",
+    "The one rule every strong-willed child secretly needs",
+    "Why your child folds under group pressure so easily",
+    "The character test most parents don't realise is happening",
+    "What 'everyone else is doing it' is really about",
+  ],
+  "MindPower™": [
+    "The fixed mindset moment every parent misses",
+    "Why 'I'm just bad at this' is a warning sign",
+    "The one word that rewires how your child thinks",
+    "How to respond when your child says 'I'm stupid'",
+    "The mindset shift that changes everything for kids",
+    "Why your child quits before they even start",
+    "The thought pattern behind every 'I can't'",
+    "How your child's inner voice decides their limits",
+    "What your child believes about failure before they even try",
+    "The mindset trap hiding inside 'I'm just not smart'",
+    "Why some children bounce back and others shut down",
+    "The thought your child repeats until it becomes true",
+  ],
+  "DreamPower™": [
+    "How to help your child believe in their future",
+    "The question that reveals if your child has a vision",
+    "Why your child has no answer for 'what do you want'",
+    "Raising a child who dreams bigger than their screen",
+    "The bedtime question that builds real ambition",
+    "Why your child has stopped imagining a future",
+    "The vision gap between where they are and where they could go",
+    "What a bored child is really telling you",
+    "The one question that reignites a child's ambition",
+    "Why 'I don't know' is your child's default answer now",
+    "What happens when a child never gets asked about their future",
+    "The dream your child gave up on without telling you",
+  ],
+  "Slaying Dragons™": [
+    "What brave parenting actually looks like",
+    "The avoidance habit that shrinks a child's world",
+    "How courage is actually built in children",
+    "Why your child panics at anything new",
+    "The 10-second rule that builds real bravery",
+    "The fear your child won't say out loud",
+    "Why avoidance always feels like relief at first",
+    "How to raise a child who doesn't run from hard things",
+    "What your child's 'I don't want to go' is really saying",
+    "The bravery your child already has and doesn't know about",
+    "Why comfort zones get smaller the longer they're protected",
+    "The one sentence that turns fear into a first step",
+  ],
+};
 
-// Unique fallback script per VIDEO SLOT (not per program — same program appears multiple times)
-const VIDEO_TIPS: Array<{ hook: string; problem: string; reframe: string; teaching: string; close: string }> = [
-  // Slot 0 — Tuesday — MePower™ — scenario: child quits after first failure
-  {
-    hook: "Your child tried something new, couldn't do it on the first attempt, and said 'I can't do this.' You encouraged them. They shut down and walked away.",
-    problem: "Every time a child walks away from a hard moment, they write a private story: 'I'm someone who quits.' That story will follow them into every exam, every friendship, every dream they consider and drop.",
-    reframe: "Next time your child says 'I can't', don't say 'yes you can.' Instead say: 'What's one tiny step — just one — you could try right now?' That one question moves them from shutdown to motion.",
-    teaching: "That question works once. But the quitting pattern has roots — in how they talk to themselves, in what they believe failure means, in whether they trust that effort leads anywhere. MePower™ works through all of it systematically.",
-    close: "If this is your child, MePower™ was built to change this pattern from the root — not patch it.",
-  },
-  // Slot 1 — Wednesday — Inner Power™ — scenario: child becomes unrecognisable around friends
-  {
-    hook: "At home your child is confident, funny, has opinions. The moment they're with their friends, you barely recognise them. They become whoever the group needs them to be.",
-    problem: "A child without a settled sense of self becomes whoever the room demands. That is not flexibility — that is invisibility. Without an identity to return to, they'll follow whoever pulls hardest.",
-    reframe: "This Sunday, ask your child: 'What's one decision you made this week that was completely yours — not what your friends chose?' That question, asked weekly, starts building the muscle of self-direction.",
-    teaching: "The question plants a seed. But building a real identity — knowing your values, trusting your own read of situations, staying yourself under pressure — takes consistent work. Inner Power™ teaches the five practices that build this.",
-    close: "If your child disappears into their social group, Inner Power™ is where they find themselves again.",
-  },
-  // Slot 2 — Thursday — MePower™ — scenario: child compares themselves to siblings
-  {
-    hook: "Your child looked at their sibling, then looked at their own work, and said: 'They're just better than me. I'll never be as good.' And they meant it.",
-    problem: "Comparison is a thief. A child who uses a sibling as their measuring stick will always feel behind — and eventually stop trying to close the gap. They'll just accept 'less' as their permanent position.",
-    reframe: "Next time your child compares themselves, don't argue. Ask: 'What were you able to do this month that you couldn't do last month?' Redirect them to measure against their own past. That's where real confidence lives.",
-    teaching: "That redirect helps in the moment. But the deeper issue — why they compare, what they believe about their own ceiling — needs a structured process to shift. That's what MePower™ addresses week by week.",
-    close: "If your child has already decided they're the 'less able' one, MePower™ is where that story gets challenged and rewritten.",
-  },
-  // Slot 3 — Friday — Inner Power™ — scenario: child can't say no to friends (now posts Friday)
-  {
-    hook: "Your child came home and told you something they did with their friends. You asked: 'Did you actually want to do that?' They paused. Then said: 'Not really, but everyone else was doing it.'",
-    problem: "A child who can't say no is a child who hasn't learned that their discomfort is worth listening to. That leads to following, not leading — and it gets more dangerous as they get older.",
-    reframe: "Teach your child this phrase: 'That's not really my thing, but you go ahead.' Practice it at home — say it out loud together until it feels normal. Words rehearsed at home become available under pressure.",
-    teaching: "That phrase is a start. But learning to hold your ground — to hear 'come on' and still say no — requires understanding where your values are, what your standards are, and what you're willing to stand for. That's Inner Power™.",
-    close: "If your child follows when they should lead, Inner Power™ teaches them to stay themselves regardless of who's watching.",
-  },
-  // Slot 4 — Saturday — MindPower™ — scenario: child says "I'm stupid" after getting something wrong (now posts Sat)
-  {
-    hook: "Your child got something wrong at school. You found out when they came home quiet, sat down, and said — almost to themselves — 'I'm just stupid.' Not upset. Matter-of-fact. Like it was settled.",
-    problem: "When a child says 'I'm stupid' calmly, it's not frustration — it's a conclusion. They've decided. And a decided belief is harder to shift than a feeling. Every future challenge confirms it if nothing changes.",
-    reframe: "Don't argue with the label. Instead ask: 'What part of this is actually hard for you?' Name the specific thing, not them as a person. 'The fractions are hard' is solvable. 'I'm stupid' isn't.",
-    teaching: "Separating the difficulty from the identity is the first move. But a fixed mindset runs deeper — through how they respond to failure, what effort means to them, and what they believe is changeable. MindPower™ addresses each layer.",
-    close: "If your child has quietly decided they're 'not smart', MindPower™ is where that decision gets unmade.",
-  },
-  // Slot 5 — Sunday — DreamPower™ — scenario: child glued to screens with no goals
-  {
-    hook: "You asked your child: 'What do you want to be when you grow up?' They looked at you, looked back at their screen, and shrugged. Not shy. Just genuinely — nothing. No spark.",
-    problem: "A child with no vision doesn't grow toward something — they drift toward whatever is loudest and easiest. Every year without direction, the screen gets longer and the ambition gets quieter.",
-    reframe: "Tonight, sit with your child and ask: 'If you could be genuinely great at one thing by this time next year — just one thing — what would you pick?' Write whatever they say. Don't judge it. That's how vision begins.",
-    teaching: "That question opens a door. Walking through it — building daily habits, connecting effort to identity, choosing the hard thing over the screen — takes a structured system. That's DreamPower™.",
-    close: "If your child is drifting and you're ready to change that, DreamPower™ is where direction and drive get built.",
-  },
-  // Slot 6 — Sunday — Slaying Dragons™ — scenario: child refuses to try new things
-  {
-    hook: "There was an opportunity — a new activity, a school event, a chance to try something different. Your child said 'I don't want to go.' You didn't push. It felt like kindness at the time.",
-    problem: "Every time avoidance works — every time staying home makes the fear go away — the child's brain learns: fear means stop. The world gets smaller one avoided thing at a time.",
-    reframe: "Next time your child says 'I don't want to try', say: 'Let's just do 10 seconds of brave together. Just 10 seconds, then we'll see.' Count out loud with them. That's how courage gets trained — ten seconds at a time.",
-    teaching: "Ten seconds works once. Building a child who faces hard things consistently requires mapping their specific fears, taking graded brave steps, collecting evidence of courage, and resetting what they believe they can handle. Slaying Dragons™ teaches all of it.",
-    close: "If your child is shrinking from life one avoided thing at a time, Slaying Dragons™ was built for this.",
-  },
-];
+// `usedThisRun` is passed in explicitly (never module-level) so concurrent
+// requests on the same edge isolate never share or corrupt each other's state.
+//
+// Two-tier selection: (1) never repeat a title already used elsewhere in THIS
+// week's 8 slots — that's a hard rule; (2) prefer a title outside the recent
+// history window, but if the whole pool has been used recently, fall back to
+// whichever pool title was used longest ago (rather than looping back to the
+// full unfiltered pool, which could reintroduce this week's own duplicates).
+function pickTitle(program: string, usedThisRun: Set<string>, avoidRecent: string[] = []): string {
+  const pool = FALLBACK_TITLE_POOLS[program] || FALLBACK_TITLE_POOLS["MePower™"];
+  const notUsedThisWeek = pool.filter(t => !usedThisRun.has(t.toLowerCase()));
+  const basePool = notUsedThisWeek.length > 0 ? notUsedThisWeek : pool;
 
-/**
- * Extracts the most theme-relevant sections from curriculum text.
- * Splits into paragraphs, scores each by keyword overlap with the theme,
- * then returns up to maxChars of the highest-scoring content.
- */
-function extractRelevantSections(text: string, theme: string, maxChars: number): string {
-  const themeWords = theme.toLowerCase().split(/\W+/).filter(w => w.length > 3);
-  const paragraphs = text.split(/\n{2,}/).map(p => p.trim()).filter(p => p.length > 40);
+  const avoidSet = new Set(avoidRecent.map(a => a.toLowerCase()));
+  const fresh = basePool.filter(t => !avoidSet.has(t.toLowerCase()));
 
-  const scored = paragraphs.map(p => {
-    const lower = p.toLowerCase();
-    const score = themeWords.reduce((acc, w) => acc + (lower.split(w).length - 1), 0);
-    return { text: p, score };
-  });
-
-  // Keep intro paragraphs (context), rank the rest by relevance
-  const intro = scored.slice(0, 2);
-  const ranked = scored.slice(2).sort((a, b) => b.score - a.score);
-
-  let result = "";
-  for (const { text } of [...intro, ...ranked]) {
-    if (result.length + text.length + 2 > maxChars) break;
-    result += text + "\n\n";
+  let pick: string;
+  if (fresh.length > 0) {
+    pick = fresh[Math.floor(Math.random() * fresh.length)];
+  } else {
+    // Whole pool used within the recent window — pick whichever title was
+    // used longest ago (max index in the most-recent-first avoid list) to
+    // spread repeats out as much as possible instead of clustering them.
+    let best = basePool[0];
+    let bestRecency = -1;
+    for (const candidate of basePool) {
+      const idx = avoidRecent.findIndex(a => a.toLowerCase() === candidate.toLowerCase());
+      const recency = idx === -1 ? avoidRecent.length : idx; // never-seen ranks last (best)
+      if (recency > bestRecency) {
+        bestRecency = recency;
+        best = candidate;
+      }
+    }
+    pick = best;
   }
-  return result.trim();
+  usedThisRun.add(pick.toLowerCase());
+  return pick;
 }
 
 export async function POST(req: NextRequest) {
@@ -130,117 +167,76 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
 
-  const { theme, lowEnergy, topCategory, growingCategory, underusedCategory, recentThemes, userId } = body;
+  const { theme, lowEnergy, topCategory, growingCategory, underusedCategory, recentThemes, recentTitles } = body;
+
+  const categoryLines = [
+    topCategory && `Best performing category: ${topCategory}`,
+    growingCategory && growingCategory !== topCategory && `Fastest growing: ${growingCategory}`,
+    underusedCategory && `Underused opportunity: ${underusedCategory}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const recentThemeLine =
+    Array.isArray(recentThemes) && recentThemes.length > 0
+      ? `Recent themes (avoid repeating): ${(recentThemes as string[]).join(", ")}`
+      : "";
+
+  const recentTitleLine =
+    Array.isArray(recentTitles) && recentTitles.length > 0
+      ? `Recent titles already used (never repeat these, never write anything close to them): ${(recentTitles as string[]).join(" | ")}`
+      : "";
+
+  const energyNote = lowEnergy
+    ? "LOW ENERGY WEEK: Pick warm, story-based, relatable topics."
+    : "";
+
+  const t =
+    (typeof theme === "string" && theme.trim().length > 2 && theme.trim()) ||
+    (typeof topCategory === "string" && topCategory) ||
+    "child confidence and parenting";
 
   if (!process.env.GROQ_API_KEY) {
-    return NextResponse.json(
-      { error: "Groq API key not configured. Add GROQ_API_KEY to your Vercel environment variables." },
-      { status: 503 }
-    );
+    return NextResponse.json(buildFallback(t, topCategory, theme, Array.isArray(recentTitles) ? recentTitles as string[] : []));
   }
 
   try {
-    const categoryLines = [
-      topCategory && `Best performing category: ${topCategory}`,
-      growingCategory && growingCategory !== topCategory && `Fastest growing: ${growingCategory}`,
-      underusedCategory && `Underused opportunity: ${underusedCategory}`,
-    ]
-      .filter(Boolean)
-      .join("\n");
+    const weekDate = new Date().toISOString().split("T")[0]; // changes every week = fresh titles
 
-    const recentLine =
-      Array.isArray(recentThemes) && recentThemes.length > 0
-        ? `Recent themes (avoid repeating): ${(recentThemes as string[]).join(", ")}`
-        : "";
+    const prompt = `You are naming 8 SHORT parenting video titles for Guri Dagan (Somali parenting coach). Week of: ${weekDate}.
+Theme: "${t}"
+${categoryLines ? categoryLines + "\n" : ""}${recentThemeLine ? recentThemeLine + "\n" : ""}${recentTitleLine ? recentTitleLine + "\n" : ""}${energyNote ? energyNote + "\n" : ""}
+The presenter already knows her format and delivery — she does NOT need a script. Your ONLY job is to give her one fresh, specific, scroll-stopping TITLE per video slot. No hooks, no scripts, no talking points — just the title.
 
-    const energyNote = lowEnergy
-      ? "LOW ENERGY WEEK: Choose warm, story-based, relatable topics. Keep scripts simple and personal."
-      : "";
+RULE: Every title must be completely unique — a different angle, moment, or question each time. Never reuse or lightly reword a previous title.
 
-    const t =
-      (typeof theme === "string" && theme.trim().length > 2 && theme.trim()) ||
-      (typeof topCategory === "string" && topCategory) ||
-      "child confidence and parenting";
+VIDEO SLOTS (one title each):
+1. YouTube Wed — MePower™
+2. TikTok Mon — MePower™
+3. TikTok Tue — Inner Power™
+4. TikTok Wed — MePower™
+5. TikTok Thu — Inner Power™
+6. TikTok Fri — MindPower™
+7. TikTok Sat — DreamPower™
+8. TikTok Sun — Slaying Dragons™
 
-    // Fetch curriculum knowledge for all programs (public read, no auth required)
-    let curriculumContext = "";
-    try {
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-      if (supabaseUrl && supabaseAnonKey) {
-        const userFilter = typeof userId === "string" && userId.length > 0
-          ? `&user_id=eq.${encodeURIComponent(userId)}`
-          : "";
-        const kbRes = await fetch(
-          `${supabaseUrl}/rest/v1/program_knowledge?select=program_name,extracted_text&limit=10${userFilter}`,
-          {
-            headers: {
-              apikey: supabaseAnonKey,
-              Authorization: `Bearer ${supabaseAnonKey}`,
-            },
-            signal: AbortSignal.timeout(4000),
-          }
-        );
-        if (kbRes.ok) {
-          const knowledge = (await kbRes.json()) as { program_name: string; extracted_text: string }[];
-          if (knowledge.length > 0) {
-            curriculumContext =
-              "\n\nCURRICULUM KNOWLEDGE — The uploaded curriculum is the authoritative source for what is taught. Every script MUST teach a real concept, framework, exercise, tool, or principle that exists in the programme materials. Do not invent new programme techniques or attribute ideas to the programme that are not present in the curriculum. You MAY create original hooks, stories, family scenarios, analogies, examples, transitions, and calls to action — these creative elements exist only to explain or demonstrate the real curriculum, never to replace it. If the requested topic is only partially covered by the curriculum, stay faithful to the programme's philosophy and clearly ground the lesson in the closest relevant material rather than inventing a new framework.\n";
-            for (const k of knowledge) {
-              const snippet = extractRelevantSections(k.extracted_text, t, 2500);
-              if (snippet) curriculumContext += `\n[${k.program_name}]\n${snippet}\n`;
-            }
-          }
-        }
-      }
-    } catch {
-      // Silently skip — scripts still generate with built-in fallback knowledge
-    }
-
-    const weekDate = new Date().toISOString().split("T")[0]; // changes every week = fresh scripts
-
-    const prompt = `You are writing 8 SHORT marketing video scripts for Guri Dagan (Somali parenting coach). Week of: ${weekDate}.${curriculumContext}
-Theme: "${t}"${recentLine ? `\nAvoid these recent themes: ${(recentThemes as string[]).join(", ")}` : ""}${energyNote ? `\n${energyNote}` : ""}
-
-RULE: Every script must be a completely unique video — different scenario, different parenting moment, different technique. Same program appears multiple times; each slot still gets a totally different script.
-
-VIDEO SLOTS (one script each, use the given scenario):
-1. YouTube Wed — MePower™ — child said "I give up" after first failure at something they cared about
-2. TikTok Mon — MePower™ — child quits mid-activity, refuses to try again despite gentle encouragement
-3. TikTok Tue — Inner Power™ — child becomes unrecognisable around friends, loses their opinions completely
-4. TikTok Wed — MePower™ — child compares to sibling: "they're just smarter/better than me"
-5. TikTok Thu — Inner Power™ — child can't say no to friends, always goes along even feeling uncomfortable
-6. TikTok Fri — MindPower™ — child says "I'm stupid" quietly after one mistake, like it's settled
-7. TikTok Sat — DreamPower™ — child shrugs when asked what they want to do with their life
-8. TikTok Sun — Slaying Dragons™ — child refuses to try anything new, panics at unfamiliar situations
-
-SCRIPT FIELDS — keep VERY SHORT (TikTok = 60 sec, every field = MAX 1 sentence except reframe):
-- title: max 8 words
-- hook_type: fear hook / mistake hook / identity hook / emotional truth hook
-- hook: 1 sentence — the specific parenting moment, make them think "how does she know?"
-- problem: 1 sentence — the long-term cost if nothing changes
-- reframe: 2 sentences — ONE technique with EXACT words to say: "Next time your child says X, say: 'Y'."
-- teaching: 1 sentence — why one tip isn't enough + name the programme
-- close: 1 sentence — bridge to enrollment naming the programme
-- cta: 1 sentence — DM keyword (MEPOWER/INNERPOWER/MINDPOWER/DREAMPOWER/DRAGONS) or free call
-- notes (YouTube only): 1 sentence recording direction
+Each title: max 10 words, specific, curiosity-driven, no clickbait punctuation spam.
 
 Return valid JSON only:
 {
   "theme": "...",
   "suggested_theme": true,
   "category_used": null,
-  "youtube": { "program": "MePower™", "title": "...", "hook_type": "...", "hook": "...", "problem": "...", "reframe": "...", "teaching": "...", "close": "...", "notes": "...", "cta": "..." },
+  "youtube": { "program": "MePower™", "title": "..." },
   "tiktoks": [
-    { "day": "Monday", "program": "MePower™", "title": "...", "hook_type": "...", "hook": "...", "problem": "...", "reframe": "...", "teaching": "...", "close": "...", "cta": "..." },
-    { "day": "Tuesday", "program": "Inner Power™", "title": "...", "hook_type": "...", "hook": "...", "problem": "...", "reframe": "...", "teaching": "...", "close": "...", "cta": "..." },
-    { "day": "Wednesday", "program": "MePower™", "title": "...", "hook_type": "...", "hook": "...", "problem": "...", "reframe": "...", "teaching": "...", "close": "...", "cta": "..." },
-    { "day": "Thursday", "program": "Inner Power™", "title": "...", "hook_type": "...", "hook": "...", "problem": "...", "reframe": "...", "teaching": "...", "close": "...", "cta": "..." },
-    { "day": "Friday", "program": "MindPower™", "title": "...", "hook_type": "...", "hook": "...", "problem": "...", "reframe": "...", "teaching": "...", "close": "...", "cta": "..." },
-    { "day": "Saturday", "program": "DreamPower™", "title": "...", "hook_type": "...", "hook": "...", "problem": "...", "reframe": "...", "teaching": "...", "close": "...", "cta": "..." },
-    { "day": "Sunday", "program": "Slaying Dragons™", "title": "...", "hook_type": "...", "hook": "...", "problem": "...", "reframe": "...", "teaching": "...", "close": "...", "cta": "..." }
-  ],
-  "recording_checklist": ["Water bottle ready", "Ring light on face", "Phone charged", "Notifications silenced", "Record YouTube first (posts Wednesday)", "Short break before TikToks", "Record all 7 TikToks back-to-back (Mon–Sun)", "Mark complete in app"]
+    { "day": "Monday", "program": "MePower™", "title": "..." },
+    { "day": "Tuesday", "program": "Inner Power™", "title": "..." },
+    { "day": "Wednesday", "program": "MePower™", "title": "..." },
+    { "day": "Thursday", "program": "Inner Power™", "title": "..." },
+    { "day": "Friday", "program": "MindPower™", "title": "..." },
+    { "day": "Saturday", "program": "DreamPower™", "title": "..." },
+    { "day": "Sunday", "program": "Slaying Dragons™", "title": "..." }
+  ]
 }`;
 
     const controller = new AbortController();
@@ -254,11 +250,11 @@ Return valid JSON only:
       body: JSON.stringify({
         model: "llama-3.3-70b-versatile",
         messages: [
-          { role: "system", content: "You are a marketing copywriter for a parenting coaching business. Write specific, emotionally precise video scripts. Every script must be completely different from the others. The uploaded curriculum is the authoritative source for what is taught — every script must teach a real concept, framework, exercise, tool, or principle that exists in the programme materials. Do not invent new programme techniques or attribute ideas to the programme that are not present in the curriculum. You may create original hooks, stories, family scenarios, analogies, examples, transitions, and calls to action — these creative elements exist only to explain or demonstrate the real curriculum, never to replace it. Return valid JSON only. No markdown, no code blocks, no text outside the JSON object." },
+          { role: "system", content: "You write short, specific parenting video titles only — never scripts, never hooks, never talking points. Return valid JSON only. No markdown, no code blocks, no text outside the JSON object." },
           { role: "user", content: prompt },
         ],
         temperature: 0.9,
-        max_tokens: 3000,
+        max_tokens: 700,
         response_format: { type: "json_object" },
       }),
       signal: controller.signal,
@@ -275,75 +271,84 @@ Return valid JSON only:
     const parsed = JSON.parse(content);
     if (
       !parsed.theme ||
-      !parsed.youtube ||
+      !parsed.youtube?.title ||
       !Array.isArray(parsed.tiktoks) ||
       parsed.tiktoks.length < 5
     ) {
       throw new Error("Invalid AI response shape");
     }
-    // Pad to 7 if AI returned fewer (keep day/program from expected slots)
+    // De-duplicate titles within this generation — if the AI repeated itself, swap in a fallback.
+    // `seenTitles` (seeded with recentTitles) is the soft "avoid if possible" list across all
+    // weeks; `usedThisRun` is the hard "never repeat within this week's own 8 slots" set.
+    const seenTitles = new Set<string>(
+      Array.isArray(recentTitles) ? (recentTitles as string[]).map(x => x.toLowerCase()) : []
+    );
+    const usedThisRun = new Set<string>();
+    const dedupe = (title: string, program: string): string => {
+      const key = (title || "").trim().toLowerCase();
+      if (!key || seenTitles.has(key) || usedThisRun.has(key)) {
+        const replacement = pickTitle(program, usedThisRun, [...seenTitles]);
+        seenTitles.add(replacement.toLowerCase());
+        return replacement;
+      }
+      seenTitles.add(key);
+      usedThisRun.add(key);
+      return title.trim();
+    };
+    // Pad to 7 if AI returned fewer (keep day/program from expected slots, use fallback title)
     while (parsed.tiktoks.length < 7) {
       const i = parsed.tiktoks.length;
+      const program = PROGRAM_SLOTS[i] ?? PROGRAM_SLOTS[6];
+      const title = pickTitle(program, usedThisRun, [...seenTitles]);
+      seenTitles.add(title.toLowerCase());
       parsed.tiktoks.push({
-        ...parsed.tiktoks[parsed.tiktoks.length - 1],
         day: DAYS[i] ?? DAYS[6],
-        program: PROGRAM_SLOTS[i] ?? PROGRAM_SLOTS[6],
+        program,
+        title,
       });
     }
+    parsed.youtube.title = dedupe(parsed.youtube.title, parsed.youtube.program || YOUTUBE_PROGRAM);
+    parsed.tiktoks = parsed.tiktoks.map((tt: { day: string; program: string; title: string }) => ({
+      day: tt.day,
+      program: tt.program,
+      title: dedupe(tt.title, tt.program),
+    }));
 
     return NextResponse.json({ ...parsed, is_fallback: false });
   } catch (error) {
-    // Surface the real OpenAI error so we can diagnose
-    let errorMsg = error instanceof Error ? error.message : String(error);
-    // Keep raw error for diagnosis
+    const errorMsg = error instanceof Error ? error.message : String(error);
     console.error("Weekly assignment error:", errorMsg);
-
-    const t =
-      (typeof theme === "string" && theme.trim()) ||
-      (typeof topCategory === "string" && topCategory) ||
-      "parenting";
-    const themeLabel = t.charAt(0).toUpperCase() + t.slice(1);
-
-    return NextResponse.json({
-      theme: `${themeLabel} Transformation`,
-      suggested_theme: !theme,
-      category_used: typeof topCategory === "string" ? topCategory : null,
-      youtube: {
-        program: "MePower™",
-        title: "How to Raise Confident Children: A Complete Guide for Somali Parents",
-        hook_type: "identity hook",
-        hook: "Are you accidentally raising a child who doesn't believe in themselves?",
-        problem: "Most parents focus on mistakes without realising this slowly teaches children they are the problem — not their behaviour.",
-        reframe: "Confidence is not something children are born with. It is built in tiny daily moments by what you say and how you respond.",
-        teaching: "In MePower™, we don't fix behavior — we rebuild the root: your child's self-belief. Parents who've done this program say the shift happened faster than they expected. But it requires the right framework, not just good intentions.",
-        close: "If you watched this and thought 'that's my child' — this is your sign. MePower™ has limited spots and I only work with parents who are ready.",
-        notes: "Build authority on why daily praise patterns silently shape identity. Show the gap between what parents intend and what children absorb. End with a strong enrollment push.",
-        cta: "Book a free 20-minute call from the link in my bio — let's talk about your child specifically.",
-      },
-      tiktoks: DAYS.map((day, i) => {
-        const prog = PROGRAM_SLOTS[i];
-        const tips = VIDEO_TIPS[i] || VIDEO_TIPS[0];
-        return {
-          day,
-          program: prog,
-          title: FALLBACK_TIKTOKS[i].title,
-          hook_type: HOOK_TYPES[i % HOOK_TYPES.length],
-          ...tips,
-          cta: `DM me "${prog.replace("™", "").replace(/ /g, "").toUpperCase()}" and I'll tell you if the programme is right for your child.`,
-        };
-      }),
-      recording_checklist: [
-        "Water bottle nearby",
-        "Good natural light or ring light on your face",
-        "Phone fully charged or plugged in",
-        "Room is quiet — notifications silenced",
-        "YouTube notes visible (printed or on screen)",
-        "Record YouTube first while energy is highest (posts Wednesday)",
-        "Take a short break before recording TikToks",
-        "Record all 7 TikToks back-to-back for flow (Mon · Tue–Fri · Sat · Sun)",
-      ],
-      is_fallback: true,
-      _error: errorMsg,
-    });
+    return NextResponse.json(buildFallback(t, topCategory, theme, Array.isArray(recentTitles) ? recentTitles as string[] : [], errorMsg));
   }
+}
+
+function buildFallback(
+  t: string,
+  topCategory: unknown,
+  theme: unknown,
+  recentTitles: string[],
+  errorMsg?: string
+) {
+  const themeLabel = t.charAt(0).toUpperCase() + t.slice(1);
+  const usedThisRun = new Set<string>();
+
+  const youtubeTitle = pickTitle(YOUTUBE_PROGRAM, usedThisRun, recentTitles);
+  const tiktoks = DAYS.map((day, i) => {
+    const program = PROGRAM_SLOTS[i];
+    return {
+      day,
+      program,
+      title: pickTitle(program, usedThisRun, recentTitles),
+    };
+  });
+
+  return {
+    theme: `${themeLabel} Transformation`,
+    suggested_theme: !theme,
+    category_used: typeof topCategory === "string" ? topCategory : null,
+    youtube: { program: YOUTUBE_PROGRAM, title: youtubeTitle },
+    tiktoks,
+    is_fallback: true,
+    ...(errorMsg ? { _error: errorMsg } : {}),
+  };
 }

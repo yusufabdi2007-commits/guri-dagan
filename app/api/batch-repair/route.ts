@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
       scheduled_date: ytDate,
       platform: "youtube" as const,
       title: batch.youtube_title || `${themeCapital} — MePower™ YouTube`,
-      angle_notes: `PROGRAM: MePower™\n\nYouTube Long-form\n\nHOOK [value hook]: ${themeCapital} is something every parent needs to understand.\nPROBLEM: Without the right approach, children struggle with ${theme} long-term.\nREFRAME: Next time your child struggles with ${theme}, try this one thing: "What's one small step you can try right now?"\nTEACHING: That tip helps in the moment, but MePower™ works through the full system.\nCLOSE: If this resonates, MePower™ was built for exactly this.\nCTA: Book a free call from the link in bio.`,
+      angle_notes: "PROGRAM: MePower™",
       status: "scheduled",
     },
     // 7 TikToks: Mon–Sun
@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
       scheduled_date: addDays(weekStart, i),
       platform: "tiktok" as const,
       title: `${themeCapital} — ${program} (${DAY_NAMES[i]})`,
-      angle_notes: `PROGRAM: ${program}\n\nHOOK [value hook]: ${themeCapital} is something every parent faces.\nPROBLEM: Without support, children struggle silently with ${theme}.\nREFRAME: Try this with your child today around ${theme}: one small brave step changes everything.\nTEACHING: That's one technique. ${program} goes deeper with the full system.\nCLOSE: ${program} was built for this.\nCTA: DM me "${program.replace("™", "").replace(/ /g, "").toUpperCase()}" to learn more.`,
+      angle_notes: `PROGRAM: ${program}`,
       status: "scheduled",
     })),
   ];

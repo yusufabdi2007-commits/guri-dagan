@@ -12,8 +12,33 @@ It covers what is built, how everything is wired, known limitations, and what to
 **Phase:** Phase 17.1 complete (latest). All phases 1–17 complete. See phase log below.
 **Recent fixes (June 2026):** Dark mode now defaults on fresh install (ThemeProvider reads localStorage, falls back to dark). DnD fully removed from Calendar + Queue + Leads — React 19 incompatible. Real error messages surfaced on leads save/move/add failures.
 **Recent additions (July 2026):** Public contact form `/contact` + email delivery via Resend. See full change log below.
+**Recent change (July 2026):** Removed all AI-written video scripts from the weekly content system — `/weekly-assignment` and `/batch/plan` now generate a fresh TITLE only per video slot (no hook/problem/reframe/teaching/close/cta). The presenter already knows the on-camera format; she no longer gets a new script to read every week, just a new topic. Stress-tested for 100 simulated consecutive weeks (both the pure-fallback path and an adversarial AI-output path) with zero duplicate-title or scheduling bugs. See "Titles-Only System" section below.
 **Business context (June 2026):** Pricing model confirmed — US/UK/Europe: $100/month (1-on-1, 2x/week). Africa/Somalia/Kenya: $25/month (group 5–10 families, 2x/month). Free 20-min consultation call as entry point. All 5 programs same price. WhatsApp: +1 (763) 412-7695.
 **Deployment plan:** Vercel production. Developer uses laptop locally. End user (mum) installs as PWA on her phone via https://guri-dagan.vercel.app
+
+---
+
+## July 2026 — Titles-Only Weekly System (no more scripts)
+
+### Why
+The mom (end user) was getting a brand-new AI-written script every week for months — new hooks, new phrasing, new talking points to memorize each time. She already knows her on-camera format/delivery; what she actually needs is a fresh topic, not a new script to learn. This was flagged as the top pain point after 6+ weeks of live use.
+
+### What changed
+- **`app/api/weekly-assignment/route.ts`** — no longer generates `hook/problem/reframe/teaching/close/cta` per video. Returns `{ theme, youtube: {program, title}, tiktoks: [{day, program, title}] }` only.
+- **`app/api/batch-plan/route.ts`** — same simplification. Returns `{ youtube_title, youtube_program, tiktok_scripts: [{title, program, day}] }`.
+- **`components/weekly-assignment/WeeklyAssignmentClient.tsx`** and **`components/batch/BatchPlanClient.tsx`** — removed all script-preview UI (expand/collapse hook-problem-reframe-teaching-close-cta sections). Cards now show title + program badge only.
+- **`lib/seed-first-week.ts`** and **`app/api/batch-repair/route.ts`** — bootstrap/repair paths now write `angle_notes: "PROGRAM: X"` only, no script text.
+- **`lib/programs.ts`** (`parseScriptNotes`) is untouched and still used by `BatchRecordClient`/`TodayClient`/`ChannelClient` to read `PROGRAM:` off `angle_notes` — those components already degrade gracefully when `hasScript` is `false` (they just show the title, no crash), so no changes were needed there.
+- Both routes now accept a `recentTitles` array (last ~40 scheduled post titles, fetched server-side in `weekly-assignment/page.tsx` and `batch/plan/page.tsx`) and de-duplicate against it so no week echoes a recent title.
+- Fallback title pools (used only when Groq/OpenAI are unreachable) were sized generously per program: MePower™ 26 titles (appears 3x/week), Inner Power™ 18 (2x/week), MindPower™/DreamPower™/Slaying Dragons™ 12 each (1x/week) — comfortably above the ~5-week recent-history window so pure-fallback operation still doesn't force early repeats.
+
+### Bugs found and fixed during stress testing
+Wrote two offline simulations (mirroring the real route logic exactly) and ran 100 straight simulated weeks:
+1. **Pure-fallback path** (`buildFallback` / `pickTitle`) — caught a bug where, once the recent-title filter excluded every pool item, the code fell back to the *entire unfiltered pool* — which could reintroduce a title already used elsewhere in the *same* week. Fixed with a two-tier picker: never violate same-week uniqueness (hard rule); prefer titles outside the recent window, else pick whichever pool title was used longest ago (LRU) instead of a random unfiltered pick.
+2. **AI-success dedupe path** (`dedupe()` closure in both routes) — caught a bug where `pickTitle(program, seenTitles)` was called with only 2 args, conflating "recent history to avoid" and "already used this week" into a single set passed as the wrong parameter. Once that combined set grew large enough, the same unfiltered-pool bug above resurfaced. Fixed by splitting into `seenTitles` (soft avoid-recent, passed as 3rd arg) and a fresh `usedThisRun` Set per request (hard same-week exclusion, passed as 2nd arg).
+3. Removed a module-level mutable `Set` that would have been shared/corrupted across concurrent requests on the same edge isolate — state is now always passed explicitly per-request.
+
+Both simulations were re-run 50+ times with randomized seeds (plus 10 fixed seeds for the adversarial AI-output fuzzer, which forces empty titles, exact duplicates, missing slots, and echoed history) after the fixes — 0 issues across all runs.
 
 ---
 

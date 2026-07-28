@@ -11,12 +11,12 @@ import { toast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
 import {
   Sparkles, Youtube, Loader2, ChevronDown, ChevronUp,
-  CheckCircle2, AlertTriangle, Brain, TrendingUp,
+  CheckCircle2, Brain, TrendingUp,
   Calendar, ArrowRight, Star, Mic2, ChevronLeft, Battery, Video,
-  Zap, Eye, Target, Heart, Shield,
+  Shield,
 } from "lucide-react";
 import {
-  PROGRAMS, DEFAULT_DISTRIBUTION, getProgramBadgeClass, formatScriptNotes,
+  PROGRAMS, DEFAULT_DISTRIBUTION, getProgramBadgeClass,
 } from "@/lib/programs";
 import type { ProgramName } from "@/lib/programs";
 
@@ -26,28 +26,11 @@ interface TikTokPost {
   day: string;
   program: string;
   title: string;
-  hook_type: string;
-  hook: string;
-  problem: string;
-  reframe: string;
-  teaching: string;
-  action: string;
-  close?: string;
-  cta: string;
 }
 
 interface YoutubePost {
   program: string;
   title: string;
-  hook_type: string;
-  hook: string;
-  problem: string;
-  reframe: string;
-  teaching: string;
-  action: string;
-  close?: string;
-  notes: string;
-  cta: string;
 }
 
 interface AssignmentPlan {
@@ -56,7 +39,6 @@ interface AssignmentPlan {
   category_used: string | null;
   youtube: YoutubePost;
   tiktoks: TikTokPost[];
-  recording_checklist: string[];
   is_fallback: boolean;
   _error?: string;
 }
@@ -77,6 +59,7 @@ interface Props {
   underusedCategory: string | null;
   categories: CategoryStat[];
   recentThemes: string[];
+  recentTitles: string[];
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -107,6 +90,18 @@ function formatWeekLabel(weekStart: string): string {
   return `${start.toLocaleDateString("en-US", opts)} – ${end.toLocaleDateString("en-US", opts)}`;
 }
 
+// Fixed recording checklist — the format never changes, only the titles do
+const RECORDING_CHECKLIST = [
+  "Water bottle ready",
+  "Ring light on face",
+  "Phone charged",
+  "Notifications silenced",
+  "Record YouTube first (posts Wednesday)",
+  "Short break before TikToks",
+  "Record all 7 TikToks back-to-back (Mon–Sun)",
+  "Mark complete in app",
+];
+
 const DAY_COLORS: Record<string, string> = {
   Monday: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400",
   Tuesday: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
@@ -116,57 +111,6 @@ const DAY_COLORS: Record<string, string> = {
   Saturday: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
   Sunday: "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400",
 };
-
-// 7-part script section config
-const SCRIPT_SECTIONS = [
-  { key: "hook", label: "Hook", time: "0–3s", icon: Zap, color: "text-yellow-500" },
-  { key: "problem", label: "Problem", time: "3–10s", icon: Eye, color: "text-red-500" },
-  { key: "reframe", label: "Reframe", time: "10–25s", icon: Brain, color: "text-violet-500" },
-  { key: "teaching", label: "Teaching", time: "25–45s", icon: Target, color: "text-blue-500" },
-  { key: "action", label: "Action", time: "45–60s", icon: Heart, color: "text-emerald-500" },
-] as const;
-
-// ─── Script Section Display ───────────────────────────────────────────────────
-
-function ScriptSection({
-  post,
-}: {
-  post: TikTokPost | YoutubePost;
-}) {
-  return (
-    <div className="space-y-2 pt-2">
-      {post.hook_type && (
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground px-0.5">
-          Hook type: {post.hook_type}
-        </p>
-      )}
-      {SCRIPT_SECTIONS.map(({ key, label, time, icon: Icon, color }) => {
-        const text = post[key as keyof typeof post] as string;
-        if (!text) return null;
-        return (
-          <div key={key} className="flex items-start gap-2.5">
-            <div className="flex flex-col items-center gap-0.5 shrink-0 pt-0.5">
-              <Icon className={cn("h-3.5 w-3.5", color)} />
-              <span className="text-[9px] text-muted-foreground/60 font-medium">{time}</span>
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-0.5">
-                {label}
-              </p>
-              <p className="text-xs text-foreground leading-relaxed">{text}</p>
-            </div>
-          </div>
-        );
-      })}
-      <div className="flex items-start gap-2 p-2.5 rounded-lg bg-muted/60 mt-1">
-        <ArrowRight className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
-        <p className="text-[11px] text-muted-foreground">
-          <span className="font-semibold text-foreground">CTA:</span> {post.cta}
-        </p>
-      </div>
-    </div>
-  );
-}
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -178,6 +122,7 @@ export function WeeklyAssignmentClient({
   underusedCategory,
   categories,
   recentThemes,
+  recentTitles,
 }: Props) {
   const router = useRouter();
   const thisWeek = getWeekStart();
@@ -189,8 +134,6 @@ export function WeeklyAssignmentClient({
   const [plan, setPlan] = useState<AssignmentPlan | null>(null);
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [expandedTiktok, setExpandedTiktok] = useState<number | null>(null);
-  const [showYTScript, setShowYTScript] = useState(false);
   const [showBrief, setShowBrief] = useState(false);
 
   const hasIntelligence = categories.length > 0;
@@ -201,8 +144,6 @@ export function WeeklyAssignmentClient({
     if (generating) return;
     setGenerating(true);
     setPlan(null);
-    setExpandedTiktok(null);
-    setShowYTScript(false);
     setShowBrief(false);
     try {
       const res = await fetch("/api/weekly-assignment", {
@@ -215,6 +156,7 @@ export function WeeklyAssignmentClient({
           growingCategory,
           underusedCategory,
           recentThemes,
+          recentTitles,
           userId,
         }),
       });
@@ -250,7 +192,7 @@ export function WeeklyAssignmentClient({
             week_start: selectedWeek,
             theme: plan.theme,
             youtube_title: plan.youtube.title,
-            youtube_notes: plan.youtube.notes,
+            youtube_notes: null,
             status: "planned",
             recording_completed: false,
           },
@@ -286,18 +228,6 @@ export function WeeklyAssignmentClient({
       const ytDate = new Date(weekBase);
       ytDate.setDate(ytDate.getDate() + 2); // Wednesday
 
-      const ytNotes = formatScriptNotes({
-        program: plan.youtube.program,
-        hookType: plan.youtube.hook_type,
-        hook: plan.youtube.hook,
-        problem: plan.youtube.problem,
-        reframe: plan.youtube.reframe,
-        teaching: plan.youtube.teaching,
-        close: plan.youtube.close ?? plan.youtube.action ?? "",
-        cta: plan.youtube.cta,
-        extraNotes: plan.youtube.notes,
-      });
-
       const posts = [
         {
           batch_id: batch.id,
@@ -305,7 +235,7 @@ export function WeeklyAssignmentClient({
           scheduled_date: `${ytDate.getFullYear()}-${String(ytDate.getMonth() + 1).padStart(2, "0")}-${String(ytDate.getDate()).padStart(2, "0")}`, // Wednesday
           platform: "youtube",
           title: plan.youtube.title,
-          angle_notes: ytNotes,
+          angle_notes: `PROGRAM: ${plan.youtube.program}`,
           sort_order: 8, // posts after TikTok #3 (sort_order 3) on Wednesday
           status: "scheduled",
         },
@@ -315,23 +245,13 @@ export function WeeklyAssignmentClient({
           // i=4 → Fri(+4), i=5 → Sat(+5), i=6 → Sun(+6)
           const OFFSETS = [0, 1, 2, 3, 4, 5, 6];
           d.setDate(d.getDate() + OFFSETS[i]);
-          const notes = formatScriptNotes({
-            program: tt.program,
-            hookType: tt.hook_type,
-            hook: tt.hook,
-            problem: tt.problem,
-            reframe: tt.reframe,
-            teaching: tt.teaching,
-            close: tt.close ?? tt.action ?? "",
-            cta: tt.cta,
-          });
           return {
             batch_id: batch.id,
             user_id: userId,
             scheduled_date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`,
             platform: "tiktok",
             title: tt.title,
-            angle_notes: notes,
+            angle_notes: `PROGRAM: ${tt.program}`,
             sort_order: i + 1,
             status: "scheduled",
           };
@@ -589,29 +509,11 @@ export function WeeklyAssignmentClient({
                 {plan.youtube.title}
               </h3>
 
-              {plan.youtube.notes && (
-                <p className="text-xs text-muted-foreground leading-relaxed">{plan.youtube.notes}</p>
-              )}
-
               {plan.youtube.program && (
                 <p className="text-[11px] text-muted-foreground italic">
                   {PROGRAMS[plan.youtube.program as ProgramName]?.childTransformation}
                 </p>
               )}
-
-              <button
-                onClick={() => setShowYTScript(!showYTScript)}
-                className="flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
-              >
-                {showYTScript ? (
-                  <ChevronUp className="h-3.5 w-3.5" />
-                ) : (
-                  <ChevronDown className="h-3.5 w-3.5" />
-                )}
-                {showYTScript ? "Hide" : "Show"} video script (7 parts)
-              </button>
-
-              {showYTScript && <ScriptSection post={plan.youtube} />}
             </CardContent>
           </Card>
 
@@ -656,19 +558,7 @@ export function WeeklyAssignmentClient({
                         </p>
                       )}
                     </div>
-                    <button
-                      onClick={() => setExpandedTiktok(expandedTiktok === i ? null : i)}
-                      className="shrink-0 p-1 rounded-lg hover:bg-muted transition-colors"
-                    >
-                      {expandedTiktok === i ? (
-                        <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                      ) : (
-                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                      )}
-                    </button>
                   </div>
-
-                  {expandedTiktok === i && <ScriptSection post={tt} />}
                 </CardContent>
               </Card>
             ))}
@@ -731,7 +621,7 @@ export function WeeklyAssignmentClient({
 
                   <div className="space-y-2">
                     <p className="text-xs font-semibold text-foreground">Recording checklist</p>
-                    {plan.recording_checklist.map((item, i) => (
+                    {RECORDING_CHECKLIST.map((item, i) => (
                       <div key={i} className="flex items-start gap-2.5">
                         <CheckCircle2 className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
                         <p className="text-xs text-foreground">{item}</p>
@@ -770,7 +660,7 @@ export function WeeklyAssignmentClient({
               )}
             </Button>
             <p className="text-[11px] text-muted-foreground text-center">
-              Creates 8 scheduled posts with full program scripts. Opens batch hub.
+              Creates 8 scheduled posts with fresh titles. Opens batch hub.
             </p>
           </div>
         </div>

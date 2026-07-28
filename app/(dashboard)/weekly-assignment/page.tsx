@@ -31,7 +31,7 @@ export default async function WeeklyAssignmentPage() {
 
   const nextWeekStart = getNextWeekStart();
 
-  const [{ data: perfData }, { data: recentBatches }] = await Promise.all([
+  const [{ data: perfData }, { data: recentBatches }, { data: recentPosts }] = await Promise.all([
     supabase
       .from("content_performance")
       .select("category, views, likes")
@@ -42,6 +42,12 @@ export default async function WeeklyAssignmentPage() {
       .eq("user_id", user.id)
       .order("week_start", { ascending: false })
       .limit(6),
+    supabase
+      .from("batch_posts")
+      .select("title, scheduled_date")
+      .eq("user_id", user.id)
+      .order("scheduled_date", { ascending: false })
+      .limit(40),
   ]);
 
   // Aggregate content_performance by category
@@ -90,6 +96,10 @@ export default async function WeeklyAssignmentPage() {
     .map((b) => b.theme as string)
     .filter(Boolean);
 
+  const recentTitles = (recentPosts ?? [])
+    .map((p) => p.title as string)
+    .filter(Boolean);
+
   return (
     <div className="flex flex-col min-h-full">
       <Header
@@ -104,6 +114,7 @@ export default async function WeeklyAssignmentPage() {
         underusedCategory={underusedCategory}
         categories={categories.slice(0, 5)}
         recentThemes={recentThemes}
+        recentTitles={recentTitles}
       />
     </div>
   );
