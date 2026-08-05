@@ -52,7 +52,7 @@ interface Props {
 const STAGES: { key: LeadStage; label: string; color: string; bg: string; dot: string }[] = [
   { key: "new_lead",       label: "New Lead",      color: "text-sky-600 dark:text-sky-400",      bg: "bg-sky-500/10",     dot: "bg-sky-500" },
   { key: "contacted",      label: "Contacted",     color: "text-violet-600 dark:text-violet-400", bg: "bg-violet-500/10", dot: "bg-violet-500" },
-  { key: "call_scheduled", label: "Call Booked",   color: "text-amber-600 dark:text-amber-400",  bg: "bg-amber-500/10",   dot: "bg-amber-500" },
+  { key: "call_scheduled", label: "Call Scheduled", color: "text-amber-600 dark:text-amber-400",  bg: "bg-amber-500/10",   dot: "bg-amber-500" },
   { key: "call_completed", label: "Call Done",     color: "text-orange-600 dark:text-orange-400", bg: "bg-orange-500/10", dot: "bg-orange-500" },
   { key: "client",         label: "Client",        color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-500/10", dot: "bg-emerald-500" },
   { key: "follow_up",      label: "Follow Up",     color: "text-rose-600 dark:text-rose-400",    bg: "bg-rose-500/10",    dot: "bg-rose-500" },

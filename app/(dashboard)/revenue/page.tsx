@@ -26,7 +26,15 @@ export default async function RevenuePage() {
   const paidPayments = allPayments.filter(p => p.payment_status === "paid");
   const totalRevenue = paidPayments.reduce((sum, p) => sum + p.amount, 0);
   const activeClients = allEnrollments.filter(e => e.status === "active").length;
-  const avgRevenue = activeClients > 0 ? Math.round(totalRevenue / allEnrollments.filter(e => e.status !== "cancelled").length) : 0;
+  const nonCancelledClients = allEnrollments.filter(e => e.status !== "cancelled").length;
+  const nonCancelledRevenue = paidPayments
+    .filter(p => {
+      const rawEnr = p.client_enrollments;
+      const enr = (Array.isArray(rawEnr) ? rawEnr[0] : rawEnr) as { status?: string } | null;
+      return enr?.status !== "cancelled";
+    })
+    .reduce((sum, p) => sum + p.amount, 0);
+  const avgRevenue = nonCancelledClients > 0 ? Math.round(nonCancelledRevenue / nonCancelledClients) : 0;
 
   // Revenue by program
   const programRevenue: Record<string, number> = {};

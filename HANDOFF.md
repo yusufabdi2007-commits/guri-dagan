@@ -13,8 +13,53 @@ It covers what is built, how everything is wired, known limitations, and what to
 **Recent fixes (June 2026):** Dark mode now defaults on fresh install (ThemeProvider reads localStorage, falls back to dark). DnD fully removed from Calendar + Queue + Leads — React 19 incompatible. Real error messages surfaced on leads save/move/add failures.
 **Recent additions (July 2026):** Public contact form `/contact` + email delivery via Resend. See full change log below.
 **Recent change (July 2026):** Removed all AI-written video scripts from the weekly content system — `/weekly-assignment` and `/batch/plan` now generate a fresh TITLE only per video slot (no hook/problem/reframe/teaching/close/cta). The presenter already knows the on-camera format; she no longer gets a new script to read every week, just a new topic. Stress-tested for 100 simulated consecutive weeks (both the pure-fallback path and an adversarial AI-output path) with zero duplicate-title or scheduling bugs. See "Titles-Only System" section below.
-**Business context (June 2026):** Pricing model confirmed — US/UK/Europe: $100/month (1-on-1, 2x/week). Africa/Somalia/Kenya: $25/month (group 5–10 families, 2x/month). Free 20-min consultation call as entry point. All 5 programs same price. WhatsApp: +1 (763) 412-7695.
+**Recent addition (August 2026):** WhatsApp intake bot at `/api/whatsapp` — see "WhatsApp Bot" section below. Code is done; **not yet activated** — needs a Meta WhatsApp Business API connection set up by the business owner (see that section for exact steps).
+**Business context (June 2026, pricing updated August 2026):** ~~US/UK/Europe: $100/month (1-on-1, 2x/week). Africa/Somalia/Kenya: $25/month (group 5–10 families, 2x/month). All 5 programs same price.~~ **Superseded** — see "WhatsApp Bot (v2)" below for current pricing: Africa $25/mo parent · $50/mo child; outside Africa $100/mo either track. WhatsApp: +1 (763) 412-7695.
 **Deployment plan:** Vercel production. Developer uses laptop locally. End user (mum) installs as PWA on her phone via https://guri-dagan.vercel.app
+
+---
+
+## August 2026 — WhatsApp Bot (v2 — Gemini-driven, supersedes the v1 button-only design)
+
+### History — read this before changing anything
+This feature went through two designs in the same week. **v1** (button-menu only, $0, no AI) was built first, explicitly chosen over an AI-conversation bot for cost reasons. The business owner then rejected v1 as "too robotic" and, after describing exactly how her real WhatsApp conversations go, asked for a redesign. **v2** (below) is what's actually in the code now. Don't revert to pure buttons without being asked — that was already tried and explicitly rejected.
+
+### What it does (v2)
+1. **First message in** (any free text) → the bot calls **Gemini** (`lib/gemini.ts`, needs `GEMINI_API_KEY`) with a Somali-language system prompt asking for a short, natural, everyday-tone reply with one real piece of advice relevant to what they said — not a canned response. Gemini was chosen specifically over the OpenAI/Groq models already used elsewhere in this app because its Somali output reads more like normal conversation, less like a translated document.
+2. That advice reply is **not sent immediately** — it's queued in `whatsapp_pending_replies` with a random 60-120s delay, so it doesn't feel instantly AI-generated. See "The delay mechanism" below for why this needed its own infrastructure.
+3. Once sent, the advice message also carries **2 buttons**: "I want coaching" (parent track) or "My child needs it" (child track). No third "both" option in v2 — simplified to exactly these two.
+4. **Child track only:** asks the child's age. Under **8** (`MIN_CHILD_AGE` in `lib/pricing.ts`) → explains the program isn't suited yet and stops (no lead created, no price shown). 8+ → continues.
+5. **Asks country** (free text, matched against `lib/countries.ts`). This answer is **final** — the state machine only reads it once, in the `awaiting_country` step, and immediately advances past it; there is no "go back and change your country" path anywhere in the flow. This was an explicit requirement — don't add a way to revise it later without being asked.
+6. **Quotes the price** via `lib/pricing.ts`'s `getPrice(country, track)`: Africa = **$25/mo parent, $50/mo child**; outside Africa = **$100/mo for either track**. (This replaced the old flat $25/$100-regardless-of-track pricing from v1 — see Current State pricing note above, which is now stale and superseded by this.)
+7. Explains what happens next in plain terms — parent track: Coach Rahma assesses the situation/habits first (gym-coach analogy the business owner used), then builds a plan. Child track: a structured, set program.
+8. Gives **payment instructions** — a Somali money-transfer number (EVC Plus/Zaad/etc.), not a card, via `PAYMENT_INFO_TEXT` env var. No Calendly/booking-call step in v2 (v1 had one; superseded — `CALENDLY_EVENT_URL` env var is left in `.env.local.example` unused in case it's wanted back later).
+9. Creates a lead in the existing `leads` table (source `whatsapp`, country, track, child age if applicable) — same as v1, still no separate dashboard needed, `/leads` already is one.
+10. Session marked `done`. Further messages aren't auto-replied to — logged as `lead_activity` notes so a human (Coach Rahma, from the same WhatsApp number) takes over, same handoff behavior as v1.
+
+### The delay mechanism — why it needed its own table + external cron
+A naive `setTimeout` inside the webhook handler won't survive a 60-120 second delay on Vercel serverless — function execution just ends. So the delayed advice message is written to **`whatsapp_pending_replies`** (`send_after` timestamp + the exact message payload as JSON) instead of sent directly, and a separate route, **`/api/whatsapp/send-pending`**, sends anything that's due and marks it sent.
+
+That route needs to be *triggered* on a short interval (~every 1 minute). **Vercel's free/Hobby cron tier only runs once a day** — nowhere near frequent enough — so this can't use `vercel.json`'s existing cron setup (that's still fine for the daily `/api/push-send` job, just not this). Instead, **use a free external cron service** (e.g. cron-job.org, EasyCron's free tier, or a scheduled GitHub Action) to hit `https://guri-dagan.vercel.app/api/whatsapp/send-pending` every minute, with header `Authorization: Bearer <CRON_SECRET>` (set `CRON_SECRET` to any random string in env vars — optional but recommended, otherwise that route is unauthenticated).
+
+### Files
+- `app/api/whatsapp/route.ts` — the webhook (GET = Meta's verification handshake, POST = incoming messages, full state machine)
+- `app/api/whatsapp/send-pending/route.ts` — sends due delayed messages; needs the external cron above
+- `lib/gemini.ts` — minimal fetch-based Gemini client (no SDK dependency) for the advice reply
+- `lib/pricing.ts` — track-based (parent/child) × region (Africa/not) pricing, plus `MIN_CHILD_AGE`
+- `supabase/migrations/024_whatsapp_bot_schema.sql` then `025_whatsapp_bot_v2.sql` — run both, in order. 025 drops and recreates `whatsapp_sessions` with the new v2 shape (`track`, `child_age`, new step names) and adds `whatsapp_pending_replies`. Safe to run even if only 024 was applied so far.
+
+### What's NOT done yet — needs the business owner
+Same Meta setup as before, plus one new piece:
+1. Meta Developer account + Meta App with WhatsApp product added (developers.facebook.com); WhatsApp Business Account + phone number; **permanent System User access token** (not the 24-hour temporary one) → `WHATSAPP_ACCESS_TOKEN`; Phone Number ID → `WHATSAPP_PHONE_NUMBER_ID`.
+2. `WHATSAPP_VERIFY_TOKEN` — any random string, matching value in Meta's webhook config.
+3. Webhook URL in Meta's dashboard: `https://guri-dagan.vercel.app/api/whatsapp`, subscribed to `messages`.
+4. **New:** `GEMINI_API_KEY` — already present in this project's `.env.local` from earlier, just needs to carry over to Vercel's env vars for production.
+5. **New:** set up the external cron (cron-job.org or similar, free) hitting `/api/whatsapp/send-pending` every minute, per "The delay mechanism" above. Without this step, advice replies get queued but **never actually sent** — this is easy to miss and will look like the bot is silently broken.
+6. **New:** `PAYMENT_INFO_TEXT` — the actual EVC Plus/Zaad number, from the business owner.
+7. Run both SQL migrations (024, then 025) in Supabase's SQL Editor.
+
+### Deliberately not doing (from a WhatsApp-agent tutorial the business owner referenced)
+A common agency pattern for this kind of bot is: brand-new Supabase project, brand-new GitHub repo, brand-new Vercel deploy, and a dedicated dashboard to view conversations. That pattern is for building a system from zero for a brand-new client. Guri Dagan already has all of that — the leads pipeline (`/leads`) already *is* the dashboard, this repo already *is* the deploy target. Don't spin up parallel infrastructure for this feature.
 
 ---
 
