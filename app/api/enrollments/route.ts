@@ -36,6 +36,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "parent_name is required" }, { status: 400 });
   }
 
+  if (lead_id) {
+    const { data: lead } = await supabase
+      .from("leads")
+      .select("id")
+      .eq("id", lead_id)
+      .eq("user_id", user.id)
+      .single();
+    if (!lead) return NextResponse.json({ error: "Lead not found" }, { status: 404 });
+  }
+
   const { data, error } = await supabase
     .from("client_enrollments")
     .insert({

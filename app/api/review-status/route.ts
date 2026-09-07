@@ -11,6 +11,14 @@ export async function POST(req: NextRequest) {
   const { videoId, review_status, reviewer_notes } = await req.json();
   if (!videoId) return NextResponse.json({ error: "Missing videoId" }, { status: 400 });
 
+  const { data: video } = await supabase
+    .from("videos")
+    .select("id")
+    .eq("id", videoId)
+    .eq("user_id", user.id)
+    .single();
+  if (!video) return NextResponse.json({ error: "Video not found" }, { status: 404 });
+
   const status = VALID_STATUSES.includes(review_status) ? review_status : "needs_review";
   const isCompleted = ["approved", "high_retention_candidate", "ready_for_export"].includes(status);
 

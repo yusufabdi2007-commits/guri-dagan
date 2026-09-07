@@ -1,5 +1,4 @@
 import { createServerClient } from "@supabase/ssr";
-import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function updateSession(request: NextRequest) {
@@ -58,30 +57,10 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname.startsWith("/book") ||
     request.nextUrl.pathname.startsWith("/contact") ||
     request.nextUrl.pathname.startsWith("/status") ||
-    request.nextUrl.pathname.startsWith("/offline");
-
-  // No login UI — silently establish a session for the app owner via a
-  // server-minted magic-link token (using the service role key), so no
-  // password ever needs to be stored. There's never a login form to fill out.
-  if (!user && !isApiRoute && !isPublicAsset && !isPublicRoute) {
-    const ownerEmail = process.env.OWNER_EMAIL;
-    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (ownerEmail && serviceKey) {
-      const admin = createAdminClient(supabaseUrl, serviceKey);
-      const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
-        type: "magiclink",
-        email: ownerEmail,
-      });
-      const tokenHash = linkData?.properties?.hashed_token;
-      if (!linkError && tokenHash) {
-        const { data: verifyData, error: verifyError } = await supabase.auth.verifyOtp({
-          type: "magiclink",
-          token_hash: tokenHash,
-        });
-        if (!verifyError) user = verifyData.user;
-      }
-    }
-  }
+    request.nextUrl.pathname.startsWith("/offline") ||
+    request.nextUrl.pathname === "/academy" ||
+    request.nextUrl.pathname.startsWith("/academy/login") ||
+    request.nextUrl.pathname.startsWith("/academy/course");
 
   if (!user && !isAuthPage && !isApiRoute && !isPublicAsset && !isPublicRoute) {
     const url = request.nextUrl.clone();

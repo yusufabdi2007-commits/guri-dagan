@@ -1,18 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import crypto from "crypto";
 import { COUNTRIES } from "@/lib/countries";
 import { matchCountry, getPrice, MIN_CHILD_AGE, type Track } from "@/lib/pricing";
 import { getAdviceReply } from "@/lib/gemini";
 
 // Gemini-driven WhatsApp intake bot. Public endpoint — Meta calls this
-// directly, no auth. Requires:
+// directly, no user auth, but POST bodies are verified against Meta's
+// X-Hub-Signature-256 HMAC so forged payloads are rejected. Requires:
 //   WHATSAPP_ACCESS_TOKEN, WHATSAPP_PHONE_NUMBER_ID, WHATSAPP_VERIFY_TOKEN
+//   WHATSAPP_APP_SECRET (Meta App → Settings → Basic → App Secret — used to verify webhook signatures)
 //   SUPABASE_SERVICE_ROLE_KEY + OWNER_USER_ID (already used by /api/book)
 //   GEMINI_API_KEY (for the advice reply)
 // See HANDOFF.md "WhatsApp Bot" section for the full design + setup steps,
 // including the external cron needed for delayed replies.
 
 const GRAPH_URL = "https://graph.facebook.com/v20.0";
+
+/** Verify Meta's X-Hub-Signature-256 header against the raw request body. */
+function verifyMetaSignature(rawBody: string, signatureHeader: string | null): boolean {
+  const appSecret = process.env.WHATSAPP_APP_SECRET;
+  if (!appSecret || !signatureHeader) return false;
+  const expected =
+    "sha256=" + crypto.createHmac("sha256", appSecret).update(rawBody).digest("hex");
+  const expectedBuf = Buffer.from(expected);
+  const gotBuf = Buffer.from(signatureHeader);
+  if (expectedBuf.length !== gotBuf.length) return false;
+  return crypto.timingSafeEqual(expectedBuf, gotBuf);
+}
 
 function admin() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -90,7 +105,14 @@ export async function GET(req: NextRequest) {
 // ── POST: incoming message webhook ──
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    const rawBody = await req.text();
+    const signature = req.headers.get("x-hub-signature-256");
+    if (!verifyMetaSignature(rawBody, signature)) {
+      console.error("WhatsApp webhook: rejected — missing or invalid X-Hub-Signature-256");
+      return NextResponse.json({ ok: true }); // 200 so Meta doesn't retry-storm, but nothing is processed
+    }
+
+    const body = JSON.parse(rawBody);
     const change = body?.entry?.[0]?.changes?.[0]?.value;
     const message = change?.messages?.[0];
     if (!message) return NextResponse.json({ ok: true }); // status update, not a message

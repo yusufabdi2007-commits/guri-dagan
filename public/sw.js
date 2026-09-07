@@ -1,4 +1,4 @@
-const CACHE_NAME = "guri-dagan-v2";
+const CACHE_NAME = "guri-dagan-v3";
 
 // Only pre-cache the offline fallback — never cache SSR/auth routes
 const STATIC_ASSETS = ["/offline"];
@@ -69,15 +69,25 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // STATIC ASSETS (JS, CSS, fonts, images): cache-first for speed
+  // STATIC ASSETS (JS, CSS, fonts, images): stale-while-revalidate — serve
+  // the cached copy instantly if there is one, but always also fetch a fresh
+  // copy in the background and update the cache. A pure cache-first strategy
+  // here meant any edit to a CSS/JS file could get stuck being served forever
+  // (Next dev-mode chunk filenames aren't uniquely hashed per change like a
+  // production build), with no way for a browser to self-heal short of a
+  // manual CACHE_NAME bump + hard refresh. This version still serves fast,
+  // but the next load always picks up whatever actually changed.
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) return cached;
-      return fetch(event.request).then((response) => {
-        const clone = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-        return response;
-      });
-    }).catch(() => new Response("", { status: 503 }))
+    caches.open(CACHE_NAME).then((cache) =>
+      cache.match(event.request).then((cached) => {
+        const network = fetch(event.request)
+          .then((response) => {
+            cache.put(event.request, response.clone());
+            return response;
+          })
+          .catch(() => null);
+        return cached || network || new Response("", { status: 503 });
+      })
+    )
   );
 });

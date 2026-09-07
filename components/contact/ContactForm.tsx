@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { COUNTRIES } from '@/lib/countries';
+import { PhoneInput } from '@/components/ui/phone-input';
 import { ChevronRight, ChevronLeft, CheckCircle2, Send } from 'lucide-react';
 
 type Step = 'intro' | 'who' | 'upsell' | 'children' | 'details' | 'source' | 'message' | 'done' | 'error';
@@ -399,12 +400,11 @@ export default function ContactForm() {
                     <option key={c} value={c}>{c}</option>
                   ))}
                 </select>
-                <input
-                  type="tel"
-                  placeholder={t.phonePlaceholder}
+                <PhoneInput
                   value={form.phone}
-                  onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
-                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 text-gray-900 text-sm placeholder-gray-400 focus:border-purple-500 focus:outline-none transition bg-white"
+                  onChange={phone => setForm(f => ({ ...f, phone }))}
+                  placeholder={t.phonePlaceholder}
+                  className="px-4 py-3 rounded-xl border-2 border-gray-200 text-gray-900 text-sm placeholder-gray-400 focus:border-purple-500 focus:outline-none transition bg-white"
                 />
               </div>
             </div>

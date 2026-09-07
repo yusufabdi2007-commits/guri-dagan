@@ -23,10 +23,16 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { client_name, email, phone, package_name, message, source } = body;
+    const { client_name, email, phone, country, package_name, message, source } = body;
 
     if (!client_name?.trim()) {
       return NextResponse.json({ error: "Name is required" }, { status: 400 });
+    }
+    if (!phone?.trim()) {
+      return NextResponse.json({ error: "Phone / WhatsApp number is required" }, { status: 400 });
+    }
+    if (!country?.trim()) {
+      return NextResponse.json({ error: "Please select the country you're currently in" }, { status: 400 });
     }
 
     // Use service role to bypass RLS — insert on behalf of the coach
@@ -36,7 +42,8 @@ export async function POST(req: NextRequest) {
       user_id: ownerUserId,
       client_name: client_name.trim(),
       email: email?.trim() || null,
-      phone: phone?.trim() || null,
+      phone: phone.trim(),
+      country: country.trim(),
       package_name: package_name?.trim() || null,
       message: message?.trim() || null,
       source: source || "Website",

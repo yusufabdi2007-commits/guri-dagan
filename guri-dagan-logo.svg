@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="280" height="64" viewBox="0 0 280 64" font-family="Arial, Helvetica, sans-serif">
+  <rect x="0" y="10" width="44" height="44" rx="14" fill="#5c2ca6"/>
+  <g transform="translate(12, 22)" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z" transform="scale(0.833)"/>
+    <path d="M22 10v6" transform="scale(0.833)"/>
+    <path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5" transform="scale(0.833)"/>
+  </g>
+  <text x="60" y="30" font-size="17" font-weight="800" fill="#1a1024" letter-spacing="-0.3">Guri Dagan</text>
+  <text x="60" y="46" font-size="11" font-weight="700" fill="#7957ab" letter-spacing="2.2">ACADEMY</text>
+</svg>

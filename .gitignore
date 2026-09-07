@@ -32,3 +32,8 @@ Thumbs.db
 .vercel
 
 .vercel
+
+# Tool-local state, not part of the app
+.codex/
+tmp/
+supabase/.temp/

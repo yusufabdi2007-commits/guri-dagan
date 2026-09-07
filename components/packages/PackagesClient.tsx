@@ -11,6 +11,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/components/ui/use-toast";
 import { createClient } from "@/lib/supabase/client";
+import { PhoneInput } from "@/components/ui/phone-input";
+import { COUNTRIES } from "@/lib/countries";
 import {
   Package, Plus, Pencil, Trash2, Users, Calendar,
   DollarSign, BookOpen, Star, Mail, Phone, MessageSquare
@@ -35,6 +37,7 @@ interface BookingRequest {
   client_name: string;
   email: string | null;
   phone: string | null;
+  country: string | null;
   package_name: string | null;
   message: string | null;
   status: string;
@@ -73,6 +76,7 @@ const emptyBooking = {
   client_name: "",
   email: "",
   phone: "",
+  country: "",
   package_id: "",
   package_name: "",
   message: "",
@@ -165,6 +169,7 @@ export function PackagesClient({ packages: initialPackages, bookings: initialBoo
       client_name: bookingForm.client_name.trim(),
       email: bookingForm.email || null,
       phone: bookingForm.phone || null,
+      country: bookingForm.country || null,
       package_id: bookingForm.package_id || null,
       package_name: selectedPkg?.name || bookingForm.package_name || null,
       message: bookingForm.message || null,
@@ -332,7 +337,7 @@ export function PackagesClient({ packages: initialPackages, bookings: initialBoo
                       )}
                       {booking.phone && (
                         <a href={`tel:${booking.phone}`} className="flex items-center gap-1 text-[10px] text-primary hover:underline">
-                          <Phone className="h-3 w-3" />{booking.phone}
+                          <Phone className="h-3 w-3" />{booking.phone}{booking.country ? ` (${booking.country})` : ""}
                         </a>
                       )}
                     </div>
@@ -421,8 +426,15 @@ export function PackagesClient({ packages: initialPackages, bookings: initialBoo
               </div>
               <div className="space-y-2">
                 <Label>Phone</Label>
-                <Input placeholder="+252..." value={bookingForm.phone} onChange={e => setBookingForm(f => ({ ...f, phone: e.target.value }))} />
+                <PhoneInput value={bookingForm.phone} onChange={phone => setBookingForm(f => ({ ...f, phone }))} />
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Country (currently living in)</Label>
+              <Select value={bookingForm.country} onValueChange={v => setBookingForm(f => ({ ...f, country: v }))}>
+                <SelectTrigger><SelectValue placeholder="Select country..." /></SelectTrigger>
+                <SelectContent>{COUNTRIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+              </Select>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">

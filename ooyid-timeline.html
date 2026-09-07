@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="so">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Guri Dagan</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: #f3f0fa;
+    color: #2a2035;
+    padding: 24px;
+  }
+
+  .sheet {
+    max-width: 1100px;
+    margin: 0 auto 32px;
+    background: #fff;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 4px 24px rgba(74,26,138,0.12);
+    page-break-after: always;
+  }
+
+  .sheet:last-child { page-break-after: auto; }
+
+  /* ── HEADER ── */
+  .header {
+    background: linear-gradient(135deg, #4a1a8a 0%, #6b2fa0 60%, #7c3bb5 100%);
+    color: #fff;
+    padding: 20px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .brand {
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+  }
+
+  .meta {
+    font-size: 11px;
+    line-height: 1.9;
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  .meta .line {
+    display: inline-block;
+    min-width: 130px;
+    border-bottom: 1px solid rgba(255,255,255,0.6);
+    margin-left: 6px;
+  }
+
+  /* ── TABLE ── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  thead th {
+    background: #ece2fb;
+    color: #4a1a8a;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 10px 8px;
+    border: 1px solid #e0d2f7;
+    text-align: center;
+  }
+
+  th.col-day    { width: 16%; }
+  th.col-time   { width: 14%; }
+  th.col-before { width: 70%; background: #fdf3de; color: #a67512; }
+
+  tbody td {
+    border: 1px solid #ece2fb;
+    height: 62px;
+    vertical-align: top;
+    padding: 6px 8px;
+    font-size: 11px;
+  }
+
+  tbody tr:nth-child(even) td { background: #faf8ff; }
+
+  .day-cell {
+    text-align: center;
+    vertical-align: middle;
+    background: #ece2fb !important;
+  }
+
+  .day-cell .so {
+    display: block;
+    font-weight: 700;
+    font-size: 12.5px;
+    color: #4a1a8a;
+  }
+
+  .day-cell .en {
+    display: block;
+    font-size: 9px;
+    color: #8a6bb5;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-top: 1px;
+  }
+
+  @media print {
+    body { background: #fff; padding: 0; }
+    .sheet { box-shadow: none; border-radius: 0; margin: 0; }
+    .header, thead th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+
+  <!-- ══════════════════════════════════════ -->
+  <!-- SHEET — INCIDENT TIMELINE LOG -->
+  <!-- ══════════════════════════════════════ -->
+  <div class="sheet">
+
+    <div class="header">
+      <div class="brand">GURI DAGAN</div>
+      <div class="meta">
+        MAGACA ILMAHA:<span class="line"></span>
+      </div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th class="col-day">Maalinta</th>
+          <th class="col-time">Waqtiga</th>
+          <th class="col-before">Ka Hor Oohinta</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td class="day-cell"><span class="so">Sabti</span><span class="en">Saturday</span></td><td></td><td></td></tr>
+        <tr><td class="day-cell"><span class="so">Axad</span><span class="en">Sunday</span></td><td></td><td></td></tr>
+        <tr><td class="day-cell"><span class="so">Isniin</span><span class="en">Monday</span></td><td></td><td></td></tr>
+        <tr><td class="day-cell"><span class="so">Talaado</span><span class="en">Tuesday</span></td><td></td><td></td></tr>
+        <tr><td class="day-cell"><span class="so">Arbaco</span><span class="en">Wednesday</span></td><td></td><td></td></tr>
+        <tr><td class="day-cell"><span class="so">Khamiis</span><span class="en">Thursday</span></td><td></td><td></td></tr>
+        <tr><td class="day-cell"><span class="so">Jimco</span><span class="en">Friday</span></td><td></td><td></td></tr>
+      </tbody>
+    </table>
+
+  </div>
+
+</body>
+</html>

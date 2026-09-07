@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { rateLimit } from '@/lib/rate-limit';
 
 const SOURCE_LABELS: Record<string, string> = {
   youtube: 'YouTube',
@@ -8,10 +9,32 @@ const SOURCE_LABELS: Record<string, string> = {
   other: 'Other',
 };
 
+function escapeHtml(value: unknown): string {
+  return String(value ?? '').replace(/[&<>"']/g, (c) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string)
+  );
+}
+
+/** Strips line breaks/control chars and caps length — for values placed in an email subject line. */
+function sanitizeForSubject(value: unknown, maxLen = 100): string {
+  return String(value ?? '').replace(/[\r\n\t\x00-\x1f]/g, ' ').trim().slice(0, maxLen);
+}
+
 export async function POST(req: NextRequest) {
+  const limit = rateLimit(req, { limit: 10, windowMs: 60 * 60_000 });
+  if (!limit.ok) {
+    return NextResponse.json({ ok: false, error: 'Too many requests. Please wait before trying again.' }, { status: 429 });
+  }
+
   const form = await req.json();
   const { who, addChildCoaching, childCount, childAges, name, country, phone, source, message, _noEmail } = form;
   const whatsapp = phone; // field renamed in form but kept as whatsapp for email display
+
+  const safeName = escapeHtml(name);
+  const safeCountry = escapeHtml(country);
+  const safeWhatsapp = escapeHtml(whatsapp);
+  const safeChildAges = escapeHtml((childAges as string[])?.join(', '));
+  const safeMessage = escapeHtml(message).replace(/\n/g, '<br>');
 
   const hasChildren = who === 'children' || who === 'both' || (who === 'parent' && addChildCoaching === 'yes');
 
@@ -30,7 +53,7 @@ export async function POST(req: NextRequest) {
       </tr>
       <tr>
         <td style="padding:8px 0;font-size:13px;color:#888;vertical-align:top;">Child ages</td>
-        <td style="padding:8px 0;font-size:14px;font-weight:600;color:#1a1a1a;">${(childAges as string[])?.join(', ') || '—'}</td>
+        <td style="padding:8px 0;font-size:14px;font-weight:600;color:#1a1a1a;">${safeChildAges || '—'}</td>
       </tr>
     `
     : '';
@@ -51,31 +74,31 @@ export async function POST(req: NextRequest) {
           <tr><td colspan="2" style="padding:4px 0;border-top:1px solid #e8e0ff;"></td></tr>
           <tr>
             <td style="padding:8px 0;font-size:13px;color:#888;">Name</td>
-            <td style="padding:8px 0;font-size:14px;font-weight:600;color:#1a1a1a;">${name}</td>
+            <td style="padding:8px 0;font-size:14px;font-weight:600;color:#1a1a1a;">${safeName}</td>
           </tr>
           <tr>
             <td style="padding:8px 0;font-size:13px;color:#888;">Country</td>
-            <td style="padding:8px 0;font-size:14px;font-weight:600;color:#1a1a1a;">${country}</td>
+            <td style="padding:8px 0;font-size:14px;font-weight:600;color:#1a1a1a;">${safeCountry}</td>
           </tr>
           <tr>
             <td style="padding:8px 0;font-size:13px;color:#888;">Phone</td>
-            <td style="padding:8px 0;font-size:14px;font-weight:600;color:#1a1a1a;">${whatsapp}</td>
+            <td style="padding:8px 0;font-size:14px;font-weight:600;color:#1a1a1a;">${safeWhatsapp}</td>
           </tr>
           <tr>
             <td style="padding:8px 0;font-size:13px;color:#888;">Found via</td>
-            <td style="padding:8px 0;font-size:14px;font-weight:600;color:#1a1a1a;">${SOURCE_LABELS[source] ?? source}</td>
+            <td style="padding:8px 0;font-size:14px;font-weight:600;color:#1a1a1a;">${escapeHtml(SOURCE_LABELS[source] ?? source)}</td>
           </tr>
         </table>
 
         <div style="margin-top:20px;padding:16px 18px;background:#fff;border-radius:10px;border:1px solid #e8e0ff;">
           <p style="font-size:11px;color:#aaa;margin:0 0 8px;text-transform:uppercase;letter-spacing:0.08em;">Message</p>
-          <p style="font-size:14px;color:#333;line-height:1.7;margin:0;">${(message as string).replace(/\n/g, '<br>')}</p>
+          <p style="font-size:14px;color:#333;line-height:1.7;margin:0;">${safeMessage}</p>
         </div>
 
         <div style="margin-top:18px;text-align:center;">
-          <a href="tel:${whatsapp}"
+          <a href="tel:${encodeURIComponent(String(whatsapp ?? '').replace(/[^\d+]/g, ''))}"
              style="display:inline-block;background:#5b2da0;color:#fff;font-weight:700;font-size:14px;padding:12px 24px;border-radius:10px;text-decoration:none;">
-            Contact → ${whatsapp}
+            Contact → ${safeWhatsapp}
           </a>
         </div>
       </div>
@@ -101,10 +124,10 @@ export async function POST(req: NextRequest) {
       },
       body: JSON.stringify({
         from: 'Guri Dagan Contact <onboarding@resend.dev>',
-        // Both addresses: Resend shared domain only delivers to the account owner email.
-        // rhussein612@gmail.com will work once a verified domain is added in Resend.
-        to: ['yusufabdi2007@gmail.com'],
-        subject: `New Inquiry — ${name} from ${country}`,
+        // Resend's shared sandbox domain only delivers to the account owner's
+        // own verified email — ymo441993@gmail.com is that address.
+        to: ['ymo441993@gmail.com'],
+        subject: `New Inquiry — ${sanitizeForSubject(name)} from ${sanitizeForSubject(country)}`,
         html,
       }),
     });

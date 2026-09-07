@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PhoneInput } from "@/components/ui/phone-input";
+import { COUNTRIES } from "@/lib/countries";
 import { CheckCircle2, Heart, Loader2, MessageCircle, Phone, Star } from "lucide-react";
 
 const PACKAGES = [
@@ -23,6 +25,7 @@ export default function BookPage() {
     client_name: "",
     email: "",
     phone: "",
+    country: "",
     package_name: "",
     message: "",
     source: "",
@@ -35,6 +38,14 @@ export default function BookPage() {
     e.preventDefault();
     if (!form.client_name.trim()) {
       setError("Please enter your name.");
+      return;
+    }
+    if (!form.phone.trim()) {
+      setError("Please enter your phone / WhatsApp number.");
+      return;
+    }
+    if (!form.country.trim()) {
+      setError("Please select the country you're currently in.");
       return;
     }
     setError("");
@@ -130,14 +141,25 @@ export default function BookPage() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="phone">Phone / WhatsApp</Label>
-            <Input
+            <Label htmlFor="phone">Phone / WhatsApp *</Label>
+            <PhoneInput
               id="phone"
-              type="tel"
-              placeholder="+44 7700 000000"
               value={form.phone}
-              onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
+              onChange={phone => setForm(f => ({ ...f, phone }))}
+              required
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="country">Country you&apos;re currently in *</Label>
+            <Select value={form.country} onValueChange={v => setForm(f => ({ ...f, country: v }))}>
+              <SelectTrigger id="country">
+                <SelectValue placeholder="Select your country..." />
+              </SelectTrigger>
+              <SelectContent>
+                {COUNTRIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">

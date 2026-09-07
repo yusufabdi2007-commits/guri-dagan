@@ -14,6 +14,8 @@ import { Plus, Users, ChevronRight, CheckCircle2, Calendar, AlertCircle, Search 
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "@/components/ui/use-toast";
 import { formatDate, cn } from "@/lib/utils";
+import { PhoneInput } from "@/components/ui/phone-input";
+import { COUNTRIES } from "@/lib/countries";
 
 type ClientStatus = "Active" | "Paused" | "Completed" | "Prospective";
 
@@ -22,6 +24,7 @@ interface Client {
   name: string;
   email: string | null;
   phone: string | null;
+  country: string | null;
   notes: string | null;
   concerns: string | null;
   status: ClientStatus;
@@ -55,7 +58,7 @@ const STATUS_DOT: Record<ClientStatus, string> = {
   Active: "bg-green-500", Paused: "bg-yellow-500", Completed: "bg-blue-500", Prospective: "bg-purple-500"
 };
 
-const emptyForm = { name: "", email: "", phone: "", notes: "", concerns: "", status: "Active" as ClientStatus, progress_rating: "" };
+const emptyForm = { name: "", email: "", phone: "", country: "", notes: "", concerns: "", status: "Active" as ClientStatus, progress_rating: "" };
 
 export function CrmClient({ clients: initial, pendingTasks, userId }: Props) {
   const [clients, setClients] = useState(initial);
@@ -78,7 +81,7 @@ export function CrmClient({ clients: initial, pendingTasks, userId }: Props) {
     if (!form.name.trim()) { toast({ title: "Name required", variant: "destructive" as never }); return; }
     setSaving(true);
     const supabase = createClient();
-    const payload = { name: form.name, email: form.email || null, phone: form.phone || null, notes: form.notes || null, concerns: form.concerns || null, status: form.status, progress_rating: form.progress_rating ? parseInt(form.progress_rating) : null };
+    const payload = { name: form.name, email: form.email || null, phone: form.phone || null, country: form.country || null, notes: form.notes || null, concerns: form.concerns || null, status: form.status, progress_rating: form.progress_rating ? parseInt(form.progress_rating) : null };
     const { data, error } = await supabase.from("crm_clients").insert({ ...payload, user_id: userId }).select().single();
     if (!error && data) { setClients(p => [data, ...p]); toast({ title: "Client added!" }); }
     setSaving(false);
@@ -192,8 +195,15 @@ export function CrmClient({ clients: initial, pendingTasks, userId }: Props) {
           <DialogHeader><DialogTitle>Add Client</DialogTitle></DialogHeader>
           <div className="space-y-4 max-h-[65vh] overflow-y-auto">
             <div className="space-y-2"><Label>Name *</Label><Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Parent's name" /></div>
+            <div className="space-y-2"><Label>Phone</Label><PhoneInput value={form.phone} onChange={phone => setForm(f => ({ ...f, phone }))} /></div>
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2"><Label>Phone</Label><Input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="+1..." /></div>
+              <div className="space-y-2">
+                <Label>Country (currently living in)</Label>
+                <Select value={form.country} onValueChange={v => setForm(f => ({ ...f, country: v }))}>
+                  <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
+                  <SelectContent>{COUNTRIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
               <div className="space-y-2">
                 <Label>Status</Label>
                 <Select value={form.status} onValueChange={v => setForm(f => ({ ...f, status: v as ClientStatus }))}>

@@ -33,10 +33,14 @@ export function rateLimit(
   req: Request,
   { limit = 20, windowMs = 60_000 }: RateLimitOptions = {}
 ): RateLimitResult {
-  // Use IP from headers (Vercel sets x-forwarded-for)
+  // x-forwarded-for can have an attacker-supplied value prepended to it (a
+  // client can send its own XFF header); Vercel appends the true connecting
+  // IP as the LAST entry rather than stripping what the client sent, so take
+  // the last entry, not the first — otherwise a client can set a fresh fake
+  // IP per request to get a new rate-limit bucket every time.
   const ip =
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
     req.headers.get("x-real-ip") ||
+    req.headers.get("x-forwarded-for")?.split(",").pop()?.trim() ||
     "unknown";
 
   const key = `${ip}:${new URL(req.url).pathname}`;

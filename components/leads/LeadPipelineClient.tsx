@@ -16,6 +16,7 @@ import { cn, formatDate } from "@/lib/utils";
 import { toast } from "@/components/ui/use-toast";
 import { PROGRAMS, getProgramBadgeClass } from "@/lib/programs";
 import { COUNTRIES } from "@/lib/countries";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { Globe } from "lucide-react";
 
 export type LeadStage = "new_lead" | "contacted" | "call_scheduled" | "call_completed" | "client" | "follow_up" | "closed";
@@ -323,7 +324,7 @@ export function LeadPipelineClient({ leads: initial }: Props) {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>Phone</Label>
-                <Input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="+44..." type="tel" />
+                <PhoneInput value={form.phone} onChange={phone => setForm(f => ({ ...f, phone }))} />
               </div>
               <div className="space-y-2">
                 <Label>Email</Label>

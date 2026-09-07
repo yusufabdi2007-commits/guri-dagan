@@ -14,6 +14,7 @@ import {
   MessageCircle, Users, Share2, Youtube, UserPlus, Shield, Sparkles, X, Globe
 } from "lucide-react";
 import { COUNTRIES } from "@/lib/countries";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { cn, formatDate } from "@/lib/utils";
 import { toast } from "@/components/ui/use-toast";
 import type { Lead, LeadStage, LeadSource } from "./LeadPipelineClient";
@@ -304,7 +305,7 @@ export function LeadDetailClient({ lead: initial, activity: initialActivity, att
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs flex items-center gap-1"><Phone className="h-3 w-3" />Phone</Label>
-                <Input value={phone} onChange={e => setPhone(e.target.value)} placeholder="+44..." type="tel" />
+                <PhoneInput value={phone} onChange={setPhone} />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs flex items-center gap-1"><Mail className="h-3 w-3" />Email</Label>

@@ -30,6 +30,14 @@ export async function POST(req: NextRequest) {
   if (!child_id) return NextResponse.json({ error: "child_id is required" }, { status: 400 });
   if (!title?.trim()) return NextResponse.json({ error: "title is required" }, { status: 400 });
 
+  const { data: child } = await supabase
+    .from("child_profiles")
+    .select("id")
+    .eq("id", child_id)
+    .eq("user_id", user.id)
+    .single();
+  if (!child) return NextResponse.json({ error: "Child not found" }, { status: 404 });
+
   const { data, error } = await supabase
     .from("success_stories")
     .insert({

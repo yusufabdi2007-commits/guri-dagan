@@ -46,6 +46,16 @@ const ENV_VARS: EnvVar[] = [
     required: false,
     description: "YouTube Data API v3 key — required for YouTube channel sync (Google Cloud Console)",
   },
+  {
+    key: "CRON_SECRET",
+    required: false,
+    description: "Shared secret for /api/push-send and /api/whatsapp/send-pending — required for those cron routes to accept requests (they reject everything without it)",
+  },
+  {
+    key: "WHATSAPP_APP_SECRET",
+    required: false,
+    description: "Meta App Secret — required for the WhatsApp webhook to verify X-Hub-Signature-256 (it rejects everything without it)",
+  },
 ];
 
 export function validateEnv(): { valid: boolean; missing: string[]; warnings: string[] } {

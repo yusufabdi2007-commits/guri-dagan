@@ -46,6 +46,14 @@ export async function POST(req: NextRequest) {
   if (!child_id) return NextResponse.json({ error: "child_id is required" }, { status: 400 });
   if (!week_number) return NextResponse.json({ error: "week_number is required" }, { status: 400 });
 
+  const { data: child } = await supabase
+    .from("child_profiles")
+    .select("id")
+    .eq("id", child_id)
+    .eq("user_id", user.id)
+    .single();
+  if (!child) return NextResponse.json({ error: "Child not found" }, { status: 404 });
+
   const { data, error } = await supabase
     .from("progress_checkins")
     .insert({

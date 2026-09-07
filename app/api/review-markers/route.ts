@@ -14,6 +14,14 @@ export async function POST(req: NextRequest) {
   const { videoId, title, notes, duration } = await req.json();
   if (!videoId || !title) return NextResponse.json({ error: "Missing videoId or title" }, { status: 400 });
 
+  const { data: video } = await supabase
+    .from("videos")
+    .select("id")
+    .eq("id", videoId)
+    .eq("user_id", user.id)
+    .single();
+  if (!video) return NextResponse.json({ error: "Video not found" }, { status: 404 });
+
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
   const durationStr = duration

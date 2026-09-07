@@ -38,6 +38,7 @@ const programsNav = [
   { href: "/outcomes", icon: Activity, label: "Program Outcomes" },
   { href: "/revenue", icon: PoundSterling, label: "Revenue" },
   { href: "/program-knowledge", icon: GraduationCap, label: "Program Knowledge" },
+  { href: "/academy/admin", icon: GraduationCap, label: "The Academy" },
 ];
 
 const contentNav = [

@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { rateLimit } from "@/lib/rate-limit";
+import { createClient } from "@/lib/supabase/server";
 
 export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
   const limit = rateLimit(req, { limit: 5, windowMs: 60 * 60_000 });
   if (!limit.ok) return NextResponse.json({ error: limit.error }, { status: 429 });
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 

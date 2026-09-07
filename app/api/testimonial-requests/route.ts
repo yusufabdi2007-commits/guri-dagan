@@ -31,6 +31,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "enrollment_id is required" }, { status: 400 });
   }
 
+  const { data: enrollment } = await supabase
+    .from("client_enrollments")
+    .select("id")
+    .eq("id", enrollment_id)
+    .eq("user_id", user.id)
+    .single();
+  if (!enrollment) return NextResponse.json({ error: "Enrollment not found" }, { status: 404 });
+
   const { data, error } = await supabase
     .from("testimonial_requests")
     .insert({
