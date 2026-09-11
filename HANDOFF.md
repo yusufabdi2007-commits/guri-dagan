@@ -9,11 +9,11 @@ It covers what is built, how everything is wired, known limitations, and what to
 
 - Status: complete. User asked what the WhatsApp bot actually was (never having activated it), then asked to remove it. Full removal, not just disabling:
   - **Code deleted:** `app/api/whatsapp/` (both routes), `lib/gemini.ts`, `lib/pricing.ts` — verified via grep that nothing else in the codebase imported either lib file before deleting.
-  - **Database:** the two live tables (`whatsapp_sessions`, `whatsapp_pending_replies`) held exactly one leftover test row each (from 2026-08-08 dev testing, phone `252618151817` — the owner's own test number) — deleted the data directly, then wrote `033_remove_whatsapp_bot.sql` to drop both tables. **Needs to be run in Supabase SQL Editor** (same as every other migration in this project — no direct Postgres access from this environment).
+  - **Database:** the two live tables (`whatsapp_sessions`, `whatsapp_pending_replies`) held exactly one leftover test row each (from 2026-08-08 dev testing, phone `252618151817` — the owner's own test number) — deleted the data directly, then wrote `033_remove_whatsapp_bot.sql` to drop both tables. **Run in Supabase SQL Editor by the owner** — confirmed dropped afterward via PostgREST's schema listing (`GET /rest/v1/` no longer lists either table). Note: a direct `.from(table).select()` check briefly still succeeded for a short window after the DROP — a stale PostgREST API-gateway cache on one node, not a sign the drop failed; self-corrected, and irrelevant regardless since no app code references these tables anymore.
   - **Secrets cleaned up:** removed `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_VERIFY_TOKEN`, `GEMINI_API_KEY` from Vercel production env vars, `.env.local`, and `.env.local.example`. Removed the `WHATSAPP_APP_SECRET`/`CRON_SECRET`-mentions-whatsapp entries from `lib/env.ts`'s tracked-vars list (`CRON_SECRET` itself stays — `/api/push-send` still uses it).
   - **Left untouched, deliberately:** the plain "WhatsApp" *lead source* dropdown option on `/leads` (just a label for where a lead came from, unrelated to the removed bot) and the WhatsApp contact-link CTA on `/book` (a simple `wa.me/...` deep link, not the automated bot).
   - `npx tsc --noEmit --incremental false` and `npm run build` clean. Pushed to GitHub and deployed via `vercel --prod`.
-- **Still needed:** run `033_remove_whatsapp_bot.sql` in Supabase SQL Editor to actually drop the two now-orphaned tables (harmless either way — the app no longer references them regardless of whether they're dropped).
+- **Still needed:** nothing — migration run and verified. WhatsApp bot removal is fully complete: code, data, secrets, and schema.
 
 ---
 
