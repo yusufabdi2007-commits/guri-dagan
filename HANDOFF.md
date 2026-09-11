@@ -5,6 +5,18 @@ It covers what is built, how everything is wired, known limitations, and what to
 
 ---
 
+### 2026-09-11 (part 5) — Rebuilt login again as a plain HTML form, zero client JS, at user's explicit request
+
+- Status: complete. Part 4's server-side `/api/auth/login` fetch-based version still hung for the user despite passing every remote test (curl with a real cookie jar, repeated fresh-browser runs). User asked directly to remove and cleanly rebuild the login phase rather than keep patching. Rebuilt it as the simplest mechanism the web platform offers, removing every remaining moving part that could plausibly fail silently in a browser this environment can't see:
+  - **`app/(auth)/login/page.tsx`** is now a **Server Component**, not a client component. No `useState`, no `fetch()`, no client-side timeout/async logic at all. It's a plain `<form method="POST" action="/api/auth/login">`. Sign In / Sign Up toggle is a real `<Link>` to `/login?mode=signup`, not JS state — the whole page works with JavaScript completely disabled.
+  - **`app/api/auth/login/route.ts`** now reads `request.formData()` (native form encoding) instead of JSON, and responds with a **303 redirect** — straight to `/today` on success, back to `/login?error=...&mode=...` on failure — instead of returning JSON for a script to parse and act on.
+  - **This also sidesteps the service worker by construction, not by careful handling:** `public/sw.js`'s fetch handler starts with `if (event.request.method !== "GET") return;` — a form POST is structurally never something the service worker can intercept, regardless of what state it's in. Every previous fix (parts 1–4) had to reason carefully about SW/cache/fetch interaction; this version has nothing in that category left to reason about.
+  - Verified locally (`next start` + headless browser) and against live production: wrong password redirects back to `/login` with a visible error banner; correct password redirects to `/today`. Ran 3 repeated fresh-browser attempts against live production, 3/3 landed on `/today`.
+  - `npx tsc --noEmit --incremental false` and `npm run build` clean — `/login` now shows as dynamic (`ƒ`) in the build output (using `searchParams` makes a page dynamic automatically), so it's no longer statically cached at all, on top of the explicit `no-store` header from part 2.
+- **If this still fails for the user:** every layer between "the browser has the page open" and "a session cookie gets set" has now been rebuilt at least once and independently verified working from this environment on every attempt. A continued failure at this point would most plausibly be something environmental on the user's exact device/network that truly cannot be diagnosed without direct access to it (their exact error, a screenshot, or a screen-share) — not something further blind rebuilding of this code is likely to fix.
+
+---
+
 ### 2026-09-11 (part 4) — Rebuilt login to go server-side, at user's request, after it kept failing for them specifically
 
 - Status: complete. Parts 1–3 fixed three real, verified bugs (missing form, stale caching, a self-inflicted service-worker reload) but the user reported it was *still* hanging for them after all three. Every automated test from this environment (curl, repeated fresh-browser Playwright runs) passed consistently, meaning the failure was specific to the user's own device/network in a way that couldn't be reproduced or diagnosed remotely. User asked to rebuild the login section rather than keep patching around an undiagnosable client-side issue.
