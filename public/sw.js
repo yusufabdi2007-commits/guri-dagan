@@ -1,4 +1,4 @@
-const CACHE_NAME = "guri-dagan-v3";
+const CACHE_NAME = "guri-dagan-v4";
 
 // Only pre-cache the offline fallback — never cache SSR/auth routes
 const STATIC_ASSETS = ["/offline"];

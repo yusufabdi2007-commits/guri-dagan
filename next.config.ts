@@ -37,6 +37,23 @@ const nextConfig: NextConfig = {
         source: "/(.*)",
         headers: securityHeaders,
       },
+      {
+        // Auth pages must never be served from any cache (browser, CDN, or
+        // Vercel's edge) — a stale cached /login has been the single
+        // longest-running bug in this app. force-dynamic on the page itself
+        // stops server-side caching; this header is the client-side backstop.
+        source: "/login",
+        headers: [{ key: "Cache-Control", value: "no-store, must-revalidate" }],
+      },
+      {
+        // Browsers only re-check a service worker script roughly once a day
+        // by default, so a stale SW (and whatever it has cached) can survive
+        // for up to 24h after every deploy unless the script itself is
+        // fetched fresh every time. no-cache forces that revalidation on
+        // every registration attempt (see components/PWAInstall.tsx).
+        source: "/sw.js",
+        headers: [{ key: "Cache-Control", value: "no-cache, must-revalidate" }],
+      },
     ];
   },
   images: {

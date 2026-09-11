@@ -8,6 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+// This page must never be served from any cache — a stale cached /login has
+// been the single longest-running bug in this app. Enforced via the
+// no-store Cache-Control header on this route in next.config.ts.
+
 export default function LoginPage() {
   const router = useRouter();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
