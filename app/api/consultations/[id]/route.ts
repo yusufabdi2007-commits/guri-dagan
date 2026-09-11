@@ -25,7 +25,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // If outcome is set and linked to a lead, update lead stage
+  // If outcome is set and linked to a lead, update lead stage — but never
+  // downgrade an already-enrolled client (e.g. an unrelated no_show/follow_up
+  // outcome shouldn't knock an active client out of the "Client" column).
   if (body.outcome && data.lead_id) {
     const stageMap: Record<string, string> = {
       enrolled: "client",
@@ -35,15 +37,25 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     };
     const newStage = stageMap[body.outcome];
     if (newStage) {
-      await supabase.from("leads").update({ stage: newStage }).eq("id", data.lead_id).eq("user_id", user.id);
-      await supabase.from("lead_activity").insert({
-        lead_id: data.lead_id,
-        user_id: user.id,
-        activity_type: "stage_changed",
-        from_stage: null,
-        to_stage: newStage,
-        note: `Consultation outcome: ${body.outcome.replace("_", " ")}`,
-      });
+      const { data: currentLead } = await supabase
+        .from("leads")
+        .select("stage")
+        .eq("id", data.lead_id)
+        .eq("user_id", user.id)
+        .single();
+      const fromStage = currentLead?.stage ?? null;
+
+      if (fromStage !== "client" || newStage === "client") {
+        await supabase.from("leads").update({ stage: newStage }).eq("id", data.lead_id).eq("user_id", user.id);
+        await supabase.from("lead_activity").insert({
+          lead_id: data.lead_id,
+          user_id: user.id,
+          activity_type: "stage_changed",
+          from_stage: fromStage,
+          to_stage: newStage,
+          note: `Consultation outcome: ${body.outcome.replace("_", " ")}`,
+        });
+      }
     }
   }
 

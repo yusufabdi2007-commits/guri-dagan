@@ -3,9 +3,9 @@ import { createClient } from "@/lib/supabase/server";
 
 export default async function Home() {
   const supabase = await createClient();
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  if (session?.user) {
+  if (user) {
     redirect("/today");
   } else {
     redirect("/login");

@@ -519,7 +519,12 @@ export function TodayClient({
     });
   }
 
-  async function handleMarkPosted(post: BatchPost | null, platform: string) {
+  async function handleMarkPosted(
+    post: BatchPost | null,
+    platform: string,
+    calendarItemIds: string[] = [],
+    ideaIds: string[] = []
+  ) {
     if (marking) return;
     setMarking(true);
     const supabase = createClient();
@@ -541,6 +546,35 @@ export function TodayClient({
       }
     }
 
+    // Step 1b: Mark the specific calendar item(s) / content idea(s) this
+    // button represents as posted too — previously "Mark as Posted" /
+    // "Mark Posted Today" only recorded the streak completion and never
+    // touched calendar_items/content_ideas, so the same item kept
+    // reappearing under "Scheduled for today" / "Ready to post" every day
+    // indefinitely, since nothing ever advanced its status.
+    if (calendarItemIds.length > 0) {
+      const { error: calErr } = await supabase
+        .from("calendar_items")
+        .update({ status: "Posted" })
+        .in("id", calendarItemIds);
+      if (calErr) {
+        toast({ title: "Could not save — please try again", variant: "destructive" });
+        setMarking(false);
+        return;
+      }
+    }
+    if (ideaIds.length > 0) {
+      const { error: ideaErr } = await supabase
+        .from("content_ideas")
+        .update({ status: "Posted" })
+        .in("id", ideaIds);
+      if (ideaErr) {
+        toast({ title: "Could not save — please try again", variant: "destructive" });
+        setMarking(false);
+        return;
+      }
+    }
+
     // Step 2: Record daily completion (streak tracking)
     const { error: completionErr } = await supabase.from("daily_completions").insert({
       user_id: userId,
@@ -549,12 +583,20 @@ export function TodayClient({
     });
 
     if (completionErr && completionErr.code !== "23505") {
-      // Rollback batch_posts so nothing is left in a partial state
+      // Rollback so nothing is left in a partial state
       if (post) {
         await supabase
           .from("batch_posts")
           .update({ status: "scheduled", posted_at: null })
           .eq("id", post.id);
+      }
+      for (const id of calendarItemIds) {
+        const original = calendarItems.find((c) => c.id === id)?.status;
+        if (original) await supabase.from("calendar_items").update({ status: original }).eq("id", id);
+      }
+      for (const id of ideaIds) {
+        const original = editedIdeas.find((i) => i.id === id)?.status;
+        if (original) await supabase.from("content_ideas").update({ status: original }).eq("id", id);
       }
       toast({
         title: "Could not save — please try again",
@@ -917,7 +959,7 @@ export function TodayClient({
         </Card>
 
         <Button
-          onClick={() => handleMarkPosted(null, calendarItems[0]?.platform || "TikTok")}
+          onClick={() => handleMarkPosted(null, calendarItems[0]?.platform || "TikTok", calendarItems.map((c) => c.id))}
           disabled={marking}
           className="w-full h-14 text-base font-bold rounded-2xl gradient-primary text-white shadow-lg tap-scale"
         >
@@ -962,7 +1004,7 @@ export function TodayClient({
         </Card>
 
         <Button
-          onClick={() => handleMarkPosted(null, "TikTok")}
+          onClick={() => handleMarkPosted(null, "TikTok", [], editedIdeas.map((i) => i.id))}
           disabled={marking}
           className="w-full h-14 text-base font-bold rounded-2xl gradient-primary text-white shadow-lg tap-scale"
         >

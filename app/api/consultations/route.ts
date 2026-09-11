@@ -54,17 +54,29 @@ export async function POST(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // Update lead stage to call_scheduled if linked
+  // Update lead stage to call_scheduled if linked — but never downgrade an
+  // already-enrolled client (e.g. a follow-up call logged against a client
+  // shouldn't knock them out of the "Client" column).
   if (lead_id) {
-    await supabase.from("leads").update({ stage: "call_scheduled" }).eq("id", lead_id).eq("user_id", user.id);
-    await supabase.from("lead_activity").insert({
-      lead_id,
-      user_id: user.id,
-      activity_type: "stage_changed",
-      from_stage: null,
-      to_stage: "call_scheduled",
-      note: `Consultation scheduled for ${new Date(scheduled_at).toLocaleDateString()}`,
-    });
+    const { data: currentLead } = await supabase
+      .from("leads")
+      .select("stage")
+      .eq("id", lead_id)
+      .eq("user_id", user.id)
+      .single();
+    const fromStage = currentLead?.stage ?? null;
+
+    if (fromStage !== "client") {
+      await supabase.from("leads").update({ stage: "call_scheduled" }).eq("id", lead_id).eq("user_id", user.id);
+      await supabase.from("lead_activity").insert({
+        lead_id,
+        user_id: user.id,
+        activity_type: "stage_changed",
+        from_stage: fromStage,
+        to_stage: "call_scheduled",
+        note: `Consultation scheduled for ${new Date(scheduled_at).toLocaleDateString()}`,
+      });
+    }
   }
 
   return NextResponse.json({ consultation: data }, { status: 201 });

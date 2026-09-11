@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/components/ui/use-toast";
 import { Plus, Loader2, GraduationCap, Copy, Check, Pencil, Trash2, ChevronRight, BookOpen, UsersRound, WalletCards, HelpCircle, X } from "lucide-react";
 
 interface Track {
@@ -59,6 +60,7 @@ const emptyChapterForm = { week_number: 1, title: "", body: "", file_url: "", zo
 const emptyQuestionForm = { question: "", options: ["", ""], correct_index: 0 };
 
 export function AcademyAdminClient({ initialTracks }: { initialTracks: Track[] }) {
+  const { toast } = useToast();
   const [tracks, setTracks] = useState<Track[]>(initialTracks);
   const [selectedTrackId, setSelectedTrackId] = useState<string | null>(initialTracks[0]?.id || null);
   const [chapters, setChapters] = useState<Chapter[]>([]);
@@ -179,6 +181,9 @@ export function AcademyAdminClient({ initialTracks }: { initialTracks: Track[] }
       if (!wasEditing) {
         setTracks(prev => prev.map(t => t.id === selectedTrackId ? { ...t, academy_chapters: [...t.academy_chapters, { id: "tmp" }] } : t));
       }
+    } else {
+      const data = await res.json().catch(() => ({}));
+      toast({ title: "Could not save chapter", description: data.error || "Unknown error", variant: "destructive" as never });
     }
   }
 

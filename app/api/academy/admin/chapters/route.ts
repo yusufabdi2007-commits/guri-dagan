@@ -46,23 +46,35 @@ export async function POST(req: NextRequest) {
     .single();
   if (!track) return NextResponse.json({ error: "Track not found" }, { status: 404 });
 
+  // Plain insert, not upsert — editing an existing chapter goes through
+  // PATCH /api/academy/admin/chapters/[id] (id-scoped, unambiguous). This
+  // route only ever creates. Upserting on (track_id, week_number) meant
+  // that typing an already-used week number here — easy to do, since the
+  // "Add Chapter" dialog always opens with an editable, pre-filled week
+  // number — silently overwrote that week's existing title/body/links with
+  // no warning, destroying real content instead of erroring.
   const { data: chapter, error } = await supabase
     .from("academy_chapters")
-    .upsert(
-      {
-        track_id,
-        week_number,
-        title: title.trim(),
-        body: chapterBody || null,
-        file_url: file_url || null,
-        zoom_link: zoom_link || null,
-        zoom_time: zoom_time || null,
-      },
-      { onConflict: "track_id,week_number" }
-    )
+    .insert({
+      track_id,
+      week_number,
+      title: title.trim(),
+      body: chapterBody || null,
+      file_url: file_url || null,
+      zoom_link: zoom_link || null,
+      zoom_time: zoom_time || null,
+    })
     .select()
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    if (error.code === "23505") {
+      return NextResponse.json(
+        { error: `Week ${week_number} already has a chapter — edit it instead of creating a new one.` },
+        { status: 409 }
+      );
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
   return NextResponse.json({ chapter }, { status: 201 });
 }

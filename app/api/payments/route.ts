@@ -27,8 +27,9 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const { enrollment_id, amount, currency = "GBP", payment_date, payment_status = "paid", notes } = body;
 
-  if (!enrollment_id || !amount) {
-    return NextResponse.json({ error: "enrollment_id and amount are required" }, { status: 400 });
+  const parsedAmount = typeof amount === "number" ? amount : parseFloat(amount);
+  if (!enrollment_id || !amount || !Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+    return NextResponse.json({ error: "enrollment_id and a valid positive amount are required" }, { status: 400 });
   }
 
   const { data: enrollment } = await supabase
@@ -44,7 +45,7 @@ export async function POST(req: NextRequest) {
     .insert({
       user_id: user.id,
       enrollment_id,
-      amount: parseFloat(amount),
+      amount: parsedAmount,
       currency,
       payment_date: payment_date || new Date().toISOString().split("T")[0],
       payment_status,

@@ -14,9 +14,13 @@ export default async function DashboardLayout({
   children: React.ReactNode;
 }) {
   const supabase = await createClient();
-  const { data: { session } } = await supabase.auth.getSession();
+  // getUser() revalidates against the Supabase Auth server, unlike
+  // getSession() which only trusts the local JWT — needed so this gate
+  // agrees with every page's own getUser() check and middleware's, avoiding
+  // a redirect loop when a session is locally-valid but server-revoked.
+  const { data: { user } } = await supabase.auth.getUser();
 
-  if (!session) redirect("/login");
+  if (!user) redirect("/login");
 
   return (
     <div className="flex min-h-screen bg-background">

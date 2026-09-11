@@ -1,7 +1,13 @@
+import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { TrendsClient } from "@/components/trends/TrendsClient";
 
-export default function TrendsPage() {
+export default async function TrendsPage() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
   return (
     <div className="flex flex-col min-h-full">
       <Header title="Trends & Topics" subtitle="What Somali parents need right now" />

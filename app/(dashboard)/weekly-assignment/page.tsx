@@ -8,9 +8,13 @@ function toLocalDate(d: Date): string {
 }
 
 function getNextWeekStart(): string {
-  // Next Sunday (the upcoming posting week's start day)
+  // Next Monday — week_start is Monday-based everywhere else in the app
+  // (batch/plan/page.tsx, lib/seed-first-week.ts). This used to compute the
+  // next Sunday instead, so a plan saved here got keyed to the wrong
+  // week_start and shifted the whole week's YouTube/TikTok slots by a day.
   const d = new Date();
-  d.setDate(d.getDate() - d.getDay() + 7);
+  const daysUntilNextMonday = ((1 - d.getDay() + 7) % 7) || 7;
+  d.setDate(d.getDate() + daysUntilNextMonday);
   return toLocalDate(d);
 }
 

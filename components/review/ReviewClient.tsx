@@ -225,7 +225,7 @@ export function ReviewClient({ video, initialReview, initialMarkers }: ReviewCli
               {reviewStatus === "approved" ? "✓" :
                reviewStatus === "needs_fix" ? "Fix" :
                reviewStatus === "ready_for_export" ? "Export" :
-               reviewStatus === "high_retention" ? "HR" : "Review"}
+               reviewStatus === "high_retention_candidate" ? "HR" : "Review"}
             </span>
             <ChevronDown className="h-3 w-3" />
           </button>

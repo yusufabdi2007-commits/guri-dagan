@@ -28,20 +28,47 @@ export async function GET(req: NextRequest) {
   }
 
   const supabase = createClient(url, key);
-  const { data: due, error } = await supabase
+
+  // Find candidate rows first (read-only — just to know which ids to try
+  // claiming; a plain SELECT here is fine since nothing is decided yet).
+  const { data: candidates, error: selectError } = await supabase
     .from("whatsapp_pending_replies")
-    .select("id, phone_number, payload")
+    .select("id")
     .eq("sent", false)
     .lte("send_after", new Date().toISOString())
     .limit(50);
 
-  if (error) {
-    console.error("send-pending fetch error:", error);
+  if (selectError) {
+    console.error("send-pending fetch error:", selectError);
     return NextResponse.json({ error: "Fetch failed" }, { status: 500 });
+  }
+  const candidateIds = (candidates ?? []).map((r) => r.id);
+  if (candidateIds.length === 0) {
+    return NextResponse.json({ ok: true, sent: 0, checked: 0 });
+  }
+
+  // Atomically claim rows by flipping sent=false -> true in one UPDATE
+  // scoped to still-unsent rows, and only send for the rows this specific
+  // request actually won the claim on (via .select() returning the rows the
+  // UPDATE touched). Previously this read rows, sent them, then marked
+  // sent=true as a separate step — if two cron invocations overlapped (a
+  // manual re-trigger, or one run exceeding the 1-minute interval), both
+  // could read the same row before either marked it sent, sending the same
+  // WhatsApp message to the user twice.
+  const { data: claimed, error: claimError } = await supabase
+    .from("whatsapp_pending_replies")
+    .update({ sent: true })
+    .in("id", candidateIds)
+    .eq("sent", false)
+    .select("id, phone_number, payload");
+
+  if (claimError) {
+    console.error("send-pending claim error:", claimError);
+    return NextResponse.json({ error: "Claim failed" }, { status: 500 });
   }
 
   let sentCount = 0;
-  for (const row of due ?? []) {
+  for (const row of claimed ?? []) {
     try {
       await fetch(`${GRAPH_URL}/${phoneNumberId}/messages`, {
         method: "POST",
@@ -51,12 +78,14 @@ export async function GET(req: NextRequest) {
         },
         body: JSON.stringify({ messaging_product: "whatsapp", to: row.phone_number, ...(row.payload as object) }),
       });
-      await supabase.from("whatsapp_pending_replies").update({ sent: true }).eq("id", row.id);
       sentCount++;
     } catch (err) {
+      // Already claimed (sent=true) — deliberately not reset to retry, to
+      // favor "at most once" (never a duplicate message to the user) over
+      // "at least once" for this user-facing send.
       console.error("send-pending send error for", row.id, err);
     }
   }
 
-  return NextResponse.json({ ok: true, sent: sentCount, checked: due?.length ?? 0 });
+  return NextResponse.json({ ok: true, sent: sentCount, checked: claimed?.length ?? 0 });
 }

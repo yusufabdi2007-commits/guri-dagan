@@ -30,6 +30,39 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const body = await req.json();
     const { question, options, correct_index, sort_order } = body;
 
+    if (options !== undefined && (!Array.isArray(options) || options.length < 2 || options.some((o) => !o?.trim()))) {
+      return NextResponse.json({ error: "At least 2 non-empty answer options are required" }, { status: 400 });
+    }
+
+    // Validate the RESULTING row is consistent even when only one of
+    // options/correct_index is sent — e.g. PATCHing options down to 2
+    // entries while a stale correct_index of 3 is left untouched would
+    // otherwise leave a question whose correct answer can never be matched
+    // by a student (the same check POST already does, but only against the
+    // fields present in this request; unset fields fall back to what's
+    // already stored).
+    if (options !== undefined || correct_index !== undefined) {
+      let effectiveOptions = options as string[] | undefined;
+      let effectiveCorrectIndex = correct_index as number | undefined;
+      if (effectiveOptions === undefined || effectiveCorrectIndex === undefined) {
+        const { data: existing } = await supabase
+          .from("academy_exam_questions")
+          .select("options, correct_index")
+          .eq("id", id)
+          .single();
+        if (effectiveOptions === undefined) effectiveOptions = existing?.options as string[] | undefined;
+        if (effectiveCorrectIndex === undefined) effectiveCorrectIndex = existing?.correct_index as number | undefined;
+      }
+      if (
+        typeof effectiveCorrectIndex !== "number" ||
+        !Array.isArray(effectiveOptions) ||
+        effectiveCorrectIndex < 0 ||
+        effectiveCorrectIndex >= effectiveOptions.length
+      ) {
+        return NextResponse.json({ error: "correct_index must point at one of the options" }, { status: 400 });
+      }
+    }
+
     const updates: Record<string, unknown> = {};
     if (question !== undefined) updates.question = question;
     if (options !== undefined) updates.options = options;

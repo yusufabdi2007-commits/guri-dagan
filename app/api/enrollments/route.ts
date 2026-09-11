@@ -65,12 +65,19 @@ export async function POST(req: NextRequest) {
 
   // If linked to a lead, update lead stage to 'client'
   if (lead_id) {
+    const { data: currentLead } = await supabase
+      .from("leads")
+      .select("stage")
+      .eq("id", lead_id)
+      .eq("user_id", user.id)
+      .single();
+
     await supabase.from("leads").update({ stage: "client" }).eq("id", lead_id).eq("user_id", user.id);
     await supabase.from("lead_activity").insert({
       lead_id,
       user_id: user.id,
       activity_type: "stage_changed",
-      from_stage: null,
+      from_stage: currentLead?.stage ?? null,
       to_stage: "client",
       note: `Enrolled in ${program || "program"}`,
     });

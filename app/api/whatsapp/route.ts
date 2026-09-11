@@ -118,6 +118,7 @@ export async function POST(req: NextRequest) {
     if (!message) return NextResponse.json({ ok: true }); // status update, not a message
 
     const from: string = message.from; // phone number, no "+"
+    const messageId: string | undefined = message.id;
     const supabase = admin();
     if (!supabase) {
       console.error("WhatsApp bot: Supabase service role not configured");
@@ -130,9 +131,23 @@ export async function POST(req: NextRequest) {
       .eq("phone_number", from)
       .maybeSingle();
 
-    const session =
-      existing ??
-      { phone_number: from, step: "greeting", track: null, child_age: null, country: null, lead_id: null };
+    // Meta retries webhook delivery on any slow/non-2xx response, resending
+    // the exact same message id. Without this guard, a retry landing after
+    // this handler has already made progress (e.g. after the Gemini call
+    // but before responding) reprocesses the same message from scratch —
+    // creating a duplicate lead, or queuing a second duplicate delayed reply.
+    if (messageId && existing?.last_message_id === messageId) {
+      return NextResponse.json({ ok: true });
+    }
+
+    const session = {
+      ...(existing ??
+        { phone_number: from, step: "greeting", track: null, child_age: null, country: null, lead_id: null }),
+      // Folded in here (not at each individual upsert call site) so every
+      // `{ ...session, ... }` spread below records which message produced
+      // this state transition, for the redelivery guard above.
+      last_message_id: messageId ?? existing?.last_message_id ?? null,
+    };
 
     const buttonId: string | undefined = message.interactive?.button_reply?.id;
     const text: string | undefined = message.text?.body;
@@ -170,9 +185,15 @@ export async function POST(req: NextRequest) {
 
     // ── AWAITING AGE (child track only) ──
     if (session.step === "awaiting_age") {
-      const age = text ? parseInt(text.match(/\d+/)?.[0] ?? "", 10) : NaN;
+      // Grab every number in the reply, not just the first — a message like
+      // "I have 2 kids, one is 9" previously matched "2" (the FIRST number),
+      // not the actual age, which could wrongly turn away a qualifying
+      // family. If the reply isn't a single unambiguous number, ask again
+      // instead of guessing.
+      const numbers = text ? [...text.matchAll(/\d+/g)].map((m) => parseInt(m[0], 10)) : [];
+      const age = numbers.length === 1 ? numbers[0] : NaN;
       if (isNaN(age)) {
-        await sendText(from, "Please reply with just the child's age in years (e.g. 9).");
+        await sendText(from, "Please reply with just the child's age in years — a single number, like 9.");
         return NextResponse.json({ ok: true });
       }
       if (age < MIN_CHILD_AGE) {
@@ -247,7 +268,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    // ── DONE / NOT_QUALIFIED — bot's job is finished, log further messages for a human ──
+    // ── NOT_QUALIFIED — the earlier message explicitly invited them to reply
+    // to explore parent coaching instead. Previously any reply here fell
+    // through to the block below, which only logs a note if session.lead_id
+    // is set — but not_qualified sessions never got a lead_id (no lead was
+    // created), so the reply was silently dropped with no acknowledgment,
+    // contradicting what the user was told. Route them into the parent
+    // track's country step instead (age gate doesn't apply to parent coaching).
+    if (session.step === "not_qualified") {
+      await supabase
+        .from("whatsapp_sessions")
+        .upsert({ ...session, track: "parent", step: "awaiting_country", updated_at: new Date().toISOString() });
+      await sendText(from, "Great — let's get you set up with parent coaching. Which country are you in? (please type the full name, e.g. Kenya, United Kingdom, United States)");
+      return NextResponse.json({ ok: true });
+    }
+
+    // ── DONE — bot's job is finished, log further messages for a human ──
     if (session.lead_id) {
       await supabase.from("lead_activity").insert({
         lead_id: session.lead_id,

@@ -12,7 +12,10 @@ export async function updateSession(request: NextRequest) {
       request.nextUrl.pathname.startsWith("/book") ||
       request.nextUrl.pathname.startsWith("/contact") ||
       request.nextUrl.pathname.startsWith("/status") ||
-      request.nextUrl.pathname.startsWith("/offline");
+      request.nextUrl.pathname.startsWith("/offline") ||
+      request.nextUrl.pathname === "/academy" ||
+      request.nextUrl.pathname.startsWith("/academy/login") ||
+      request.nextUrl.pathname.startsWith("/academy/course");
     if (!isAuthPage && !isPublicRoute) {
       const url = request.nextUrl.clone();
       url.pathname = "/login";
@@ -44,9 +47,15 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  // getSession() reads the JWT from the cookie — no network call, never hangs.
-  const { data: { session } } = await supabase.auth.getSession();
-  let user = session?.user ?? null;
+  // getUser() revalidates against the Supabase Auth server (unlike
+  // getSession(), which only decodes the local JWT and trusts it blindly).
+  // Using getSession() here previously meant a revoked/invalid-server-side
+  // session could still pass this gate while a page's own getUser() check
+  // failed and redirected to /login — and /login's own gate (below) would
+  // then see the same stale-but-locally-valid session and bounce back to
+  // /today, an infinite redirect loop with no way out but clearing cookies.
+  const { data: { user: authedUser } } = await supabase.auth.getUser();
+  const user = authedUser;
 
   const isAuthPage = request.nextUrl.pathname.startsWith("/login");
   const isApiRoute = request.nextUrl.pathname.startsWith("/api");
