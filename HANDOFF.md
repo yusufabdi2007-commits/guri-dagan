@@ -5,17 +5,29 @@ It covers what is built, how everything is wired, known limitations, and what to
 
 ---
 
+### 2026-09-11 (part 10) — Removed the WhatsApp bot entirely, at user's request
+
+- Status: complete. User asked what the WhatsApp bot actually was (never having activated it), then asked to remove it. Full removal, not just disabling:
+  - **Code deleted:** `app/api/whatsapp/` (both routes), `lib/gemini.ts`, `lib/pricing.ts` — verified via grep that nothing else in the codebase imported either lib file before deleting.
+  - **Database:** the two live tables (`whatsapp_sessions`, `whatsapp_pending_replies`) held exactly one leftover test row each (from 2026-08-08 dev testing, phone `252618151817` — the owner's own test number) — deleted the data directly, then wrote `033_remove_whatsapp_bot.sql` to drop both tables. **Needs to be run in Supabase SQL Editor** (same as every other migration in this project — no direct Postgres access from this environment).
+  - **Secrets cleaned up:** removed `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_VERIFY_TOKEN`, `GEMINI_API_KEY` from Vercel production env vars, `.env.local`, and `.env.local.example`. Removed the `WHATSAPP_APP_SECRET`/`CRON_SECRET`-mentions-whatsapp entries from `lib/env.ts`'s tracked-vars list (`CRON_SECRET` itself stays — `/api/push-send` still uses it).
+  - **Left untouched, deliberately:** the plain "WhatsApp" *lead source* dropdown option on `/leads` (just a label for where a lead came from, unrelated to the removed bot) and the WhatsApp contact-link CTA on `/book` (a simple `wa.me/...` deep link, not the automated bot).
+  - `npx tsc --noEmit --incremental false` and `npm run build` clean. Pushed to GitHub and deployed via `vercel --prod`.
+- **Still needed:** run `033_remove_whatsapp_bot.sql` in Supabase SQL Editor to actually drop the two now-orphaned tables (harmless either way — the app no longer references them regardless of whether they're dropped).
+
+---
+
 ### 2026-09-11 (part 9) — Full bug sweep across the whole app, at user's request
 
 - Status: complete. User asked to find and fix every real bug across everything built, not just what was already known about. Ran 5 parallel deep-read audits (auth/session, Academy, WhatsApp bot + content generation, leads/CRM/business, core dashboard pages) and fixed every concrete, verified finding. Full list and reasoning is in the commit message for `aa5178c` — summary here:
   - **Auth (highest severity):** `middleware.ts`, dashboard `layout.tsx`, and `app/page.tsx` all switched from `getSession()` (trusts the local JWT blindly) to `getUser()` (revalidates against the Auth server) — closes a real infinite-redirect-loop risk if a session is ever locally-valid-but-server-revoked. Also added auth checks to 4 pages (`generator`, `hook-scorer`, `trends`, `friction`) that had none of their own; `friction` was a client component so it got split into a server wrapper (`app/(dashboard)/friction/page.tsx`) + `components/friction/FrictionClient.tsx`.
   - **Academy:** chapter creation no longer silently overwrites an existing week's content on a week-number collision (was an upsert, now a real insert with a friendly 409); exam-question PATCH now validates `correct_index` stays in range of `options` even on a partial update; student course page has an empty-state for a track with 0 chapters (relevant right now — the Academy has 0 chapters after the demo-data cleanup in part 6).
-  - **WhatsApp bot (still not activated in production):** age extraction no longer misreads "I have 2 kids, one is 9" as age 2; the `not_qualified` step no longer silently drops a reply the bot's own message invited; added Meta-webhook-redelivery idempotency via a new `last_message_id` column (**migration `033_whatsapp_message_idempotency.sql` needs to be run in Supabase SQL Editor before the bot is ever activated** — the webhook handler now writes to this column on every session upsert, which will error if the column doesn't exist yet); `send-pending`'s read-then-send-then-mark-sent race (two overlapping cron runs could double-send a message) is now an atomic claim via `UPDATE...WHERE sent=false...RETURNING`.
+  - **WhatsApp bot:** fixed several real bugs (age-extraction misreading, a silent-drop dead-end, two double-send races) — all moot as of the same session, since the whole feature was removed at the owner's request immediately afterward. See the "WhatsApp Bot: built, then removed" section further down.
   - **Content generation:** `weekly-assignment`'s `getNextWeekStart()` was computing the next **Sunday** while every other week-boundary calculation in the app (`batch/plan`, `seed-first-week`) uses **Monday** — this was shifting the whole week's YouTube/TikTok slot assignment by a day and creating a second, wrongly-keyed `weekly_batches` row that other features wouldn't recognize as "this week's" batch. Fixed to Monday, matching everywhere else.
   - **Leads/CRM:** consultations and enrollments no longer unconditionally overwrite a lead's stage — an unrelated consultation outcome (e.g. a stray `no_show`) could previously knock an already-enrolled client back out of the "Client" Kanban column with a broken activity trail (`from_stage` was hardcoded `null` instead of the real prior stage). Payments now rejects a non-numeric `amount` instead of silently writing `NaN` into revenue totals.
   - **Dashboard:** `TodayClient`'s "Mark as Posted" / "Mark Posted Today" buttons (the no-specific-batch-post paths — "Scheduled for today" and "Ready to post" cards) previously only recorded the streak completion and never updated the actual `calendar_items`/`content_ideas` row, so the same item kept reappearing every day indefinitely. Now updates the specific item(s), with rollback if the streak insert fails. `/calendar`'s date range was anchored to the server's UTC day while `/today` anchors to `Europe/London` local time — could disagree by a day right at the midnight boundary; fixed with matching local-timezone anchoring (plus a 1-day buffer specifically for `calendar_items`, since unlike `batch_posts` it's a `timestamptz` column, not a plain `date`). `ReviewClient`'s mobile status abbreviation checked a nonexistent `"high_retention"` value instead of the real `"high_retention_candidate"` enum — dead branch, fixed.
 - `npx tsc --noEmit --incremental false` and `npm run build` clean throughout. Local smoke test (real `next start`, real cookie jar) confirmed sign-in still works end-to-end and the newly-added auth guards correctly redirect. Pushed to GitHub and deployed via `vercel --prod`.
-- **Still needed:** run `033_whatsapp_message_idempotency.sql` in Supabase SQL Editor (harmless to run now even though the bot isn't active yet — just adds a nullable column). No other migrations pending from this session.
+- **Still needed:** none — the WhatsApp bot fixes described above became moot within the same session (feature removed; see below). No migrations pending from this session.
 
 ---
 
@@ -253,53 +265,19 @@ It covers what is built, how everything is wired, known limitations, and what to
 **Recent fixes (June 2026):** Dark mode now defaults on fresh install (ThemeProvider reads localStorage, falls back to dark). DnD fully removed from Calendar + Queue + Leads — React 19 incompatible. Real error messages surfaced on leads save/move/add failures.
 **Recent additions (July 2026):** Public contact form `/contact` + email delivery via Resend. See full change log below.
 **Recent change (July 2026):** Removed all AI-written video scripts from the weekly content system — `/weekly-assignment` and `/batch/plan` now generate a fresh TITLE only per video slot (no hook/problem/reframe/teaching/close/cta). The presenter already knows the on-camera format; she no longer gets a new script to read every week, just a new topic. Stress-tested for 100 simulated consecutive weeks (both the pure-fallback path and an adversarial AI-output path) with zero duplicate-title or scheduling bugs. See "Titles-Only System" section below.
-**Recent addition (August 2026):** WhatsApp intake bot at `/api/whatsapp` — see "WhatsApp Bot" section below. Code is done; **not yet activated** — needs a Meta WhatsApp Business API connection set up by the business owner (see that section for exact steps).
-**Business context (June 2026, pricing updated August 2026):** ~~US/UK/Europe: $100/month (1-on-1, 2x/week). Africa/Somalia/Kenya: $25/month (group 5–10 families, 2x/month). All 5 programs same price.~~ **Superseded** — see "WhatsApp Bot (v2)" below for current pricing: Africa $25/mo parent · $50/mo child; outside Africa $100/mo either track. WhatsApp: +1 (763) 412-7695.
+**Recent removal (2026-09-11):** the WhatsApp intake bot (built August 2026, never activated) was removed entirely at the owner's request — see "WhatsApp Bot: built, then removed" section below.
+**Business context (June 2026):** US/UK/Europe: $100/month (1-on-1, 2x/week). Africa/Somalia/Kenya: $25/month (group 5–10 families, 2x/month). All 5 programs same price. (The Africa $25/$50-split-by-track pricing that briefly superseded this only existed in the now-removed WhatsApp bot's code — this flat pricing is what's actually reflected everywhere else in the app.) WhatsApp contact number: +1 (763) 412-7695.
 **Deployment plan:** Vercel production. Developer uses laptop locally. End user (mum) installs as PWA on her phone via https://guri-dagan.vercel.app
 
 ---
 
-## August 2026 — WhatsApp Bot (v2 — Gemini-driven, supersedes the v1 button-only design)
+## August 2026 → September 2026 — WhatsApp Bot: built, then removed
 
-### History — read this before changing anything
-This feature went through two designs in the same week. **v1** (button-menu only, $0, no AI) was built first, explicitly chosen over an AI-conversation bot for cost reasons. The business owner then rejected v1 as "too robotic" and, after describing exactly how her real WhatsApp conversations go, asked for a redesign. **v2** (below) is what's actually in the code now. Don't revert to pure buttons without being asked — that was already tried and explicitly rejected.
+Built in August 2026 (a Gemini-driven WhatsApp intake bot — see git history around commit `dbf8718` for the full original design if ever wanted back), but **never activated in production** (Meta webhook was never connected) and was **removed entirely on 2026-09-11** at the owner's request.
 
-### What it does (v2)
-1. **First message in** (any free text) → the bot calls **Gemini** (`lib/gemini.ts`, needs `GEMINI_API_KEY`) with a Somali-language system prompt asking for a short, natural, everyday-tone reply with one real piece of advice relevant to what they said — not a canned response. Gemini was chosen specifically over the OpenAI/Groq models already used elsewhere in this app because its Somali output reads more like normal conversation, less like a translated document.
-2. That advice reply is **not sent immediately** — it's queued in `whatsapp_pending_replies` with a random 60-120s delay, so it doesn't feel instantly AI-generated. See "The delay mechanism" below for why this needed its own infrastructure.
-3. Once sent, the advice message also carries **2 buttons**: "I want coaching" (parent track) or "My child needs it" (child track). No third "both" option in v2 — simplified to exactly these two.
-4. **Child track only:** asks the child's age. Under **8** (`MIN_CHILD_AGE` in `lib/pricing.ts`) → explains the program isn't suited yet and stops (no lead created, no price shown). 8+ → continues.
-5. **Asks country** (free text, matched against `lib/countries.ts`). This answer is **final** — the state machine only reads it once, in the `awaiting_country` step, and immediately advances past it; there is no "go back and change your country" path anywhere in the flow. This was an explicit requirement — don't add a way to revise it later without being asked.
-6. **Quotes the price** via `lib/pricing.ts`'s `getPrice(country, track)`: Africa = **$25/mo parent, $50/mo child**; outside Africa = **$100/mo for either track**. (This replaced the old flat $25/$100-regardless-of-track pricing from v1 — see Current State pricing note above, which is now stale and superseded by this.)
-7. Explains what happens next in plain terms — parent track: Coach Rahma assesses the situation/habits first (gym-coach analogy the business owner used), then builds a plan. Child track: a structured, set program.
-8. Gives **payment instructions** — a Somali money-transfer number (EVC Plus/Zaad/etc.), not a card, via `PAYMENT_INFO_TEXT` env var. No Calendly/booking-call step in v2 (v1 had one; superseded — `CALENDLY_EVENT_URL` env var is left in `.env.local.example` unused in case it's wanted back later).
-9. Creates a lead in the existing `leads` table (source `whatsapp`, country, track, child age if applicable) — same as v1, still no separate dashboard needed, `/leads` already is one.
-10. Session marked `done`. Further messages aren't auto-replied to — logged as `lead_activity` notes so a human (Coach Rahma, from the same WhatsApp number) takes over, same handoff behavior as v1.
+Removed: `app/api/whatsapp/` (webhook + send-pending routes), `lib/gemini.ts`, `lib/pricing.ts`, the `whatsapp_sessions`/`whatsapp_pending_replies` tables (dropped via `033_remove_whatsapp_bot.sql`), the `WHATSAPP_*`/`GEMINI_API_KEY` env vars (removed from `.env.local`, `.env.local.example`, and Vercel production), and the tracked-env-var entries in `lib/env.ts`. The "WhatsApp" *lead source* option (a plain dropdown value on `/leads`, unrelated to the bot) was left untouched — that's just a label for where a lead came from, not the automated bot.
 
-### The delay mechanism — why it needed its own table + external cron
-A naive `setTimeout` inside the webhook handler won't survive a 60-120 second delay on Vercel serverless — function execution just ends. So the delayed advice message is written to **`whatsapp_pending_replies`** (`send_after` timestamp + the exact message payload as JSON) instead of sent directly, and a separate route, **`/api/whatsapp/send-pending`**, sends anything that's due and marks it sent.
-
-That route needs to be *triggered* on a short interval (~every 1 minute). **Vercel's free/Hobby cron tier only runs once a day** — nowhere near frequent enough — so this can't use `vercel.json`'s existing cron setup (that's still fine for the daily `/api/push-send` job, just not this). Instead, **use a free external cron service** (e.g. cron-job.org, EasyCron's free tier, or a scheduled GitHub Action) to hit `https://guri-dagan.vercel.app/api/whatsapp/send-pending` every minute, with header `Authorization: Bearer <CRON_SECRET>` (set `CRON_SECRET` to any random string in env vars — optional but recommended, otherwise that route is unauthenticated).
-
-### Files
-- `app/api/whatsapp/route.ts` — the webhook (GET = Meta's verification handshake, POST = incoming messages, full state machine)
-- `app/api/whatsapp/send-pending/route.ts` — sends due delayed messages; needs the external cron above
-- `lib/gemini.ts` — minimal fetch-based Gemini client (no SDK dependency) for the advice reply
-- `lib/pricing.ts` — track-based (parent/child) × region (Africa/not) pricing, plus `MIN_CHILD_AGE`
-- `supabase/migrations/024_whatsapp_bot_schema.sql` then `025_whatsapp_bot_v2.sql` — run both, in order. 025 drops and recreates `whatsapp_sessions` with the new v2 shape (`track`, `child_age`, new step names) and adds `whatsapp_pending_replies`. Safe to run even if only 024 was applied so far.
-
-### What's NOT done yet — needs the business owner
-Same Meta setup as before, plus one new piece:
-1. Meta Developer account + Meta App with WhatsApp product added (developers.facebook.com); WhatsApp Business Account + phone number; **permanent System User access token** (not the 24-hour temporary one) → `WHATSAPP_ACCESS_TOKEN`; Phone Number ID → `WHATSAPP_PHONE_NUMBER_ID`.
-2. `WHATSAPP_VERIFY_TOKEN` — any random string, matching value in Meta's webhook config.
-3. Webhook URL in Meta's dashboard: `https://guri-dagan.vercel.app/api/whatsapp`, subscribed to `messages`.
-4. **New:** `GEMINI_API_KEY` — already present in this project's `.env.local` from earlier, just needs to carry over to Vercel's env vars for production.
-5. **New:** set up the external cron (cron-job.org or similar, free) hitting `/api/whatsapp/send-pending` every minute, per "The delay mechanism" above. Without this step, advice replies get queued but **never actually sent** — this is easy to miss and will look like the bot is silently broken.
-6. **New:** `PAYMENT_INFO_TEXT` — the actual EVC Plus/Zaad number, from the business owner.
-7. Run both SQL migrations (024, then 025) in Supabase's SQL Editor.
-
-### Deliberately not doing (from a WhatsApp-agent tutorial the business owner referenced)
-A common agency pattern for this kind of bot is: brand-new Supabase project, brand-new GitHub repo, brand-new Vercel deploy, and a dedicated dashboard to view conversations. That pattern is for building a system from zero for a brand-new client. Guri Dagan already has all of that — the leads pipeline (`/leads`) already *is* the dashboard, this repo already *is* the deploy target. Don't spin up parallel infrastructure for this feature.
+If this is ever rebuilt, the original design doc (delayed-reply mechanism via `whatsapp_pending_replies` + external cron, Gemini for natural Somali replies, track/age/country flow, price quoting) is preserved in this file's git history — search `git log -p --all -S "whatsapp_pending_replies"`.
 
 ---
 
@@ -941,8 +919,7 @@ Remaining priorities (Priority 2 Review Mode is done above):
 | `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | Run `npx web-push generate-vapid-keys` → public key |
 | `VAPID_PRIVATE_KEY` | Same command → private key (used in Edge Function for push sending) |
 | `YOUTUBE_API_KEY` | Google Cloud Console → APIs & Services → YouTube Data API v3 → Credentials |
-| `CRON_SECRET` | Any random string — required for `/api/push-send` and `/api/whatsapp/send-pending` to accept requests (they reject everything without it as of the 2026-09-04 security pass) |
-| `WHATSAPP_APP_SECRET` | Meta App → Settings → Basic → App Secret — required for the WhatsApp webhook to accept incoming messages (verifies `X-Hub-Signature-256`) |
+| `CRON_SECRET` | Any random string — required for `/api/push-send` to accept requests (rejects everything without it as of the 2026-09-04 security pass) |
 
 ---
 

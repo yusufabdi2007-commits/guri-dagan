@@ -49,12 +49,7 @@ const ENV_VARS: EnvVar[] = [
   {
     key: "CRON_SECRET",
     required: false,
-    description: "Shared secret for /api/push-send and /api/whatsapp/send-pending — required for those cron routes to accept requests (they reject everything without it)",
-  },
-  {
-    key: "WHATSAPP_APP_SECRET",
-    required: false,
-    description: "Meta App Secret — required for the WhatsApp webhook to verify X-Hub-Signature-256 (it rejects everything without it)",
+    description: "Shared secret for /api/push-send — required for that cron route to accept requests (it rejects everything without it)",
   },
 ];
 
