@@ -5,6 +5,15 @@ It covers what is built, how everything is wired, known limitations, and what to
 
 ---
 
+### 2026-09-11 (part 6) — Deleted the long-overdue demo/test data from Academy (unrelated to login)
+
+- Status: complete. After login was confirmed working (part 5), user reported the Academy still looked "old" — turned out to be a real, separate, non-login issue: the Academy was still showing the demo/test data seeded back on 2026-08-22/30 for a load test (see that section below), which per this file's own notes at the time was supposed to be deleted before real use but never was.
+- **Verified directly against the live database** (not assumed): all 60 `academy_chapters` rows literally started with `[DEMO CONTENT]... Fake seed content generated...`. Of 125 `academy_students` rows, 120 were demo/test-named (`DEMO`, `TEST20`, `LOADTEST` in the name/username, or phone starting `+1555777`); the remaining 5 (`Yusuf Abdi`, `Yusuf` x2, `ibrahim`, `rahma`) looked like real usage — the owner and/or coach testing the flow themselves — and were left untouched, along with all 5 tracks (including the 3 duplicate "Children" tracks, since two of them have one of those real students enrolled — merging/deduping those tracks was NOT done this session, flagged below).
+- **Deleted, after explicit user confirmation of the exact list:** all 60 demo chapters (+ their `academy_exam_questions`) and all 120 demo students (+ their `academy_sessions`, `academy_payments`, `academy_exam_results`). Verified after: `academy_chapters` count is 0, `academy_students` count is 5 (the real-looking ones only).
+- **Still needed / not done this session:** the Academy now has **zero chapters** — it's clean but empty, ready for the owner to add real content via `/academy/admin`, not populated with anything. Also still needed: the 3 duplicate "Children" tracks should probably be consolidated into one (two of them each have one real-looking student enrolled — `Yusuf Abdi` and `ibrahim` respectively — so consolidating requires reassigning one of those students' `track_id`, which wasn't done without explicit confirmation of which track is the "real" one to keep).
+
+---
+
 ### 2026-09-11 (part 5) — Rebuilt login again as a plain HTML form, zero client JS, at user's explicit request
 
 - Status: complete. Part 4's server-side `/api/auth/login` fetch-based version still hung for the user despite passing every remote test (curl with a real cookie jar, repeated fresh-browser runs). User asked directly to remove and cleanly rebuild the login phase rather than keep patching. Rebuilt it as the simplest mechanism the web platform offers, removing every remaining moving part that could plausibly fail silently in a browser this environment can't see:
