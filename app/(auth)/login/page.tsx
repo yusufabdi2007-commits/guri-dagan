@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Heart } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,11 +11,14 @@ import { Label } from "@/components/ui/label";
 // been the single longest-running bug in this app. Enforced via the
 // no-store Cache-Control header on this route in next.config.ts.
 
-// A slow/blocked connection to Supabase (flaky network, filtered DNS, an
-// overzealous browser extension) previously left the button stuck on
-// "submitting" forever with zero feedback, since the awaited call never
-// resolved or rejected. This guarantees the UI always comes back within
-// 12s with a real error instead of hanging indefinitely.
+// Sign-in/sign-up goes through /api/auth/login (server-side) rather than
+// calling supabase-js directly from the browser. A direct browser call
+// depends on that specific visitor's own network being able to reach
+// *.supabase.co — if it can't (regional filtering, a flaky ISP, a
+// mis-behaving extension), the request hangs with no way to diagnose it
+// remotely. Going through our own domain means the visitor's browser only
+// ever has to reach guri-dagan.vercel.app, and the Supabase call happens
+// server-to-server instead.
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
@@ -50,33 +52,29 @@ export default function LoginPage() {
     setInfo("");
     setSubmitting(true);
     try {
-      const supabase = createClient();
-      if (mode === "signup") {
-        const { data, error: signUpError } = await withTimeout(
-          supabase.auth.signUp({ email, password }),
-          12000
-        );
-        if (signUpError) {
-          setError(signUpError.message);
-        } else if (data.session) {
-          router.push("/today");
-          router.refresh();
-        } else {
-          setInfo("Account created. Check your email to confirm, then sign in.");
-          setMode("signin");
-        }
-      } else {
-        const { error: signInError } = await withTimeout(
-          supabase.auth.signInWithPassword({ email, password }),
-          12000
-        );
-        if (signInError) {
-          setError(signInError.message);
-        } else {
-          router.push("/today");
-          router.refresh();
-        }
+      const res = await withTimeout(
+        fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: mode, email, password }),
+        }),
+        12000
+      );
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || "Something went wrong. Please try again.");
+        return;
       }
+
+      if (mode === "signup" && !data.session) {
+        setInfo("Account created. Check your email to confirm, then sign in.");
+        setMode("signin");
+        return;
+      }
+
+      router.push("/today");
+      router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not connect. Please try again.");
     } finally {
