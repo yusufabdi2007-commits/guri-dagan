@@ -12,6 +12,29 @@ import { Label } from "@/components/ui/label";
 // been the single longest-running bug in this app. Enforced via the
 // no-store Cache-Control header on this route in next.config.ts.
 
+// A slow/blocked connection to Supabase (flaky network, filtered DNS, an
+// overzealous browser extension) previously left the button stuck on
+// "submitting" forever with zero feedback, since the awaited call never
+// resolved or rejected. This guarantees the UI always comes back within
+// 12s with a real error instead of hanging indefinitely.
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error("This is taking too long. Check your internet connection and try again."));
+    }, ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      }
+    );
+  });
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
@@ -29,10 +52,10 @@ export default function LoginPage() {
     try {
       const supabase = createClient();
       if (mode === "signup") {
-        const { data, error: signUpError } = await supabase.auth.signUp({
-          email,
-          password,
-        });
+        const { data, error: signUpError } = await withTimeout(
+          supabase.auth.signUp({ email, password }),
+          12000
+        );
         if (signUpError) {
           setError(signUpError.message);
         } else if (data.session) {
@@ -43,10 +66,10 @@ export default function LoginPage() {
           setMode("signin");
         }
       } else {
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
+        const { error: signInError } = await withTimeout(
+          supabase.auth.signInWithPassword({ email, password }),
+          12000
+        );
         if (signInError) {
           setError(signInError.message);
         } else {
@@ -54,8 +77,8 @@ export default function LoginPage() {
           router.refresh();
         }
       }
-    } catch {
-      setError("Could not connect. Please try again.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not connect. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -116,7 +139,10 @@ export default function LoginPage() {
 
           <Button type="submit" className="h-12 w-full text-base font-semibold" disabled={submitting}>
             {submitting ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <span className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                {mode === "signin" ? "Signing in..." : "Creating account..."} (up to 12s)
+              </span>
             ) : mode === "signin" ? (
               "Sign In"
             ) : (
