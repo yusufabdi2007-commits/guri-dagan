@@ -5,6 +5,17 @@ It covers what is built, how everything is wired, known limitations, and what to
 
 ---
 
+### 2026-09-11 (part 4) — Rebuilt login to go server-side, at user's request, after it kept failing for them specifically
+
+- Status: complete. Parts 1–3 fixed three real, verified bugs (missing form, stale caching, a self-inflicted service-worker reload) but the user reported it was *still* hanging for them after all three. Every automated test from this environment (curl, repeated fresh-browser Playwright runs) passed consistently, meaning the failure was specific to the user's own device/network in a way that couldn't be reproduced or diagnosed remotely. User asked to rebuild the login section rather than keep patching around an undiagnosable client-side issue.
+- **What changed:** sign-in/sign-up previously called `supabase-js` directly from the browser (`signInWithPassword`/`signUp` running client-side), meaning the request went straight from the visitor's own browser to `*.supabase.co`. If that specific visitor's network/ISP/DNS/an extension couldn't reliably reach that third-party domain — plausible for a Somalia/Africa-based user hitting a Supabase project hosted elsewhere — the call would hang with nothing any server-side fix could touch, since the whole problem lived in a network hop this app's code was never involved in.
+- **New `app/api/auth/login/route.ts`** — POST route (rate-limited 20/min like other public routes) that runs `signInWithPassword`/`signUp` **server-side** using `lib/supabase/server.ts`'s cookie-aware client, inside a Vercel serverless function. The Supabase call now happens server-to-server (Vercel → Supabase), a much more reliable path than an arbitrary visitor's own connection. The visitor's browser only ever needs to reach `guri-dagan.vercel.app` itself — which was never the part that was failing (the page always loaded fine, every time, for the user).
+- **`app/(auth)/login/page.tsx`** — now `fetch("/api/auth/login")` (same-origin, so cookies set by the route's response are stored automatically) instead of calling `supabase-js` directly. Kept the 12s `withTimeout()` wrapper from part 3 around the fetch call itself, as a backstop.
+- **Verified, not assumed:** `curl` with a real cookie jar against live production confirms the route sets the session cookie correctly and a follow-up `GET /today` with that cookie returns `200`. 3 fresh-browser Playwright runs against live production all landed on `/today` with the dashboard rendered.
+- **If this still fails for the user after this change**, the page-load itself unquestionably works for them (confirmed by them directly), so a failure at this point would specifically mean their browser can't complete a request to `guri-dagan.vercel.app/api/auth/login` (same domain the page itself loaded from) — which would be a very unusual, very specific failure mode (e.g. a browser extension blocking POST requests, or blocking `fetch`/XHR specifically) worth asking about directly rather than patching further blind.
+
+---
+
 ### 2026-09-11 (part 3) — Found the actual root cause: self-inflicted service-worker reload wiping logins in progress
 
 - Status: complete. User kept reporting the login button just sits on "pending" forever, even after part 2's caching hardening. Rather than keep guessing at the user's specific browser/network, wrote a repeatable automated test (headless Playwright against the live production site) — and it caught a real, reproducible bug: **the "self-healing" service worker code added in part 2 was itself the cause.**
