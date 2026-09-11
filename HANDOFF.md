@@ -5,6 +5,14 @@ It covers what is built, how everything is wired, known limitations, and what to
 
 ---
 
+### 2026-09-11 (part 8) — Fixed: an already-posted video's title could get regenerated after ~5 weeks
+
+- Status: complete. User reported that after a video is fully done/posted, its topic eventually comes back around and gets assigned again as a "new" title. Root cause: `app/(dashboard)/weekly-assignment/page.tsx` and `app/(dashboard)/batch/plan/page.tsx` both built their title-dedup list from the **last 40 `batch_posts` by `scheduled_date`, regardless of `status`** — so it was really a rolling ~5-week window (8 posts/week × 5 weeks ≈ 40), not a permanent record of what's actually been completed. Once a post aged out of that window, its title became eligible to be picked again by `pickTitle()` in `app/api/weekly-assignment/route.ts` / `app/api/batch-plan/route.ts`, even though the video was long since recorded and posted.
+- **Fix:** both page queries now filter `.eq("status", "posted")` with no row limit — every video that has actually been posted, all-time, is now permanently excluded from ever being reassigned as a title. Not-yet-posted/scheduled posts no longer count toward this list at all (they weren't the problem — a title that's merely *planned* but not shot yet was never the complaint).
+- `npx tsc --noEmit --incremental false` and `npm run build` clean. Pushed to GitHub and deployed via `vercel --prod`.
+
+---
+
 ### 2026-09-11 (part 7) — Found the ACTUAL root cause of the entire "login is broken" saga: wrong URL
 
 - Status: complete. After parts 1–6 all shipped real, verified fixes that never resolved the user's symptom, got the user to check the browser DevTools Network tab and share the request details — the **Request URL** was `https://guri-dagan-aim8.vercel.app/login`, not `https://guri-dagan.vercel.app/login`. The user had been visiting an entirely different, unrelated Vercel project this whole time (near-identical name, easy mix-up), which explains every single symptom across this whole multi-day investigation: why it always looked "old" (that project's deployment was untouched for 100+ days, frozen from before the Aug 5 login rewrite), why no caching/service-worker/timeout fix ever helped (none of those fixes were ever deployed to that project), and why it hung forever (confirmed via that project's own `/status` page: Supabase was never configured on it — "Connection failed", 0/9 setup — so its login had no database to even check credentials against).
