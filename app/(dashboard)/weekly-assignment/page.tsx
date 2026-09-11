@@ -42,12 +42,17 @@ export default async function WeeklyAssignmentPage() {
       .eq("user_id", user.id)
       .order("week_start", { ascending: false })
       .limit(6),
+    // Every video that's actually been posted, all-time — not just a recent
+    // window. Previously this only looked at the last 40 scheduled posts
+    // regardless of status, so a topic could cycle back in after ~5 weeks
+    // even though the original video was already recorded and posted. A
+    // completed video's topic should never be reassigned, period.
     supabase
       .from("batch_posts")
       .select("title, scheduled_date")
       .eq("user_id", user.id)
-      .order("scheduled_date", { ascending: false })
-      .limit(40),
+      .eq("status", "posted")
+      .order("scheduled_date", { ascending: false }),
   ]);
 
   // Aggregate content_performance by category
