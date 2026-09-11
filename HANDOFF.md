@@ -5,6 +5,19 @@ It covers what is built, how everything is wired, known limitations, and what to
 
 ---
 
+### 2026-09-11 (part 2) — Eliminated every caching layer that could serve a stale `/login`
+
+- Status: complete. After the form rebuild below, user reported still seeing a stuck "Please wait..." page — but a different design entirely (pill Sign In/Sign Up tabs, a Somali tagline, "A mission-driven platform for Somali parenting coaches") that doesn't exist anywhere in this codebase's git history for this file. Confirmed via direct `curl` (cache-busted) that the live server was correctly returning the new minimal page the whole time — the mismatch was happening client-side. User confirmed it reproduced even in a brand-new Incognito window, which should rule out normal browser cache/service-worker state entirely; couldn't get further diagnostic detail (view-source, exact browser build) from the user, so rather than keep guessing at the one specific cause, hardened every layer that could plausibly cause any version of this class of bug:
+  - **`next.config.ts`** — added explicit `Cache-Control: no-store, must-revalidate` on `/login` and `Cache-Control: no-cache, must-revalidate` on `/sw.js`. Verified both apply on the live domain via `curl -I`. Previously `/login` (statically prerendered, "○" in the build output) had no route-specific cache header, so it inherited Vercel/Next's default caching for static pages, which can legitimately persist for a while at the edge.
+  - **`public/sw.js`** — bumped `CACHE_NAME` to `v4` (forces the `activate` handler to purge any older cache on any client that does update).
+  - **`components/PWAInstall.tsx`** — now calls `registration.update()` on every page load (forces an immediate byte-check of `sw.js` instead of waiting for the browser's own ~24h default recheck interval) and listens for `controllerchange`, auto-reloading the page **once** (guarded via `sessionStorage` to prevent a reload loop) the moment a newer service worker takes control. This is the actual fix for the class of bug, not just this specific occurrence: previously, self-healing an old stuck service worker required the user to manually clear site data; now it happens automatically within one page load of any future deploy.
+  - Tried `export const dynamic = "force-dynamic"` on the login page first — confirmed via a clean `rm -rf .next && npm run build` that Next still statically optimizes a page that's 100% `"use client"` with no server data fetching, regardless of that export. Removed it since it had no effect; the `Cache-Control` header (which applies independent of static/dynamic rendering) is what actually matters here.
+  - Re-verified end-to-end with a real headless-browser (Playwright) run against the live production domain after deploying: loads `/login`, fills real credentials, submits, lands on `/today` with the full dashboard rendered — confirmed via network log that `POST .../auth/v1/token?grant_type=password` returns `200`.
+  - `npx tsc --noEmit --incremental false` and `npm run build` clean. Pushed to GitHub and deployed via `vercel --prod`.
+- **If this ever recurs:** the next diagnostic step (not reached this session — the user context made a targeted fix undeliverable, so the above defense-in-depth approach was used instead) would be getting the affected user's exact browser + version and a `view-source:` screenshot to distinguish "wrong HTML received" from "old JS still executing after correct HTML."
+
+---
+
 ### 2026-09-11 — Fixed the long-standing broken `/login` page (real root cause, not cosmetic)
 
 - Status: complete. User reported login has been broken "since I can remember." Two stacked bugs, both fixed:
