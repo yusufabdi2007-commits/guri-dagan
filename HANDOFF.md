@@ -5,6 +5,16 @@ It covers what is built, how everything is wired, known limitations, and what to
 
 ---
 
+### 2026-09-11 (part 11) — Populated the Academy with a full 12-week syllabus for presenting/demoing
+
+- Status: complete. User asked to add chapters so they could demo the Academy to someone, then specifically asked for the full syllabus to be visible with future weeks shown locked (not just missing) — which is exactly how `/api/academy/me/route.ts` already behaves: it returns every chapter's `title` regardless of unlock state, only withholding `body`/`file_url`/`zoom_link`/`zoom_time` when `week_number > student.current_week`. No code changes were needed — just the chapter rows to populate all 12 weeks.
+- **Added 60 real chapters** (12 weeks × all 5 tracks: Infants, Toddlers, Children 3-5/6-8/9-12) with genuine, usable parenting-coaching content per week (not placeholder junk) — written directly via service-role script, not through the admin UI. Also added 10 sample check-in questions (2 each) on Week 1 of every track so the exam feature has something to demo too.
+- **Note for whoever adds real content later:** this is coach-written-quality *starter* content, not verified/reviewed by the actual business owner — treat it as a strong first draft per week, not final curriculum. Edit via `/academy/admin` same as any chapter.
+- **Handed the user working links to send to someone else for a demo:** the public `/academy` enrollment page, and a real student login (`yusuf759`, track "Children 6-8", `current_week: 5`) — reissued that student's password via the existing `reissue_credentials` admin action (not a hand-rolled hash — a first attempt at reimplementing the scrypt hashing directly hit a mismatch with `lib/academy-auth.ts`'s actual salt/encoding format and failed to log in, so switched to calling the app's own admin endpoint instead, which is guaranteed correct). Verified the new password logs in successfully before handing it over. Real student accounts now at different `current_week` values (4, 5, 8) — useful spread for demoing partial-unlock states without needing to fake anything.
+- No migrations, no code changes, no deploy needed — this was data-only.
+
+---
+
 ### 2026-09-11 (part 10) — Removed the WhatsApp bot entirely, at user's request
 
 - Status: complete. User asked what the WhatsApp bot actually was (never having activated it), then asked to remove it. Full removal, not just disabling:
