@@ -5,6 +5,16 @@ It covers what is built, how everything is wired, known limitations, and what to
 
 ---
 
+### 2026-09-11 (part 7) — Found the ACTUAL root cause of the entire "login is broken" saga: wrong URL
+
+- Status: complete. After parts 1–6 all shipped real, verified fixes that never resolved the user's symptom, got the user to check the browser DevTools Network tab and share the request details — the **Request URL** was `https://guri-dagan-aim8.vercel.app/login`, not `https://guri-dagan.vercel.app/login`. The user had been visiting an entirely different, unrelated Vercel project this whole time (near-identical name, easy mix-up), which explains every single symptom across this whole multi-day investigation: why it always looked "old" (that project's deployment was untouched for 100+ days, frozen from before the Aug 5 login rewrite), why no caching/service-worker/timeout fix ever helped (none of those fixes were ever deployed to that project), and why it hung forever (confirmed via that project's own `/status` page: Supabase was never configured on it — "Connection failed", 0/9 setup — so its login had no database to even check credentials against).
+- **Verified before touching anything:** fetched `guri-dagan-aim8.vercel.app/status` directly and confirmed 0/9 setup progress, Supabase connection failed, and that it lacked routes added after ~August 5 (`/api/whatsapp` and `/api/status` both 404, `/academy` not public) — consistent with a deployment frozen since around the July/early-August mark. User was initially worried it might hold unique historical data ("used to generate content scripts") and asked for a comparison before deleting anything.
+- **Confirmed it held nothing unique:** since it currently has no Supabase connection at all, it cannot be storing or serving any live data of its own. Every migration this project has ever run (`001_initial_schema.sql` onward) has been against the one real Supabase project (`wgpsncyrezbmkkivoquu.supabase.co`) — there has only ever been one real database for this business, so anything that old deployment once wrote when it *was* working would already be in the current live database, not trapped somewhere inaccessible.
+- **Deleted the old project** (`vercel project remove guri-dagan-aim8`) after explicit user confirmation. Verified after: `guri-dagan-aim8.vercel.app` now 404s entirely; `guri-dagan.vercel.app` unaffected (still 200).
+- **Lesson for next session:** when a user reports something "not working" that contradicts every server-side/automated test, get the literal browser address bar / DevTools Request URL early — verifying which domain they're actually hitting should have been one of the first checks, not one of the last, given how much time parts 1–6 spent hardening code that was never actually reachable from the user's browser in the first place.
+
+---
+
 ### 2026-09-11 (part 6) — Deleted the long-overdue demo/test data from Academy (unrelated to login)
 
 - Status: complete. After login was confirmed working (part 5), user reported the Academy still looked "old" — turned out to be a real, separate, non-login issue: the Academy was still showing the demo/test data seeded back on 2026-08-22/30 for a load test (see that section below), which per this file's own notes at the time was supposed to be deleted before real use but never was.
