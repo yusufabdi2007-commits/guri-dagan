@@ -5,6 +5,40 @@ It covers what is built, how everything is wired, known limitations, and what to
 
 ---
 
+### 2026-09-28 — New Finance section: unified money ledger + one-click coaching client + payment
+
+- Status: complete, not yet migrated on the live database. User asked for a place to log business income (client money) that also updates everything else in one go, plus a simplified way to add a 1-month coaching client at one of two flat prices.
+- **Pricing rule (per user):** coaching clients in Africa/Arab countries pay **$25/month**, everyone else pays **$50/month** — a regional pricing tier, not a discount for repeat clients.
+- **New `supabase/migrations/034_finance_schema.sql` — needs to be run in Supabase SQL Editor:**
+  - `finance_transactions` — general income/expense ledger: `type` (income/expense), `amount`, `currency`, `category`, `client_name`, optional `enrollment_id`/`payment_id` links, `transaction_date`, `notes`. RLS scoped per user like every other table here.
+  - `client_enrollments` gets a new `region` column (`africa_arab` / `other`) so it's recorded which price tier a coaching client is on.
+- **`/finance` page (new) + `FinanceClient.tsx`:** total made / total spent / net profit cards, this-month summary, income-by-category breakdown, full transaction list with delete, and two entry points:
+  1. **"Add Coaching Client"** — name + optional child name + a two-button price picker ($25 Africa/Arab vs $50 Other). One submit creates the `client_enrollments` row, a `payments` row, **and** mirrors the same transaction into `finance_transactions` — so the client shows up on `/clients`, the payment shows up on `/revenue` and `/business` (both already read from `payments`/`client_enrollments`, unchanged), and the money shows up on `/finance`, all from one action.
+  2. **"Add Transaction"** — manual income or expense entry not tied to any client (e.g. Academy income logged separately, software costs, etc.) — only touches `finance_transactions`.
+- **`app/api/enrollments/route.ts` POST extended** (backwards compatible — existing callers unaffected): now accepts optional `region` and `initial_payment: { amount, currency, payment_date }`. When `initial_payment` is present it creates the `payments` row and the `finance_transactions` mirror row server-side in the same request, and returns `{ enrollment, payment }`.
+- **New `app/api/finance/route.ts`** (GET list, POST create) and **`app/api/finance/[id]/route.ts`** (PATCH, DELETE) for manual ledger entries — both auth-gated and RLS-scoped, POST rate-limited 60/hr like the other write routes.
+- **Nav:** added "Finance" (Wallet icon) to Sidebar's Programs section and BottomNav's More sheet, right next to Revenue. Also added a top "Add Coaching Client" button on `/clients` linking to `/finance` (kept the add-flow in one place rather than duplicating the price-picker logic on two pages).
+- Deliberately **did not touch** `/revenue` or `/business` — both already aggregate from `payments`/`client_enrollments`, so the new coaching payments show up there automatically with zero changes needed.
+- `npx tsc --noEmit --incremental false` and `npm run build` both clean.
+- **Still needed:** run `034_finance_schema.sql` in Supabase SQL Editor before using `/finance` or the new coaching-client flow in production — everything will 500 against the live DB until that migration is applied. No deploy done yet this session (local only).
+
+---
+
+### 2026-09-17 — Academy price raised to $50/month; investigated a cousin's blank-page report (unresolved, needs info from the device)
+
+- Status: partially complete — the price change is done and live; the blank-page report is still open, blocked on information only the affected visitor can provide.
+- **Price change:** raised all 5 `academy_tracks` rows (Infants, Toddlers, and the 3 Children age bands) from `price_amount: 40` to `50` directly in the live Supabase database via a disposable service-role script (run once, then deleted — nothing left in the repo). This is pure data, not code — `app/academy/page.tsx` and the admin roster just render whatever `price_amount`/`price_currency` is stored per track, so no deploy was needed and the new $50/month price is already live on the public `/academy` page and in `/academy/admin`.
+- **Blank-page report:** user's cousin said `guri-dagan.vercel.app/academy` (confirmed the correct domain, not the old `-aim8` mixup from the 2026-09-11 saga) showed blank in their actual Safari/Chrome mobile browser (not an in-app webview). Ran an extensive remote diagnosis, all clean:
+  - Direct `curl` of the live URL: `200`, full server-rendered HTML with real content (course cards, prices) — not a backend/deploy issue.
+  - Fresh-context Playwright run on **Chromium**, iPhone 13 emulation: renders fully, zero console errors, zero failed requests.
+  - Fresh-context Playwright run on **WebKit** (actual Safari engine, not just Chromium-pretending-mobile), iPhone 13 emulation: same — renders fully, zero errors.
+  - Re-read `next.config.ts` (CSP/security headers — no geo/script blocking), `public/sw.js` (service worker correctly passes navigations straight to network, no stale-HTML risk), and `middleware.ts`'s public-route allowlist (`/academy` is correctly public, no auth-redirect happening) — all confirmed sound.
+- **Conclusion: no reproducible code bug.** Everything testable from this environment — server, both major rendering engines, headers, service worker, middleware — comes back clean. The remaining candidates are all on the cousin's side and can't be diagnosed further without them: a stale/broken service worker cached from an earlier visit on that specific device, a carrier/regional network issue reaching `*.vercel.app` (this exact class of problem has bitten this project before — see the 2026-09-11 part 7 "wrong URL" saga, though that's now ruled out here), or an old browser/OS version with a JS-support gap neither test engine reproduces.
+- **Still needed — next diagnostic step (requires the cousin, not further code changes):** a screenshot of exactly what they see (truly blank white/black vs. an "offline" message vs. an error), and whether switching between WiFi and mobile data changes anything. Without that, there is nothing further to fix blind — re-emphasize to the user that this was reported back only because it's a genuine dead end without device-side info, not because of a lack of effort.
+- **Unrelated, same session:** confirmed for the user how to connect this repo to Claude Code web (claude.ai/code) — repo is already on GitHub at `yusufabdi2007-commits/guri-dagan`, so it's just a matter of authorizing the Claude GitHub App on that repo from claude.ai/code's connection flow. No code or repo changes made for this.
+
+---
+
 ### 2026-09-11 (part 11) — Populated the Academy with a full 12-week syllabus for presenting/demoing
 
 - Status: complete. User asked to add chapters so they could demo the Academy to someone, then specifically asked for the full syllabus to be visible with future weeks shown locked (not just missing) — which is exactly how `/api/academy/me/route.ts` already behaves: it returns every chapter's `title` regardless of unlock state, only withholding `body`/`file_url`/`zoom_link`/`zoom_time` when `week_number > student.current_week`. No code changes were needed — just the chapter rows to populate all 12 weeks.

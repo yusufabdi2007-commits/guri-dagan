@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { rateLimit } from "@/lib/rate-limit";
 
 // Handles a plain HTML <form method="POST"> submission — not a fetch() call.
@@ -35,9 +36,28 @@ export async function POST(req: Request) {
   if (action === "signup") {
     const { data, error } = await supabase.auth.signUp({ email, password });
     if (error) return redirectWithError(req, error.message, "signup");
-    if (!data.session) {
+
+    // Supabase's "Enable email confirmations" project setting is on, so a fresh
+    // signUp() returns no session — the account sits unconfirmed until someone
+    // clicks the email link, but this app has no confirmation-callback route to
+    // land that click on, so it never actually signs the visitor in here. That
+    // left every new signup permanently stuck (see HANDOFF.md 2026-09-11).
+    // Fix: confirm the account ourselves via the service-role admin API right
+    // after signup, then sign in for real, so no email click is required.
+    if (!data.session && data.user) {
+      const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      if (serviceKey && supabaseUrl) {
+        const admin = createAdminClient(supabaseUrl, serviceKey);
+        const { error: confirmError } = await admin.auth.admin.updateUserById(data.user.id, { email_confirm: true });
+        if (!confirmError) {
+          const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+          if (!signInError) return NextResponse.redirect(new URL("/today", req.url), { status: 303 });
+        }
+      }
       return redirectWithInfo(req, "Account created. Check your email to confirm, then sign in.");
     }
+
     return NextResponse.redirect(new URL("/today", req.url), { status: 303 });
   }
 

@@ -91,6 +91,12 @@ export function ClientsListClient({ enrollments: initial }: { enrollments: Enrol
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-2xl mx-auto">
 
+      <Link href="/finance" className="block">
+        <Button className="w-full rounded-2xl">
+          <Plus className="h-4 w-4 mr-1.5" /> Add Coaching Client
+        </Button>
+      </Link>
+
       {/* Stats */}
       <div className="grid grid-cols-3 gap-3">
         {[

@@ -9,7 +9,7 @@ import {
   CalendarDays, Video, Zap, TrendingUp, MessageSquareQuote, Users, Mic2, Layers,
   Package, Megaphone, Youtube, FileBarChart2, Clapperboard, Brain, GitBranch,
   MonitorPlay, Wand2, Plug, Building2, PieChart, PhoneCall, PoundSterling,
-  Clock, HeartHandshake, ClipboardList, Activity, GraduationCap,
+  Clock, HeartHandshake, ClipboardList, Activity, GraduationCap, Wallet,
   Sun, Moon, LogOut, ShieldAlert, Wrench,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -37,6 +37,7 @@ const programsNav = [
   { href: "/program-report", icon: PieChart, label: "Program Report" },
   { href: "/outcomes", icon: Activity, label: "Program Outcomes" },
   { href: "/revenue", icon: PoundSterling, label: "Revenue" },
+  { href: "/finance", icon: Wallet, label: "Finance" },
   { href: "/program-knowledge", icon: GraduationCap, label: "Program Knowledge" },
   { href: "/academy/admin", icon: GraduationCap, label: "The Academy" },
 ];

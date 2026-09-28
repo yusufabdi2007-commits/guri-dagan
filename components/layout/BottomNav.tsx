@@ -10,7 +10,7 @@ import {
   CalendarDays, Video, Zap, TrendingUp, MessageSquareQuote, Users, Mic2, Layers,
   Package, Megaphone, Youtube, FileBarChart2, Clapperboard, Brain, GitBranch,
   MonitorPlay, Wand2, Plug, PieChart, PhoneCall, PoundSterling,
-  Clock, HeartHandshake, Activity, Baby, GraduationCap,
+  Clock, HeartHandshake, Activity, Baby, GraduationCap, Wallet,
   Sun, Moon, LogOut, X, ShieldAlert, Wrench,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -44,6 +44,7 @@ const allTools = [
   { href: "/program-report", icon: PieChart, label: "Prog. Report" },
   { href: "/program-knowledge", icon: GraduationCap, label: "Knowledge" },
   { href: "/revenue", icon: PoundSterling, label: "Revenue" },
+  { href: "/finance", icon: Wallet, label: "Finance" },
   { href: "/followups", icon: Clock, label: "Follow-ups" },
   { href: "/streak", icon: CheckCircle2, label: "Streak" },
   { href: "/connections", icon: Plug, label: "Connections" },

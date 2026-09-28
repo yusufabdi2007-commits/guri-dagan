@@ -30,10 +30,23 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
-  const { lead_id, parent_name, child_name, program, enrollment_date, notes } = body;
+  const { lead_id, parent_name, child_name, program, enrollment_date, notes, region, initial_payment } = body;
 
   if (!parent_name?.trim()) {
     return NextResponse.json({ error: "parent_name is required" }, { status: 400 });
+  }
+
+  if (region && !["africa_arab", "other"].includes(region)) {
+    return NextResponse.json({ error: "region must be africa_arab or other" }, { status: 400 });
+  }
+
+  let initialPaymentAmount: number | null = null;
+  if (initial_payment) {
+    const parsed = typeof initial_payment.amount === "number" ? initial_payment.amount : parseFloat(initial_payment.amount);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      return NextResponse.json({ error: "initial_payment.amount must be a valid positive number" }, { status: 400 });
+    }
+    initialPaymentAmount = parsed;
   }
 
   if (lead_id) {
@@ -57,11 +70,50 @@ export async function POST(req: NextRequest) {
       enrollment_date: enrollment_date || new Date().toISOString().split("T")[0],
       notes: notes || null,
       status: "active",
+      region: region || null,
     })
     .select()
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Optional one-shot payment: creates the payment row (feeds /revenue) and
+  // mirrors it into the finance ledger (feeds /finance) in the same request.
+  let payment = null;
+  if (initialPaymentAmount !== null) {
+    const paymentDate = initial_payment.payment_date || new Date().toISOString().split("T")[0];
+    const currency = initial_payment.currency || "USD";
+
+    const { data: paymentRow, error: paymentError } = await supabase
+      .from("payments")
+      .insert({
+        user_id: user.id,
+        enrollment_id: data.id,
+        amount: initialPaymentAmount,
+        currency,
+        payment_date: paymentDate,
+        payment_status: "paid",
+        notes: notes || null,
+      })
+      .select()
+      .single();
+
+    if (paymentError) return NextResponse.json({ error: paymentError.message }, { status: 500 });
+    payment = paymentRow;
+
+    await supabase.from("finance_transactions").insert({
+      user_id: user.id,
+      type: "income",
+      amount: initialPaymentAmount,
+      currency,
+      category: program || "Coaching",
+      client_name: parent_name.trim(),
+      enrollment_id: data.id,
+      payment_id: paymentRow.id,
+      transaction_date: paymentDate,
+      notes: region ? `Region: ${region === "africa_arab" ? "Africa/Arab" : "Other"}` : null,
+    });
+  }
 
   // If linked to a lead, update lead stage to 'client'
   if (lead_id) {
@@ -118,5 +170,5 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ enrollment: data }, { status: 201 });
+  return NextResponse.json({ enrollment: data, payment }, { status: 201 });
 }
