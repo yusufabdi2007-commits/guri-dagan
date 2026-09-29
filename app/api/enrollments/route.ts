@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { rateLimit } from "@/lib/rate-limit";
+import { mirrorPaidPaymentToFinance } from "@/lib/finance";
 
 export async function GET() {
   const supabase = await createClient();
@@ -30,7 +31,7 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
-  const { lead_id, parent_name, child_name, program, enrollment_date, notes, region, initial_payment } = body;
+  const { lead_id, parent_name, child_name, program, enrollment_date, notes, region, payments: paymentsInput } = body;
 
   if (!parent_name?.trim()) {
     return NextResponse.json({ error: "parent_name is required" }, { status: 400 });
@@ -40,13 +41,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "region must be africa_arab or other" }, { status: 400 });
   }
 
-  let initialPaymentAmount: number | null = null;
-  if (initial_payment) {
-    const parsed = typeof initial_payment.amount === "number" ? initial_payment.amount : parseFloat(initial_payment.amount);
-    if (!Number.isFinite(parsed) || parsed <= 0) {
-      return NextResponse.json({ error: "initial_payment.amount must be a valid positive number" }, { status: 400 });
+  // Optional list of payments to create alongside the enrollment — supports
+  // a single paid-in-full payment, or a split like "$30 now, $20 pending on
+  // the 1st" as two entries with different amounts/dates/statuses.
+  type PaymentInput = { amount: number; currency: string; payment_date: string; payment_status: "paid" | "pending" };
+  const paymentsToCreate: PaymentInput[] = [];
+  if (Array.isArray(paymentsInput)) {
+    for (const p of paymentsInput) {
+      const parsed = typeof p.amount === "number" ? p.amount : parseFloat(p.amount);
+      if (!Number.isFinite(parsed) || parsed <= 0) {
+        return NextResponse.json({ error: "each payment.amount must be a valid positive number" }, { status: 400 });
+      }
+      const status = p.payment_status === "pending" ? "pending" : "paid";
+      paymentsToCreate.push({
+        amount: parsed,
+        currency: p.currency || "USD",
+        payment_date: p.payment_date || new Date().toISOString().split("T")[0],
+        payment_status: status,
+      });
     }
-    initialPaymentAmount = parsed;
   }
 
   if (lead_id) {
@@ -77,43 +90,44 @@ export async function POST(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // Optional one-shot payment: creates the payment row (feeds /revenue) and
-  // mirrors it into the finance ledger (feeds /finance) in the same request.
-  let payment = null;
-  if (initialPaymentAmount !== null) {
-    const paymentDate = initial_payment.payment_date || new Date().toISOString().split("T")[0];
-    const currency = initial_payment.currency || "USD";
-
+  // Optional one-shot payment(s): creates the payment row(s) (feeds /revenue)
+  // and mirrors any already-"paid" ones into the finance ledger (feeds
+  // /finance) in the same request. A "pending" entry (e.g. the rest due on
+  // the 1st) is created but only counted as income once it's later marked paid.
+  const createdPayments = [];
+  for (const p of paymentsToCreate) {
     const { data: paymentRow, error: paymentError } = await supabase
       .from("payments")
       .insert({
         user_id: user.id,
         enrollment_id: data.id,
-        amount: initialPaymentAmount,
-        currency,
-        payment_date: paymentDate,
-        payment_status: "paid",
+        amount: p.amount,
+        currency: p.currency,
+        payment_date: p.payment_date,
+        payment_status: p.payment_status,
         notes: notes || null,
       })
       .select()
       .single();
 
     if (paymentError) return NextResponse.json({ error: paymentError.message }, { status: 500 });
-    payment = paymentRow;
+    createdPayments.push(paymentRow);
 
-    await supabase.from("finance_transactions").insert({
-      user_id: user.id,
-      type: "income",
-      amount: initialPaymentAmount,
-      currency,
-      category: program || "Coaching",
-      client_name: parent_name.trim(),
-      enrollment_id: data.id,
-      payment_id: paymentRow.id,
-      transaction_date: paymentDate,
-      notes: region ? `Region: ${region === "africa_arab" ? "Africa/Arab" : "Other"}` : null,
-    });
+    if (p.payment_status === "paid") {
+      await mirrorPaidPaymentToFinance(supabase, {
+        userId: user.id,
+        paymentId: paymentRow.id,
+        enrollmentId: data.id,
+        amount: p.amount,
+        currency: p.currency,
+        category: program || "Coaching",
+        clientName: parent_name.trim(),
+        date: p.payment_date,
+        notes: region ? `Region: ${region === "africa_arab" ? "Africa/Arab" : "Other"}` : null,
+      });
+    }
   }
+  const payment = createdPayments[0] ?? null;
 
   // If linked to a lead, update lead stage to 'client'
   if (lead_id) {
@@ -170,5 +184,5 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ enrollment: data, payment }, { status: 201 });
+  return NextResponse.json({ enrollment: data, payment, payments: createdPayments }, { status: 201 });
 }

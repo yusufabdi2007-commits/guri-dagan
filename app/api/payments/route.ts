@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { rateLimit } from "@/lib/rate-limit";
+import { mirrorPaidPaymentToFinance } from "@/lib/finance";
 
 export async function GET() {
   const supabase = await createClient();
@@ -34,11 +35,13 @@ export async function POST(req: NextRequest) {
 
   const { data: enrollment } = await supabase
     .from("client_enrollments")
-    .select("id")
+    .select("id, parent_name, program")
     .eq("id", enrollment_id)
     .eq("user_id", user.id)
     .single();
   if (!enrollment) return NextResponse.json({ error: "Enrollment not found" }, { status: 404 });
+
+  const resolvedDate = payment_date || new Date().toISOString().split("T")[0];
 
   const { data, error } = await supabase
     .from("payments")
@@ -47,7 +50,7 @@ export async function POST(req: NextRequest) {
       enrollment_id,
       amount: parsedAmount,
       currency,
-      payment_date: payment_date || new Date().toISOString().split("T")[0],
+      payment_date: resolvedDate,
       payment_status,
       notes: notes || null,
     })
@@ -55,5 +58,20 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  if (payment_status === "paid") {
+    await mirrorPaidPaymentToFinance(supabase, {
+      userId: user.id,
+      paymentId: data.id,
+      enrollmentId: enrollment_id,
+      amount: parsedAmount,
+      currency,
+      category: enrollment.program || "Coaching",
+      clientName: enrollment.parent_name,
+      date: resolvedDate,
+      notes: notes || null,
+    });
+  }
+
   return NextResponse.json({ payment: data }, { status: 201 });
 }

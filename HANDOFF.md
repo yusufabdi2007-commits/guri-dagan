@@ -24,6 +24,22 @@ It covers what is built, how everything is wired, known limitations, and what to
 
 ---
 
+### 2026-09-29 — Finance: custom amounts + split/partial payments (paid-now + pending-later)
+
+- Status: complete, deployed. User wanted more than just the $25/$50 buttons: sometimes a client pays part now and owes the rest by a specific date (their example: paid $30, owes $20 on the 1st).
+- **New `lib/finance.ts`:** `mirrorPaidPaymentToFinance()` — shared, idempotent helper (checks `payment_id` before inserting) that mirrors any payment marked "paid" into `finance_transactions`. Used from all three payment-creation paths so nothing can drift out of sync with the ledger.
+- **`app/api/enrollments/route.ts` POST changed from a single `initial_payment` to a `payments: [{amount, currency, payment_date, payment_status}]` array** — lets one request create both a "paid" payment for what's collected today and a "pending" payment for the remainder due later. Only "paid" entries mirror to finance immediately; "pending" ones don't count as income until actually paid.
+- **`app/api/payments/route.ts` POST** now also mirrors to `finance_transactions` when `payment_status: "paid"` — this closes a gap where a payment added from a client's own detail page (`ClientDetailClient.tsx`, which already supported arbitrary amounts and paid/pending/refunded status) never used to show up in `/finance`. Now it does, automatically.
+- **New `app/api/payments/[id]/route.ts` PATCH`** — marks a pending payment paid (or edits amount/date/notes) and mirrors it into finance the moment it's actually paid. Returns the created `transaction` so the UI can update without a refetch.
+- **`/finance` page + `FinanceClient.tsx`:**
+  - Add Coaching Client dialog now has three price options — $25 (Africa/Arab), $50 (Other), and **Custom** — plus an always-editable "Amount paying now" field (so the quick buttons are just a fast-fill, not a hard limit).
+  - New checkbox: "They still owe part of this month's payment" — reveals a remaining-amount + due-date pair (defaults to the 1st of next month). Submits both payments in one request.
+  - New **Pending / Due Later** section on `/finance` lists every unpaid payment across all clients with a one-tap "mark as paid" check button — the moment it's clicked, it moves into the ledger as real income via the new PATCH route.
+- `npx tsc --noEmit --incremental false` and `npm run build` both clean. Pushed to GitHub and deployed via `vercel --prod`.
+- **Nothing further needed** — no new migration, this only changes API/UI logic on top of the existing `034_finance_schema.sql` tables.
+
+---
+
 ### 2026-09-17 — Academy price raised to $50/month; investigated a cousin's blank-page report (unresolved, needs info from the device)
 
 - Status: partially complete — the price change is done and live; the blank-page report is still open, blocked on information only the affected visitor can provide.

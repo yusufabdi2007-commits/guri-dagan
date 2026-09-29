@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import {
-  Plus, TrendingUp, TrendingDown, Wallet, Globe, MapPin, Trash2, UserCheck,
+  Plus, TrendingUp, TrendingDown, Wallet, Globe, MapPin, Trash2, UserCheck, Clock, Check,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/components/ui/use-toast";
@@ -26,6 +26,15 @@ export interface FinanceTransaction {
   notes: string | null;
 }
 
+export interface PendingPayment {
+  id: string;
+  amount: number;
+  currency: string;
+  payment_date: string;
+  enrollment_id: string;
+  client_enrollments: { parent_name: string; program: string | null } | null;
+}
+
 function formatMoney(amount: number, currency: string) {
   try {
     return new Intl.NumberFormat("en-US", { style: "currency", currency, maximumFractionDigits: 0 }).format(amount);
@@ -34,13 +43,21 @@ function formatMoney(amount: number, currency: string) {
   }
 }
 
-export function FinanceClient({ transactions: initial }: { transactions: FinanceTransaction[] }) {
+function firstOfNextMonth() {
+  const d = new Date();
+  d.setMonth(d.getMonth() + 1, 1);
+  return d.toISOString().split("T")[0];
+}
+
+export function FinanceClient({ transactions: initial, pendingPayments: initialPending }: { transactions: FinanceTransaction[]; pendingPayments: PendingPayment[] }) {
   const router = useRouter();
   const [transactions, setTransactions] = useState(initial);
+  const [pending, setPending] = useState(initialPending);
   const [txDialogOpen, setTxDialogOpen] = useState(false);
   const [clientDialogOpen, setClientDialogOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [markingPaidId, setMarkingPaidId] = useState<string | null>(null);
 
   // Manual transaction form
   const [txType, setTxType] = useState<"income" | "expense">("income");
@@ -52,7 +69,11 @@ export function FinanceClient({ transactions: initial }: { transactions: Finance
   // Quick add coaching client form
   const [clientName, setClientName] = useState("");
   const [childName, setChildName] = useState("");
-  const [region, setRegion] = useState<"africa_arab" | "other">("africa_arab");
+  const [region, setRegion] = useState<"africa_arab" | "other" | null>("africa_arab");
+  const [amountNow, setAmountNow] = useState("25");
+  const [owesMore, setOwesMore] = useState(false);
+  const [remainingAmount, setRemainingAmount] = useState("");
+  const [remainingDueDate, setRemainingDueDate] = useState(firstOfNextMonth());
 
   const now = new Date();
   const thisMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
@@ -113,9 +134,26 @@ export function FinanceClient({ transactions: initial }: { transactions: Finance
       toast({ title: "Client name is required", variant: "destructive" as never });
       return;
     }
+    const amount = parseFloat(amountNow);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      toast({ title: "Enter a valid amount for what they're paying now", variant: "destructive" as never });
+      return;
+    }
+    let remaining = 0;
+    if (owesMore) {
+      remaining = parseFloat(remainingAmount);
+      if (!Number.isFinite(remaining) || remaining <= 0) {
+        toast({ title: "Enter a valid remaining amount", variant: "destructive" as never });
+        return;
+      }
+    }
+
     setSubmitting(true);
     try {
-      const amount = region === "africa_arab" ? 25 : 50;
+      const payments = [
+        { amount, currency: "USD", payment_status: "paid" as const },
+        ...(owesMore ? [{ amount: remaining, currency: "USD", payment_status: "pending" as const, payment_date: remainingDueDate }] : []),
+      ];
       const res = await fetch("/api/enrollments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -124,33 +162,70 @@ export function FinanceClient({ transactions: initial }: { transactions: Finance
           child_name: childName || null,
           program: "Coaching",
           region,
-          initial_payment: { amount, currency: "USD" },
+          payments,
         }),
       });
       if (!res.ok) throw new Error();
-      const { payment } = await res.json();
-      if (payment) {
+      const { payments: created } = await res.json();
+      const paidNow = created?.find((p: { payment_status: string }) => p.payment_status === "paid");
+      const pendingRow = created?.find((p: { payment_status: string }) => p.payment_status === "pending");
+      if (paidNow) {
         setTransactions(prev => [{
-          id: payment.id,
+          id: paidNow.id,
           type: "income",
-          amount: payment.amount,
-          currency: payment.currency,
+          amount: paidNow.amount,
+          currency: paidNow.currency,
           category: "Coaching",
           client_name: clientName,
-          enrollment_id: payment.enrollment_id,
-          payment_id: payment.id,
-          transaction_date: payment.payment_date,
+          enrollment_id: paidNow.enrollment_id,
+          payment_id: paidNow.id,
+          transaction_date: paidNow.payment_date,
           notes: null,
         }, ...prev]);
       }
+      if (pendingRow) {
+        setPending(prev => [...prev, {
+          id: pendingRow.id,
+          amount: pendingRow.amount,
+          currency: pendingRow.currency,
+          payment_date: pendingRow.payment_date,
+          enrollment_id: pendingRow.enrollment_id,
+          client_enrollments: { parent_name: clientName, program: "Coaching" },
+        }]);
+      }
       setClientDialogOpen(false);
-      setClientName(""); setChildName(""); setRegion("africa_arab");
-      toast({ title: `Client added — $${amount}/month`, description: "Also added to Clients and Revenue" });
+      setClientName(""); setChildName(""); setRegion("africa_arab"); setAmountNow("25");
+      setOwesMore(false); setRemainingAmount(""); setRemainingDueDate(firstOfNextMonth());
+      toast({
+        title: owesMore ? `Client added — $${amount} now, $${remaining} due later` : `Client added — $${amount}`,
+        description: "Also added to Clients and Revenue",
+      });
       router.refresh();
     } catch {
       toast({ title: "Could not add client", variant: "destructive" as never });
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleMarkPaid(paymentId: string) {
+    setMarkingPaidId(paymentId);
+    try {
+      const res = await fetch(`/api/payments/${paymentId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ payment_status: "paid" }),
+      });
+      if (!res.ok) throw new Error();
+      const { transaction } = await res.json();
+      setPending(prev => prev.filter(p => p.id !== paymentId));
+      if (transaction) setTransactions(prev => [transaction, ...prev]);
+      toast({ title: "Marked as paid" });
+      router.refresh();
+    } catch {
+      toast({ title: "Could not update payment", variant: "destructive" as never });
+    } finally {
+      setMarkingPaidId(null);
     }
   }
 
@@ -206,6 +281,40 @@ export function FinanceClient({ transactions: initial }: { transactions: Finance
           <Plus className="h-4 w-4 mr-1.5" /> Add Transaction
         </Button>
       </div>
+
+      {/* Pending / upcoming payments */}
+      {pending.length > 0 && (
+        <div className="bg-amber-500/5 border border-amber-500/20 rounded-2xl p-4">
+          <p className="text-xs font-semibold text-foreground mb-3 flex items-center gap-1.5">
+            <Clock className="h-3.5 w-3.5 text-amber-500" /> Pending / Due Later
+          </p>
+          <div className="space-y-2">
+            {pending.map(p => (
+              <div key={p.id} className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-foreground truncate">
+                    {p.client_enrollments?.parent_name || "Client"}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">
+                    Due {new Date(p.payment_date).toLocaleDateString("en-US", { day: "numeric", month: "short" })}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-sm font-bold text-amber-600 dark:text-amber-400">{formatMoney(p.amount, p.currency)}</span>
+                  <button
+                    onClick={() => handleMarkPaid(p.id)}
+                    disabled={markingPaidId === p.id}
+                    className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 transition-colors"
+                    title="Mark as paid"
+                  >
+                    <Check className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Category breakdown */}
       {topCategories.length > 0 && (
@@ -277,40 +386,74 @@ export function FinanceClient({ transactions: initial }: { transactions: Finance
             </div>
             <div>
               <Label>1-month coaching price</Label>
-              <div className="grid grid-cols-2 gap-3 mt-1.5">
+              <div className="grid grid-cols-3 gap-2 mt-1.5">
                 <button
                   type="button"
-                  onClick={() => setRegion("africa_arab")}
+                  onClick={() => { setRegion("africa_arab"); setAmountNow("25"); }}
                   className={cn(
-                    "rounded-2xl border p-4 text-left transition-colors",
+                    "rounded-2xl border p-3 text-left transition-colors",
                     region === "africa_arab" ? "border-primary bg-primary/10" : "border-border hover:bg-muted/40"
                   )}
                 >
-                  <div className="flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground mb-1">
-                    <Globe className="h-3 w-3" /> Africa / Arab countries
+                  <div className="flex items-center gap-1 text-[9px] font-semibold text-muted-foreground mb-1">
+                    <Globe className="h-3 w-3" /> Africa/Arab
                   </div>
-                  <div className="text-xl font-bold text-foreground">$25</div>
+                  <div className="text-lg font-bold text-foreground">$25</div>
                 </button>
                 <button
                   type="button"
-                  onClick={() => setRegion("other")}
+                  onClick={() => { setRegion("other"); setAmountNow("50"); }}
                   className={cn(
-                    "rounded-2xl border p-4 text-left transition-colors",
+                    "rounded-2xl border p-3 text-left transition-colors",
                     region === "other" ? "border-primary bg-primary/10" : "border-border hover:bg-muted/40"
                   )}
                 >
-                  <div className="flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground mb-1">
-                    <MapPin className="h-3 w-3" /> Other countries
+                  <div className="flex items-center gap-1 text-[9px] font-semibold text-muted-foreground mb-1">
+                    <MapPin className="h-3 w-3" /> Other
                   </div>
-                  <div className="text-xl font-bold text-foreground">$50</div>
+                  <div className="text-lg font-bold text-foreground">$50</div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setRegion(null); setAmountNow(""); }}
+                  className={cn(
+                    "rounded-2xl border p-3 text-left transition-colors",
+                    region === null ? "border-primary bg-primary/10" : "border-border hover:bg-muted/40"
+                  )}
+                >
+                  <div className="text-[9px] font-semibold text-muted-foreground mb-1">Custom</div>
+                  <div className="text-lg font-bold text-foreground">$?</div>
                 </button>
               </div>
             </div>
+
+            <div>
+              <Label>Amount paying now (USD)</Label>
+              <Input type="number" min="0" step="0.01" value={amountNow} onChange={e => setAmountNow(e.target.value)} placeholder="0.00" />
+            </div>
+
+            <label className="flex items-center gap-2 text-xs text-foreground cursor-pointer">
+              <input type="checkbox" checked={owesMore} onChange={e => setOwesMore(e.target.checked)} className="h-4 w-4 rounded border-border" />
+              They still owe part of this month's payment (e.g. paid $30, owes $20 later)
+            </label>
+
+            {owesMore && (
+              <div className="grid grid-cols-2 gap-3 border border-border rounded-xl p-3">
+                <div>
+                  <Label className="text-xs">Remaining amount (USD)</Label>
+                  <Input type="number" min="0" step="0.01" value={remainingAmount} onChange={e => setRemainingAmount(e.target.value)} placeholder="0.00" />
+                </div>
+                <div>
+                  <Label className="text-xs">Due date</Label>
+                  <Input type="date" value={remainingDueDate} onChange={e => setRemainingDueDate(e.target.value)} />
+                </div>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setClientDialogOpen(false)}>Cancel</Button>
             <Button onClick={handleAddCoachingClient} disabled={submitting}>
-              {submitting ? "Adding..." : `Add Client — $${region === "africa_arab" ? 25 : 50}/mo`}
+              {submitting ? "Adding..." : "Add Client"}
             </Button>
           </DialogFooter>
         </DialogContent>
